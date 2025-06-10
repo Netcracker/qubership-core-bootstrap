@@ -1,0 +1,35 @@
+{ 
+  "$schema": "http://json-schema.org/draft-07/schema",
+  "$id": "http://example.com/example.json",
+  "type": "object",
+  "title": "corepl extended schema",
+  "description": "JSON schema for coretpl library.",
+  "default": {},
+  "properties": {
+    "NAMESPACE": {
+      "$id": "#/properties/NAMESPACE",
+      "type": "string",
+      "title": "The NAMESPACE schema",
+      "description": "The namespace it is going to be deployed.",
+      "default": "",
+      "internal": true
+    },
+    "RESOURCE_POLLING_TIMEOUT": {
+      "$id": "#/properties/RESOURCE_POLLING_TIMEOUT",
+      "type": "string",
+      "title": "The RESOURCE_POLLING_TIMEOUT schema",
+      "description": "Timeout the init cli tool will wait before resource polling",
+      "default": "",
+      "internal": true
+    },
+    "CR_SYNCHRONIZER_IMAGE": {
+      "$id": "#/properties/CR_SYNCHRONIZER_IMAGE",
+      "type": "string",
+      "title": "The CR_SYNCHRONIZER_IMAGE schema",
+      "description": "Image of cr-synchronizer",
+      "default": "",
+      "internal": true
+    }
+  },
+  "additionalProperties": true
+}

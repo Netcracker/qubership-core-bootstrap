@@ -1,0 +1,171 @@
+{{/* Hooks needed to make a synchronizer tool to work in both modes */}}
+
+{{ define "coretpl.synchronizer.hooks" }}
+{{ $currentScope := . }}
+{{- with $currentScope }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ template "finalyzer.postinstall.job" . }}
+  annotations:
+    helm.sh/hook: "post-install, post-upgrade"
+    helm.sh/hook-weight: "100"
+    helm.sh/hook-delete-policy: "before-hook-creation, hook-succeeded"
+  labels:
+    app.kubernetes.io/instance: {{ .Values.SERVICE_NAME }}
+    deployment.qubership.org/sessionId: '{{ .Values.DEPLOYMENT_SESSION_ID }}'
+    app.kubernetes.io/part-of: {{ .Values.SERVICE_NAME | default "platform-post-deploy" }}
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 3600
+  template:
+    metadata:
+      name: {{ template "finalyzer.postinstall.job" . }}
+    spec:
+      terminationGracePeriodSeconds: 10
+      containers:
+      - name: {{ template "finalyzer.postinstall.job" . }}
+        image: "{{ .Values.CR_SYNCHRONIZER_IMAGE }}"
+        command: ['/app/cr-checker']
+        args: ['-post']
+        imagePullPolicy: IfNotPresent
+        resources:
+          requests:
+            cpu: '50m'
+            memory: '36Mi'
+          limits:
+            memory: '36Mi'
+            cpu: '50m'
+        securityContext:
+{{ if eq .Values.PAAS_PLATFORM "KUBERNETES" }}
+          runAsGroup: 10001
+{{ end }}
+          runAsNonRoot: true
+          seccompProfile:
+            type: RuntimeDefault
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+              - ALL
+        env:
+          - name: GOMEMLIMIT
+            valueFrom:
+              resourceFieldRef:
+                resource: limits.memory
+          - name: POD_NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          - name: RESOURCE_POLLING_TIMEOUT
+            value: "{{ .Values.RESOURCE_POLLING_TIMEOUT | default 300 }}"
+          - name: WAIT_JOB_NAME
+            value: {{ template "finalyzer.postinstall.job" . }}
+          - name: SERVICE_NAME
+            value: {{ .Values.SERVICE_NAME }}
+          - name: DEPLOYMENT_RESOURCE_NAME
+            value: {{ cat (coalesce .Values.DEPLOYMENT_RESOURCE_NAME .Values.SERVICE_NAME) }}
+          - name: APPLICATION_NAME
+            value: "{{.Values.APPLICATION_NAME }}"
+          - name: DEPLOYMENT_SESSION_ID
+            value: {{ .Values.DEPLOYMENT_SESSION_ID }}
+          - name: DECLARATIONS_PLURALS
+            value: "{{ .Values.CHECK_DECLARATION_PLURALS }}"
+      restartPolicy: Never
+      serviceAccountName: finalyzer-user
+{{ $filesExist := (.Files.Glob "declarations/*") }}
+{{ if $filesExist }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ template "synchronizer.transport.configmap" . }}
+  annotations:
+    helm.sh/hook: "pre-install, pre-upgrade"
+    helm.sh/hook-delete-policy: "before-hook-creation, hook-succeeded"
+    helm.sh/hook-weight: "-55"
+  labels:
+    app.kubernetes.io/instance: {{ .Values.SERVICE_NAME }}
+    deployment.qubership.org/sessionId: '{{ .Values.DEPLOYMENT_SESSION_ID }}'
+    app.kubernetes.io/part-of: {{ .Values.APPLICATION_NAME }}
+data:
+{{- range $path, $file := .Files.Glob "declarations/*" }}
+  {{ base $path }}: |
+{{ tpl ($file | toString) $ | indent 4 }}
+{{- end }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ template "synchronizer.preinstall.job" . }}
+  annotations:
+    helm.sh/hook: "pre-install, pre-upgrade"
+    helm.sh/hook-weight: "-50"
+    helm.sh/hook-delete-policy: "before-hook-creation, hook-succeeded"
+  labels:
+    app.kubernetes.io/instance: {{ .Values.SERVICE_NAME }}
+    deployment.qubership.org/sessionId: '{{ .Values.DEPLOYMENT_SESSION_ID }}'
+    app.kubernetes.io/part-of: {{ .Values.APPLICATION_NAME }}
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 3600
+  template:
+    metadata:
+      name: {{ template "synchronizer.preinstall.job" . }}
+    spec:
+      terminationGracePeriodSeconds: 10
+      containers:
+      - name: {{ template "synchronizer.preinstall.job" . }}
+        image: {{ .Values.CR_SYNCHRONIZER_IMAGE }}
+        imagePullPolicy: IfNotPresent
+        env:
+          - name: GOMEMLIMIT
+            valueFrom:
+              resourceFieldRef:
+                resource: limits.memory
+          - name: POD_NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          - name: RESOURCE_POLLING_TIMEOUT
+            value: {{ .Values.RESOURCE_POLLING_TIMEOUT | default "300" | quote }}
+          - name: WAIT_JOB_NAME
+            value: {{ template "synchronizer.preinstall.job" . }}
+          - name: SERVICE_NAME
+            value: {{ .Values.SERVICE_NAME }}
+          - name: DEPLOYMENT_RESOURCE_NAME
+            value: {{ cat (coalesce .Values.DEPLOYMENT_RESOURCE_NAME .Values.SERVICE_NAME) }}
+          - name: APPLICATION_NAME
+            value: {{ .Values.APPLICATION_NAME }}
+          - name: DEPLOYMENT_SESSION_ID
+            value: {{ .Values.DEPLOYMENT_SESSION_ID }}
+        resources:
+          requests:
+            cpu: '50m'
+            memory: '36Mi'
+          limits:
+            memory: '36Mi'
+            cpu: '50m'
+        securityContext:
+{{ if eq .Values.PAAS_PLATFORM "KUBERNETES" }}
+          runAsGroup: 10001
+{{ end }}
+          runAsNonRoot: true
+          seccompProfile:
+            type: RuntimeDefault
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+              - ALL
+        volumeMounts:
+          - name: declarations-{{ .Values.SERVICE_NAME }}
+            mountPath: /mnt/declaratives
+      volumes:
+       - name: declarations-{{ .Values.SERVICE_NAME }}
+         configMap:
+           name: {{ template "synchronizer.transport.configmap" . }}
+      restartPolicy: Never
+      serviceAccountName: synchronizer-user
+{{- end }}
+{{ end }}
+{{ end }}
