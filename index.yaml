@@ -1,0 +1,14 @@
+apiVersion: v1
+entries:
+  coretpl:
+  - apiVersion: v2
+    appVersion: "0.1"
+    created: "2025-06-10T08:32:14.45365424Z"
+    description: Cloud-Core Uniform Library
+    digest: 447fd3dff5d8f0cbdc7663b14271c5c51e609f673f8f8402c8d80a92ec4e3f1f
+    name: coretpl
+    type: library
+    urls:
+    - https://Netcracker.github.io/qubership-core-bootstrap/coretpl-0.2.0.tgz
+    version: 0.2.0
+generated: "2025-06-10T08:32:14.453370602Z"
