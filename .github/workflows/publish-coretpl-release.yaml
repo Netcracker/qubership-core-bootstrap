@@ -1,0 +1,97 @@
+# Coretpl Helm Library Release Workflow
+#
+# This workflow is designed to release a coretpl Helm library chart to GitHub Pages.
+# It can only be triggered manually from the main branch.
+#
+# Workflow Steps:
+# 1. Checkout main branch
+# 2. Extract version from Chart.yaml
+# 3. Check if version already exists
+# 4. Set up Helm
+# 5. Package Helm chart
+# 6. Update gh-pages branch with new chart version
+#
+# Required Permissions:
+# - contents: write (for creating releases and pushing to gh-pages)
+# - pages: write (for updating GitHub Pages)
+# - id-token: write (for GitHub Pages deployment)
+#
+# Outputs:
+# - Updates the Helm repository index on GitHub Pages
+# - Publishes the chart package to GitHub Pages
+
+name: Coretpl Helm Library Release
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+
+      - name: Extract version from Chart.yaml
+        run: |
+          if [ ! -f "coretpl/Chart.yaml" ]; then
+            echo "❌ Chart.yaml not found in coretpl directory"
+            exit 1
+          fi
+          version=$(grep '^version:' coretpl/Chart.yaml | awk '{print $2}')
+          if [ -z "$version" ]; then
+            echo "❌ Could not extract version from Chart.yaml"
+            exit 1
+          fi
+          echo "chart_version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout gh-pages
+        uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          path: gh-pages
+
+      - name: Check if version already exists
+        run: |
+          if [ -f "gh-pages/index.yaml" ]; then
+            if grep -q "version: ${{ steps.chart.outputs.chart_version }}" gh-pages/index.yaml; then
+              echo "❌ Version ${{ steps.chart.outputs.chart_version }} already exists in the repository"
+              exit 1
+            fi
+          fi
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: v3.14.0
+
+      - name: Package Helm chart
+        run: |
+          mkdir -p .build
+          helm package coretpl --destination .build
+          if [ ! -f ".build/"*.tgz ]; then
+            echo "❌ Failed to package Helm chart"
+            exit 1
+          fi
+
+      - name: Update index.yaml and push to gh-pages
+        run: |
+          cd gh-pages
+          cp ../.build/*.tgz .
+          helm repo index . --url https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }} --merge index.yaml
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add .
+          git commit -m "Publish chart version ${{ steps.chart.outputs.chart_version }}" || echo "No changes"
+          git push origin gh-pages || {
+            echo "❌ Failed to push to gh-pages"
+            exit 1
+          }
