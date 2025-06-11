@@ -1,0 +1,48 @@
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ .Values.SERVICE_NAME }}-pre-hook
+  annotations:
+    helm.sh/hook: "pre-install, pre-upgrade"
+    helm.sh/hook-weight: "-190"
+    helm.sh/hook-delete-policy: "before-hook-creation, hook-succeeded"
+  labels:
+    app.kubernetes.io/instance: "{{ .Values.SERVICE_NAME }}"
+    app.kubernetes.io/part-of: Cloud-Core
+    app.kubernetes.io/managed-by: "helm"
+    deployment.qubership.org/sessionId: '{{ .Values.DEPLOYMENT_SESSION_ID }}'
+spec:
+  backoffLimit: 1
+  template:
+    metadata:
+      name: {{ .Values.SERVICE_NAME }}-pre-hook
+    spec:
+      serviceAccountName: {{ .Values.SERVICE_NAME }}-sa
+      terminationGracePeriodSeconds: 10
+      containers:
+        - name: predeploy-hook-cloud-core
+          image: {{ .Values.CORE_BOOTSTRAP_IMAGE }}
+          imagePullPolicy: IfNotPresent
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "128Mi"
+          envFrom:
+            - secretRef:
+                name: {{ .Values.SERVICE_NAME }}-env-variables
+          securityContext:
+    {{ if eq .Values.PAAS_PLATFORM "KUBERNETES" }}
+            runAsGroup: 10001
+    {{ end }}
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+      restartPolicy: Never
