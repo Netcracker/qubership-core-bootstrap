@@ -1,0 +1,500 @@
+.PHONY: all minikube-setup clone-repos deploy-paas-mediation clean deploy-control-plane create-control-plane-service-account \
+	create-namespace-% deploy-ingress-gateway add-helm-repos do-magic deploy-consul deploy-monitoring deploy-cloud-core \
+	deploy-cloud-core-print-start deploy-paas-mediation create-control-plane-service-account update-control-plane-deps \
+	add-helm-repos deploy-control-plane create-facade-operator-crds deploy-facade-operator deploy-site-management \
+	deploy-ingress-gateway prepare-bootstrap prepare-bootstrap-print-start clone-core-bootstrap-repo \
+	create-bootstrap-service-account core-bootstrap-image-build-and-load platform-bootstrap-cli-image-load \
+	run-core-bootstrap-image wait-core-bootstrap-image finalyzer-prepare create-finalyzer-service-account \
+	cr-synchronizer-image-load deploy-patroni-core deploy-patroni-core-print-start clone-patroni-core-repos \
+	update-patroni-storage-class create-patroni-core-crds install-patroni-core wait-for-patroni-pods \
+	deploy-dbaas deploy-dbaas-print-start clone-dbaas-repos build-validation-image label-database-node \
+	install-dbaas build-dbaas-image deploy-patroni-services deploy-patroni-services-print-start \
+	install-patroni-services wait-for-patroni-services deploy-dbaas-with-infra
+
+# Default target
+all: minikube-setup clone-repos deploy-monitoring deploy-consul deploy-dbaas-with-infra prepare-bootstrap
+
+ifeq ($(DEBUG),true)
+  HELM_DEBUG_FLAGS := --debug --dry-run
+else
+  HELM_DEBUG_FLAGS :=
+endif
+
+# Profile definition
+PROFILE ?= cloud-core-dev
+
+# Color definitions
+YELLOW := \033[1;33m
+GREEN := \033[1;32m
+NC := \033[0m # No Color
+
+
+
+do-magic: minikube-setup clone-repos deploy-monitoring deploy-consul deploy-dbaas-with-infra prepare-bootstrap deploy-control-plane
+
+
+
+# Start minikube cluster
+minikube-setup:
+	@echo "$(YELLOW)--- Checking minikube profile status...$(NC)"
+	@if minikube profile list | grep "$(PROFILE)" | grep -q "OK"; then \
+		echo "Profile $(PROFILE) is already running"; \
+	else \
+		echo "Creating new profile $(PROFILE)..."; \
+		minikube start --nodes=3 -p=$(PROFILE) --driver=docker; \
+	fi
+	@echo ""
+
+# Clone required repositories
+clone-repos:
+	@echo "$(YELLOW)--- Cloning required repositories...$(NC)"
+	mkdir -p repos
+	$(call clone_or_update_repo,qubership-monitoring-operator,https://github.com/Netcracker/qubership-monitoring-operator.git,main)
+	$(call clone_or_update_repo,qubership-core-paas-mediation,https://github.com/Netcracker/qubership-core-paas-mediation.git,feature/local-deployment)
+	$(call clone_or_update_repo,qubership-core-control-plane,https://github.com/Netcracker/qubership-core-control-plane.git,feature/local-deployment)
+	$(call clone_or_update_repo,qubership-core-ingress-gateway,https://github.com/Netcracker/qubership-core-ingress-gateway.git,feature/local-deployment)
+	$(call clone_or_update_repo,qubership-core-site-management,https://github.com/Netcracker/qubership-core-site-management.git,feature/local-deployment)
+	$(call clone_or_update_repo,qubership-core-facade-operator,https://github.com/Netcracker/qubership-core-facade-operator.git,feature/local-deployment)
+	@echo ""
+
+# Create namespace (parameterized target)
+create-namespace-%:
+	$(eval namespace := $*)
+	@echo "$(YELLOW)--- Creating $(namespace) namespace...$(NC)"
+	kubectl create namespace $(namespace) || echo "Namespace '$(namespace)' already exists"
+	@echo ""
+
+# -------------------------- consul -----------------------
+
+deploy-consul:
+	@echo "$(GREEN)=== Deploying Consul...$(NC)"
+	@echo ""
+	helm upgrade --install --values ./consul-chart-3/values.yaml consul ./consul-chart-3/ --namespace consul --create-namespace
+	@echo "$(GREEN)=== Consul is deployed$(NC)"
+	@echo ""
+
+# todo - add waiting step
+
+# ----------------- monitoring --------------------------
+
+deploy-monitoring:
+	@echo "$(GREEN)=== Deploying Monitoring...$(NC)"
+	@echo ""
+	helm upgrade --install monitoring-operator ./repos/qubership-monitoring-operator/charts/qubership-monitoring-operator --namespace monitoring --create-namespace
+	@echo "$(GREEN)=== Monitoring is deployed$(NC)"
+	@echo ""
+
+# ------------------ cloud core ---------------------------
+
+deploy-cloud-core: deploy-control-plane deploy-paas-mediation deploy-site-management deploy-ingress-gateway
+	@echo "$(GREEN)=== Cloud Core installation completed$(NC)"
+	@echo ""
+
+deploy-cloud-core-print-start:
+	@echo "$(GREEN)=== Starting Cloud Core installation...$(NC)"
+	@echo ""
+
+deploy-paas-mediation: platform-bootstrap-cli-image-load
+	@echo "$(YELLOW)--- Setting up PaaS Mediation...$(NC)"
+	(cd repos/qubership-core-paas-mediation/helm-templates/paas-mediation && helm dependency build)
+	helm upgrade --install -n cloud-core --create-namespace \
+		paas-mediation ./repos/qubership-core-paas-mediation/helm-templates/paas-mediation \
+		-f ./repos/qubership-core-paas-mediation/helm-templates/paas-mediation/resource-profiles/dev.yaml \
+		-f ./general-cluster-values.yaml \
+		-f ./general-core-values.yaml \
+		--set SERVICE_NAME=paas-mediation \
+		--set IMAGE_REPOSITORY=ghcr.io/netcracker/qubership-core-paas-mediation \
+		--set TAG=latest \
+		$(HELM_DEBUG_FLAGS)
+	@echo ""
+
+create-control-plane-service-account: create-namespace-cloud-core
+	@echo "$(YELLOW)--- Creating ServiceAccount for Control Plane...$(NC)"
+	kubectl apply -f manifests/control-plane-service-account.yaml
+	@echo ""
+
+update-control-plane-deps:
+	@echo "$(YELLOW)--- Updating Control Plane helm dependencies...$(NC)"
+	@cd ./repos/qubership-core-control-plane/helm-templates/control-plane && helm dependency update && cd -
+	@echo ""
+
+add-helm-repos:
+	@echo "$(YELLOW)--- Adding coretpl helm repositories...$(NC)"
+	helm repo add coretpl https://netcracker.github.io/qubership-core-bootstrap/
+	@echo ""
+
+deploy-control-plane: clone-repos create-namespace-cloud-core create-control-plane-service-account prepare-bootstrap add-helm-repos
+	@echo "$(YELLOW)--- Setting up Control Plane...$(NC)"
+	(cd repos/qubership-core-control-plane/helm-templates/control-plane && helm dependency build)
+	helm upgrade --install -n cloud-core --create-namespace \
+		control-plane ./repos/qubership-core-control-plane/helm-templates/control-plane \
+		-f ./repos/qubership-core-control-plane/helm-templates/control-plane/resource-profiles/dev.yaml \
+		-f ./general-cluster-values.yaml \
+		-f ./general-core-values.yaml \
+		--set SERVICE_NAME=control-plane \
+		--set IMAGE_REPOSITORY=ghcr.io/netcracker/qubership-core-control-plane \
+		--set TAG=fix-dockerfile-snapshot \
+		$(HELM_DEBUG_FLAGS)
+	@echo ""
+
+create-facade-operator-crds:
+	@echo "$(YELLOW)--- Create Facade Operator CRDs...$(NC)"
+	@if ! kubectl get crd facadeservices.qubership.org >/dev/null 2>&1; then \
+		echo "Creating facadeservices.qubership.org CRD..."; \
+		kubectl create -f ./repos/qubership-core-facade-operator/helm-templates/facade-operator/new-crd/facade-service-crd-v1.yaml; \
+	else \
+		echo "facadeservices.qubership.org CRD already exists"; \
+	fi
+	@if ! kubectl get crd gateways.core.qubership.org >/dev/null 2>&1; then \
+		echo "Creating gateways.core.qubership.org CRD..."; \
+		kubectl create -f ./repos/qubership-core-facade-operator/helm-templates/facade-operator/new-crd/gateway-crd-v1.yaml; \
+	else \
+		echo "gateways.core.qubership.org CRD already exists"; \
+	fi
+	@echo ""
+
+deploy-facade-operator: clone-repos create-namespace-cloud-core deploy-monitoring prepare-bootstrap add-helm-repos create-facade-operator-crds
+	@echo "$(YELLOW)--- Setting up Facade Operator...$(NC)"
+	(cd repos/qubership-core-facade-operator/helm-templates/facade-operator && helm dependency build)
+	helm upgrade --install facade-operator ./repos/qubership-core-facade-operator/helm-templates/facade-operator -n cloud-core \
+		-f ./repos/qubership-core-facade-operator/helm-templates/facade-operator/resource-profiles/dev.yaml \
+		-f ./general-cluster-values.yaml \
+		-f ./general-core-values.yaml \
+		--set SERVICE_NAME=facade-operator \
+		--set IMAGE_REPOSITORY=ghcr.io/netcracker/qubership-core-facade-operator \
+		--set TAG=latest \
+		$(HELM_DEBUG_FLAGS)
+	@echo ""
+
+deploy-site-management: create-namespace-cloud-core deploy-monitoring platform-bootstrap-cli-image-load
+	@echo "$(YELLOW)--- Setting up Site Management...$(NC)"
+	(cd repos/qubership-core-site-management/helm-templates/site-management && helm dependency build)
+	helm upgrade --install site-management ./repos/qubership-core-site-management/helm-templates/site-management -n cloud-core \
+		-f ./repos/qubership-core-site-management/helm-templates/site-management/resource-profiles/dev.yaml \
+		-f ./general-cluster-values.yaml \
+		-f ./general-core-values.yaml \
+		--set SERVICE_NAME=site-management \
+		--set IMAGE_REPOSITORY=ghcr.io/netcracker/qubership-core-site-management \
+		--set TAG=latest \
+		$(HELM_DEBUG_FLAGS)
+	@echo ""
+
+deploy-ingress-gateway: create-namespace-cloud-core platform-bootstrap-cli-image-load
+	@echo "$(YELLOW)--- Setting up Ingress Gateway...$(NC)"
+	(cd repos/qubership-core-ingress-gateway/helm-templates/frontend-gateway && helm dependency build)
+	helm upgrade --install ingress-gateway ./repos/qubership-core-ingress-gateway/helm-templates/frontend-gateway -n cloud-core \
+		-f ./repos/qubership-core-ingress-gateway/helm-templates/frontend-gateway/resource-profiles/dev.yaml \
+		-f ./general-cluster-values.yaml \
+		-f ./general-core-values.yaml \
+		--set SERVICE_NAME=ingress-gateway \
+		--set IMAGE_REPOSITORY=ghcr.io/netcracker/qubership-core-ingress-gateway \
+		--set TAG=latest \
+		$(HELM_DEBUG_FLAGS)
+	@echo ""
+
+# --------------------- bootstrap --------------------
+
+prepare-bootstrap: prepare-bootstrap-print-start clone-core-bootstrap-repo create-bootstrap-service-account core-bootstrap-image-build-and-load run-core-bootstrap-image wait-core-bootstrap-image finalyzer-prepare
+	@echo "$(GREEN)=== Bootstrap preparation completed$(NC)"
+	@echo ""
+
+prepare-bootstrap-print-start:
+	@echo "$(GREEN)=== Starting bootstrap preparation...$(NC)"
+	@echo ""
+
+clone-core-bootstrap-repo:
+	@echo "$(YELLOW)--- Cloning/Updating core-bootstrap repository...$(NC)"
+	mkdir -p repos
+	@if [ -d "repos/qubership-core-bootstrap" ]; then \
+		echo "Repository exists, updating..."; \
+		(cd repos/qubership-core-bootstrap && git pull); \
+	else \
+		echo "Cloning new repository..."; \
+		git clone https://github.com/Netcracker/qubership-core-bootstrap.git repos/qubership-core-bootstrap; \
+	fi
+	@echo ""
+
+create-bootstrap-service-account: create-namespace-cloud-core
+	@echo "$(YELLOW)--- Creating ServiceAccount for Bootstrap...$(NC)"
+	kubectl apply -f manifests/bootstrap-user-service-account.yaml
+	@echo ""
+
+core-bootstrap-image-build-and-load:
+	@echo "$(YELLOW)--- Load core-bootstrap-image$(NC)"
+	# todo VLLA - добавить проверку, что такого имаджа нет в дефолтном репозитории
+	docker buildx build -t core-bootstrap-image:latest ./repos/qubership-core-bootstrap/core-bootstrap
+	@if ! minikube image list -p=$(PROFILE) | grep -q "core-bootstrap-image:latest"; then \
+		echo "Loading core-bootstrap-image into minikube..."; \
+		minikube image load core-bootstrap-image:latest -p=$(PROFILE); \
+	else \
+		echo "core-bootstrap-image is already loaded in minikube"; \
+	fi
+	@echo ""
+
+platform-bootstrap-cli-image-load:
+	@echo "$(YELLOW)--- Load platform-bootstrap-cli image$(NC)"
+	@if ! minikube image list -p=$(PROFILE) | grep -q "platform-bootstrap-cli:v1.0"; then \
+		echo "Loading platform-bootstrap-cli image into minikube..."; \
+		minikube image load platform-bootstrap-cli:v1.0 -p=$(PROFILE); \
+	else \
+		echo "platform-bootstrap-cli is already loaded in minikube"; \
+	fi
+	@echo ""
+
+run-core-bootstrap-image: create-namespace-cloud-core create-bootstrap-service-account core-bootstrap-image-build-and-load
+	@echo "$(YELLOW)--- Running core-bootstrap-image$(NC)"
+	helm upgrade --install core-bootstrap-image ./platform-bootstrap/core-bootstrap-image/helm-charts/core-bootstrap-image -n cloud-core \
+		--set NAMESPACE=cloud-core \
+		--set CORE_BOOTSTRAP_IMAGE=core-bootstrap-image:latest \
+		--set PAAS_PLATFORM=KUBERNETES \
+		--set PAAS_VERSION=v1.33.1 \
+		$(HELM_DEBUG_FLAGS)
+	@echo ""
+
+wait-core-bootstrap-image:
+	@echo "$(YELLOW)--- Waiting for core-bootstrap-image job is finished (timeout: 1 minute)...$(NC)"
+	@TIMEOUT=60; \
+	START_TIME=$$(date +%s); \
+	while true; do \
+		CURRENT_TIME=$$(date +%s); \
+		ELAPSED_TIME=$$((CURRENT_TIME - START_TIME)); \
+		if [ $$ELAPSED_TIME -ge $$TIMEOUT ]; then \
+			echo "Timeout reached after 1 minute. Not all jobs are finished."; \
+			exit 1; \
+		fi; \
+		COMPLETED_PODS=$$(kubectl -n cloud-core get pods --selector=job-name=core-bootstrap-image-job --field-selector status.phase=Succeeded -o name | wc -l); \
+		if [ "$$COMPLETED_PODS" -eq 1 ]; then \
+			echo "core-bootstrap-image job is finished"; \
+			break; \
+		fi; \
+		echo "Waiting for core-bootstrap-image pods to be ready... - $$((TIMEOUT - ELAPSED_TIME))s remaining"; \
+		sleep 10; \
+	done
+	@ echo ""
+
+# ------------- finalyzer (CR synchronizer) -----------------------
+
+finalyzer-prepare: create-finalyzer-service-account cr-synchronizer-image-load
+
+create-finalyzer-service-account: create-namespace-cloud-core
+	@echo "$(YELLOW)--- Creating ServiceAccount for Bootstrap...$(NC)"
+	kubectl apply -f manifests/finalyzer-user-service-account.yaml
+	@echo ""
+
+cr-synchronizer-image-load:
+	@echo "$(YELLOW)--- Load cr-synchronizer image$(NC)"
+	@if ! minikube image list -p=$(PROFILE) | grep -q "cr-synchronizer:latest"; then \
+		echo "Loading cr-synchronizer image into minikube..."; \
+		minikube image load cr-synchronizer:latest -p=$(PROFILE); \
+	else \
+		echo "cr-synchronizer image is already loaded in minikube"; \
+	fi
+	@echo ""
+
+# ----------- patroni-core ------------------------------
+
+deploy-patroni-core: deploy-patroni-core-print-start clone-patroni-core-repos update-patroni-storage-class create-patroni-core-crds install-patroni-core wait-for-patroni-pods
+	@echo "$(GREEN)=== Patroni core installation completed$(NC)"
+
+deploy-patroni-core-print-start:
+	@echo "$(GREEN)=== Starting patroni core installation...$(NC)"
+	@echo ""
+
+clone-patroni-core-repos:
+	@echo "$(YELLOW)--- Cloning required repositories...$(NC)"
+	mkdir -p repos
+	git clone https://github.com/Netcracker/pgskipper-operator.git repos/pgskipper-operator || echo "Directory already exists"
+	@echo ""
+
+update-patroni-storage-class: clone-patroni-core-repos
+	@echo "$(YELLOW)--- Updating storage class in patroni quickstart sample files...$(NC)"
+	@if [ -f ./repos/pgskipper-operator/charts/patroni-core/patroni-core-quickstart-sample.yaml ]; then \
+		sed -i 's/storageClass:.*/storageClass: "standard"/' ./repos/pgskipper-operator/charts/patroni-core/patroni-core-quickstart-sample.yaml; \
+		echo "Storage class updated in patroni-core-quickstart-sample.yaml"; \
+	else \
+		echo "Error: patroni-core-quickstart-sample.yaml not found"; \
+		exit 1; \
+	fi
+	@if [ -f ./repos/pgskipper-operator/charts/patroni-services/patroni-services-quickstart-sample.yaml ]; then \
+		sed -i 's/storageClass:.*/storageClass: "standard"/' ./repos/pgskipper-operator/charts/patroni-services/patroni-services-quickstart-sample.yaml; \
+		echo "Storage class updated in patroni-services-quickstart-sample.yaml"; \
+	else \
+		echo "Error: patroni-services-quickstart-sample.yaml not found"; \
+		exit 1; \
+	fi
+	@echo "Storage class update completed"
+	@echo ""
+
+create-patroni-core-crds: clone-patroni-core-repos
+	@echo "$(YELLOW)--- Create CRD for pg-operator$(NC)"
+	@if ! kubectl get crd patronicores.qubership.org >/dev/null 2>&1; then \
+		echo "Creating patronicores.qubership.org CRD..."; \
+		kubectl create -f ./repos/pgskipper-operator/charts/patroni-core/crds/qubership.org_patronicores.yaml; \
+	else \
+		echo "patronicores.qubership.org CRD already exists"; \
+	fi
+	@if ! kubectl get crd patroniservices.qubership.org >/dev/null 2>&1; then \
+		echo "Creating patroniservices.qubership.org CRD..."; \
+		kubectl create -f ./repos/pgskipper-operator/charts/patroni-services/crds/qubership.org_patroniservices.yaml; \
+	else \
+		echo "patroniservices.qubership.org CRD already exists"; \
+	fi
+	@echo ""
+
+install-patroni-core: clone-patroni-core-repos update-patroni-storage-class create-patroni-core-crds
+	@echo "$(YELLOW)--- Deploying PG operator...$(NC)"
+	helm upgrade --install --namespace=postgres --create-namespace \
+ 		 patroni-core ./repos/pgskipper-operator/charts/patroni-core \
+ 		 -f ./repos/pgskipper-operator/charts/patroni-core/patroni-core-quickstart-sample.yaml
+	@echo ""
+
+wait-for-patroni-pods: install-patroni-core
+	@echo "$(YELLOW)--- Waiting for patroni pods to be ready (timeout: 5 minutes)...$(NC)"
+	@TIMEOUT=600; \
+	START_TIME=$$(date +%s); \
+	while true; do \
+		CURRENT_TIME=$$(date +%s); \
+		ELAPSED_TIME=$$((CURRENT_TIME - START_TIME)); \
+		if [ $$ELAPSED_TIME -ge $$TIMEOUT ]; then \
+			echo "Timeout reached after 10 minutes. Not all pods are running."; \
+			exit 1; \
+		fi; \
+		RUNNING_PATRONI_PODS=$$(kubectl -n postgres get pods --selector=app=patroni --field-selector=status.phase=Running -o name | wc -l); \
+		RUNNING_MASTER_PODS=$$(kubectl -n postgres get pods --selector=pgtype=master --field-selector=status.phase=Running -o name | wc -l); \
+		if [ "$$RUNNING_PATRONI_PODS" -eq 2 ] && [ "$$RUNNING_MASTER_PODS" -eq 1 ]; then \
+			echo "All patroni pods are running ($$RUNNING_PATRONI_PODS/2) and master pod is ready ($$RUNNING_MASTER_PODS/1)!"; \
+			break; \
+		fi; \
+		echo "Waiting for pods to be ready... (Patroni: $$RUNNING_PATRONI_PODS/2, Master: $$RUNNING_MASTER_PODS/1) - $$((TIMEOUT - ELAPSED_TIME))s remaining"; \
+		sleep 10; \
+	done
+	@echo ""
+
+# --------------------- dbaas ----------------------------
+
+deploy-dbaas: deploy-dbaas-print-start clone-dbaas-repos build-validation-image label-database-node install-dbaas
+	@echo "$(GREEN)=== DBaaS installation completed$(NC)"
+	@echo ""
+
+deploy-dbaas-print-start:
+	@echo "$(GREEN)=== Starting DBaaS installation...$(NC)"
+	@echo ""
+
+clone-dbaas-repos:
+	@echo "$(YELLOW)--- Cloning required repositories...$(NC)"
+	mkdir -p repos
+	git clone -b feature/local-deployment https://github.com/Netcracker/qubership-dbaas.git repos/qubership-dbaas || echo "Directory already exists"
+	@echo ""
+
+build-validation-image: clone-dbaas-repos
+	@echo "$(YELLOW)--- Building validation image...$(NC)"
+	docker buildx build -t dbaas-validation-image:latest ./repos/qubership-dbaas/validation-image
+	@if ! minikube image list -p=$(PROFILE) | grep -q "dbaas-validation-image:latest"; then \
+		echo "Loading validation image into minikube..."; \
+		minikube image load dbaas-validation-image:latest -p=$(PROFILE); \
+	else \
+		echo "Validation image is already loaded in minikube"; \
+	fi
+	@echo ""
+
+build-dbaas-image: clone-dbaas-repos
+	@echo "$(YELLOW)--- Building DBaaS image...$(NC)"
+	docker buildx build -t dbaas-aggregator:latest ./repos/qubership-dbaas/dbaas
+	@if ! minikube image list -p=$(PROFILE) | grep -q "dbaas-aggregator:latest"; then \
+		echo "Loading DBaaS image into minikube..."; \
+		minikube image load dbaas-aggregator:latest -p=$(PROFILE); \
+	else \
+		echo "DBaaS image is already loaded in minikube"; \
+	fi
+	@echo ""
+
+label-database-node:
+	@echo "$(YELLOW)--- Checking for existing database node...$(NC)"
+	@if ! kubectl get nodes --selector=region=database | grep -q "$(PROFILE)"; then \
+		echo "Labeling $(PROFILE) node with region=database..."; \
+		kubectl label nodes $(PROFILE) region=database --overwrite; \
+	else \
+		echo "Node $(PROFILE) already has region=database label"; \
+	fi
+	@echo ""
+
+install-dbaas: build-validation-image label-database-node
+	@echo "$(YELLOW)--- Deploying DBaaS...$(NC)"
+	helm upgrade --install -n dbaas --create-namespace \
+		dbaas-aggregator ./repos/qubership-dbaas/helm-templates/dbaas-aggregator \
+		-f ./repos/qubership-dbaas/helm-templates/dbaas-aggregator/resource-profiles/dev.yaml \
+		-f ./general-cluster-values.yaml \
+		-f ./dbaas-values.yaml \
+		--set SERVICE_NAME=dbaas-aggregator \
+		--set IMAGE_REPOSITORY=ghcr.io/netcracker/qubership-dbaas \
+		--set TAG=main-snapshot \
+		$(HELM_DEBUG_FLAGS)
+	@echo ""
+
+# --------------------- patroni-services -------------------------------
+
+deploy-patroni-services: deploy-patroni-services-print-start clone-patroni-core-repos update-patroni-storage-class create-patroni-core-crds install-patroni-services wait-for-patroni-services
+	@echo "$(GREEN)=== Patroni services installation completed$(NC)"
+	@echo ""
+
+deploy-patroni-services-print-start:
+	@echo "$(GREEN)=== Starting patroni services installation...$(NC)"
+	@echo ""
+
+install-patroni-services:
+	@echo "$(YELLOW)--- Deploying patroni-services...$(NC)"
+	helm upgrade --install --namespace=postgres --create-namespace \
+ 		-f ./repos/pgskipper-operator/charts/patroni-services/patroni-services-quickstart-sample.yaml \
+ 		 patroni-services ./repos/pgskipper-operator/charts/patroni-services \
+ 		 --set dbaas.install=true \
+ 		 --set dbaas.aggregator.registrationAddress=http://dbaas-aggregator.dbaas.svc.cluster.local:8080 \
+ 		 --set dbaas.aggregator.registrationUsername=cluster-dba \
+ 		 --set dbaas.aggregator.registrationPassword=password
+	@echo ""
+
+wait-for-patroni-services: install-patroni-services
+	@echo "$(YELLOW)--- Waiting for patroni services registration (timeout: 5 minutes)...$(NC)"
+	@TIMEOUT=300; \
+	START_TIME=$$(date +%s); \
+	while true; do \
+		CURRENT_TIME=$$(date +%s); \
+		ELAPSED_TIME=$$((CURRENT_TIME - START_TIME)); \
+		if [ $$ELAPSED_TIME -ge $$TIMEOUT ]; then \
+			echo "Timeout reached after 5 minutes. Registration message not found in logs."; \
+			exit 1; \
+		fi; \
+		if kubectl logs -n postgres -l app=dbaas-postgres-adapter --tail=100 | grep -q "Registration finished"; then \
+			echo "$(GREEN)=== Patroni services registration completed$(NC)"; \
+			break; \
+		fi; \
+		echo "Waiting for patroni services registration... - $$((TIMEOUT - ELAPSED_TIME))s remaining"; \
+		sleep 10; \
+	done
+	@echo ""
+
+# ---------------------- FULL DBaaS ---------------------------------------
+
+deploy-dbaas-with-infra: deploy-patroni-core deploy-dbaas deploy-patroni-services
+
+#---------------------------------------------------------------------------
+
+clean:
+	@echo "$(YELLOW)--- Cleaning up resources...$(NC)"
+	minikube delete -p=$(PROFILE)
+	@echo ""
+
+#---------------------------------------------------------------------------
+
+define clone_or_update_repo
+	@if [ -d "repos/$(1)" ]; then \
+		echo "Updating $(1)..."; \
+		(cd repos/$(1) && git pull); \
+	else \
+		echo "Cloning $(1)..."; \
+		if [ -n "$(3)" ]; then \
+			git clone -b $(3) $(2) repos/$(1); \
+		else \
+			git clone $(2) repos/$(1); \
+		fi; \
+	fi
+endef

@@ -1,0 +1,3 @@
+CR_SYNCHRONIZER_IMAGE: "cr-synchronizer:latest"
+NAMESPACE: "cloud-core"
+APPLICATION_NAME: "Cloud-Core"

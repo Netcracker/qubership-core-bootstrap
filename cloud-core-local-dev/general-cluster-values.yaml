@@ -1,0 +1,5 @@
+DEPLOYMENT_SESSION_ID: "cloud-core-local-dev"
+CONSUL_ENABLED: true
+CONSUL_URL: "http://consul-consul-server.consul.svc.cluster.local:8500"
+PAAS_PLATFORM: "KUBERNETES"
+PAAS_VERSION: "v1.33.1"
