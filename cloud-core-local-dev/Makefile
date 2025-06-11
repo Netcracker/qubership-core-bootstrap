@@ -3,8 +3,8 @@
 	deploy-cloud-core-print-start deploy-paas-mediation create-control-plane-service-account update-control-plane-deps \
 	add-helm-repos deploy-control-plane create-facade-operator-crds deploy-facade-operator deploy-site-management \
 	deploy-ingress-gateway prepare-bootstrap prepare-bootstrap-print-start clone-core-bootstrap-repo \
-	create-bootstrap-service-account core-bootstrap-image-build-and-load platform-bootstrap-cli-image-load \
-	run-core-bootstrap-image wait-core-bootstrap-image finalyzer-prepare create-finalyzer-service-account \
+	core-bootstrap-image-build-and-load \
+	deploy-core-bootstrap-image wait-core-bootstrap-image finalyzer-prepare create-finalyzer-service-account \
 	cr-synchronizer-image-load deploy-patroni-core deploy-patroni-core-print-start clone-patroni-core-repos \
 	update-patroni-storage-class create-patroni-core-crds install-patroni-core wait-for-patroni-pods \
 	deploy-dbaas deploy-dbaas-print-start clone-dbaas-repos build-validation-image label-database-node \
@@ -94,7 +94,7 @@ deploy-cloud-core-print-start:
 	@echo "$(GREEN)=== Starting Cloud Core installation...$(NC)"
 	@echo ""
 
-deploy-paas-mediation: platform-bootstrap-cli-image-load
+deploy-paas-mediation:
 	@echo "$(YELLOW)--- Setting up PaaS Mediation...$(NC)"
 	(cd repos/qubership-core-paas-mediation/helm-templates/paas-mediation && helm dependency build)
 	helm upgrade --install -n cloud-core --create-namespace \
@@ -166,7 +166,7 @@ deploy-facade-operator: clone-repos create-namespace-cloud-core deploy-monitorin
 		$(HELM_DEBUG_FLAGS)
 	@echo ""
 
-deploy-site-management: create-namespace-cloud-core deploy-monitoring platform-bootstrap-cli-image-load
+deploy-site-management: create-namespace-cloud-core deploy-monitoring
 	@echo "$(YELLOW)--- Setting up Site Management...$(NC)"
 	(cd repos/qubership-core-site-management/helm-templates/site-management && helm dependency build)
 	helm upgrade --install site-management ./repos/qubership-core-site-management/helm-templates/site-management -n cloud-core \
@@ -179,7 +179,7 @@ deploy-site-management: create-namespace-cloud-core deploy-monitoring platform-b
 		$(HELM_DEBUG_FLAGS)
 	@echo ""
 
-deploy-ingress-gateway: create-namespace-cloud-core platform-bootstrap-cli-image-load
+deploy-ingress-gateway: create-namespace-cloud-core
 	@echo "$(YELLOW)--- Setting up Ingress Gateway...$(NC)"
 	(cd repos/qubership-core-ingress-gateway/helm-templates/frontend-gateway && helm dependency build)
 	helm upgrade --install ingress-gateway ./repos/qubership-core-ingress-gateway/helm-templates/frontend-gateway -n cloud-core \
@@ -194,7 +194,7 @@ deploy-ingress-gateway: create-namespace-cloud-core platform-bootstrap-cli-image
 
 # --------------------- bootstrap --------------------
 
-prepare-bootstrap: prepare-bootstrap-print-start clone-core-bootstrap-repo create-bootstrap-service-account core-bootstrap-image-build-and-load run-core-bootstrap-image wait-core-bootstrap-image finalyzer-prepare
+prepare-bootstrap: prepare-bootstrap-print-start clone-core-bootstrap-repo core-bootstrap-image-build-and-load deploy-core-bootstrap-image wait-core-bootstrap-image finalyzer-prepare
 	@echo "$(GREEN)=== Bootstrap preparation completed$(NC)"
 	@echo ""
 
@@ -205,18 +205,7 @@ prepare-bootstrap-print-start:
 clone-core-bootstrap-repo:
 	@echo "$(YELLOW)--- Cloning/Updating core-bootstrap repository...$(NC)"
 	mkdir -p repos
-	@if [ -d "repos/qubership-core-bootstrap" ]; then \
-		echo "Repository exists, updating..."; \
-		(cd repos/qubership-core-bootstrap && git pull); \
-	else \
-		echo "Cloning new repository..."; \
-		git clone https://github.com/Netcracker/qubership-core-bootstrap.git repos/qubership-core-bootstrap; \
-	fi
-	@echo ""
-
-create-bootstrap-service-account: create-namespace-cloud-core
-	@echo "$(YELLOW)--- Creating ServiceAccount for Bootstrap...$(NC)"
-	kubectl apply -f manifests/bootstrap-user-service-account.yaml
+	$(call clone_or_update_repo,qubership-core-bootstrap,https://github.com/Netcracker/qubership-core-bootstrap.git,main)
 	@echo ""
 
 core-bootstrap-image-build-and-load:
@@ -231,23 +220,18 @@ core-bootstrap-image-build-and-load:
 	fi
 	@echo ""
 
-platform-bootstrap-cli-image-load:
-	@echo "$(YELLOW)--- Load platform-bootstrap-cli image$(NC)"
-	@if ! minikube image list -p=$(PROFILE) | grep -q "platform-bootstrap-cli:v1.0"; then \
-		echo "Loading platform-bootstrap-cli image into minikube..."; \
-		minikube image load platform-bootstrap-cli:v1.0 -p=$(PROFILE); \
-	else \
-		echo "platform-bootstrap-cli is already loaded in minikube"; \
-	fi
-	@echo ""
-
-run-core-bootstrap-image: create-namespace-cloud-core create-bootstrap-service-account core-bootstrap-image-build-and-load
-	@echo "$(YELLOW)--- Running core-bootstrap-image$(NC)"
-	helm upgrade --install core-bootstrap-image ./platform-bootstrap/core-bootstrap-image/helm-charts/core-bootstrap-image -n cloud-core \
+deploy-core-bootstrap-image: clone-core-bootstrap-repo core-bootstrap-image-build-and-load
+	@echo "$(YELLOW)--- Deploying core-bootstrap-image$(NC)"
+	helm upgrade --install -n cloud-core --create-namespace \
+		core-bootstrap-image ./repos/qubership-core-bootstrap/core-bootstrap/helm-charts/core-bootstrap-image \
+		-f ./repos/qubership-core-bootstrap/core-bootstrap/helm-charts/core-bootstrap-image/values.yaml \
+		-f ./general-cluster-values.yaml \
+		--set CONSUL_ENABLED=false \
 		--set NAMESPACE=cloud-core \
 		--set CORE_BOOTSTRAP_IMAGE=core-bootstrap-image:latest \
-		--set PAAS_PLATFORM=KUBERNETES \
-		--set PAAS_VERSION=v1.33.1 \
+		--set API_DBAAS_ADDRESS=http://dbaas-aggregator.dbaas.svc.cluster.local:8080 \
+		--set DBAAS_CLUSTER_DBA_CREDENTIALS_USERNAME=cluster-dba \
+		--set DBAAS_CLUSTER_DBA_CREDENTIALS_PASSWORD=password \
 		$(HELM_DEBUG_FLAGS)
 	@echo ""
 
