@@ -15,7 +15,7 @@ To integrate this library into your Helm chart, follow these steps:
 dependencies:
   - name: coretpl
     version: "<current version>"
-    repository: "https://netcracker.github.io/qubership-core-bootstrap/index.yaml"
+    repository: "https://netcracker.github.io/qubership-core-bootstrap/"
 ```
 
 2. Include the templates in your chart by creating a `corebootstrap.yaml` file in the `templates` directory with the following content:
@@ -39,3 +39,14 @@ The library requires the following configuration parameters:
 ## Version Information
 
 All library versions are available in the [Helm Repository](https://netcracker.github.io/qubership-core-bootstrap/index.yaml)
+
+## How to release new version
+
+To release a new version of the library, follow these steps:
+
+1. Increase the version number in `Chart.yaml`
+2. Push your changes to the `main` branch
+3. Trigger the [Coretpl Helm Library Release](https://github.com/Netcracker/qubership-core-bootstrap/actions/workflows/publish-coretpl-release.yaml) workflow
+
+The workflow will automatically build and publish the new version to the Helm repository.
+

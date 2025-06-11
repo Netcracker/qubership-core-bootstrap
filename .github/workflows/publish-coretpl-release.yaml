@@ -41,6 +41,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Extract version from Chart.yaml
+        id: chart
         run: |
           if [ ! -f "coretpl/Chart.yaml" ]; then
             echo "❌ Chart.yaml not found in coretpl directory"
