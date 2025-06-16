@@ -2,7 +2,7 @@
 	create-namespace-% deploy-ingress-gateway add-helm-repos do-magic deploy-consul deploy-monitoring deploy-cloud-core \
 	deploy-cloud-core-print-start deploy-paas-mediation create-control-plane-service-account update-control-plane-deps \
 	add-helm-repos deploy-control-plane create-facade-operator-crds deploy-facade-operator deploy-site-management \
-	deploy-ingress-gateway prepare-bootstrap prepare-bootstrap-print-start clone-core-bootstrap-repo \
+	deploy-ingress-gateway prepare-bootstrap prepare-bootstrap-print-start \
 	core-bootstrap-image-build-and-load \
 	deploy-core-bootstrap-image wait-core-bootstrap-image finalyzer-prepare create-finalyzer-service-account \
 	cr-synchronizer-image-load deploy-patroni-core deploy-patroni-core-print-start clone-patroni-core-repos \
@@ -194,7 +194,7 @@ deploy-ingress-gateway: create-namespace-cloud-core
 
 # --------------------- bootstrap --------------------
 
-prepare-bootstrap: prepare-bootstrap-print-start clone-core-bootstrap-repo core-bootstrap-image-build-and-load deploy-core-bootstrap-image wait-core-bootstrap-image finalyzer-prepare
+prepare-bootstrap: prepare-bootstrap-print-start core-bootstrap-image-build-and-load deploy-core-bootstrap-image wait-core-bootstrap-image finalyzer-prepare
 	@echo "$(GREEN)=== Bootstrap preparation completed$(NC)"
 	@echo ""
 
@@ -202,16 +202,10 @@ prepare-bootstrap-print-start:
 	@echo "$(GREEN)=== Starting bootstrap preparation...$(NC)"
 	@echo ""
 
-clone-core-bootstrap-repo:
-	@echo "$(YELLOW)--- Cloning/Updating core-bootstrap repository...$(NC)"
-	mkdir -p repos
-	$(call clone_or_update_repo,qubership-core-bootstrap,https://github.com/Netcracker/qubership-core-bootstrap.git,main)
-	@echo ""
-
 core-bootstrap-image-build-and-load:
 	@echo "$(YELLOW)--- Load core-bootstrap-image$(NC)"
 	# todo VLLA - добавить проверку, что такого имаджа нет в дефолтном репозитории
-	docker buildx build -t core-bootstrap-image:latest ./repos/qubership-core-bootstrap/core-bootstrap
+	docker buildx build -t core-bootstrap-image:latest ../core-bootstrap
 	@if ! minikube image list -p=$(PROFILE) | grep -q "core-bootstrap-image:latest"; then \
 		echo "Loading core-bootstrap-image into minikube..."; \
 		minikube image load core-bootstrap-image:latest -p=$(PROFILE); \
@@ -220,11 +214,11 @@ core-bootstrap-image-build-and-load:
 	fi
 	@echo ""
 
-deploy-core-bootstrap-image: clone-core-bootstrap-repo core-bootstrap-image-build-and-load
+deploy-core-bootstrap-image: core-bootstrap-image-build-and-load
 	@echo "$(YELLOW)--- Deploying core-bootstrap-image$(NC)"
 	helm upgrade --install -n cloud-core --create-namespace \
-		core-bootstrap-image ./repos/qubership-core-bootstrap/core-bootstrap/helm-charts/core-bootstrap-image \
-		-f ./repos/qubership-core-bootstrap/core-bootstrap/helm-charts/core-bootstrap-image/values.yaml \
+		core-bootstrap-image ../core-bootstrap/helm-charts/core-bootstrap-image \
+		-f ../core-bootstrap/helm-charts/core-bootstrap-image/values.yaml \
 		-f ./general-cluster-values.yaml \
 		--set CONSUL_ENABLED=false \
 		--set NAMESPACE=cloud-core \
