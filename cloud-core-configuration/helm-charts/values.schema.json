@@ -31,45 +31,16 @@
           "description": "The namespace it is going to be deployed.",
           "internal": true
         },
-        "BASELINE_ORIGIN": {
-          "$id": "#/properties/BASELINE_ORIGIN",
-          "type": "string",
-          "description": "The namespace where Composite baseline resides.",
-          "internal": true
-        },
-        "PAAS_PLATFORM": {
-          "$id": "#/properties/PAAS_PLATFORM",
-          "type": "string",
-          "title": "The PAAS_PLATFORM schema",
-          "description": "PaaS Platform.",
-          "examples": [
-            "KUBERNETES",
-            "OPENSHIFT"
-          ],
-          "internal": true
-        },    
         "DBAAS_LODB_PER_NAMESPACE_AUTOBALANCE_RULES": {
           "$id": "#/properties/DBAAS_LODB_PER_NAMESPACE_AUTOBALANCE_RULES",
           "type": "string",
           "description": "Configuration of namespace autobalance rules in DBaaS",
           "internal": true
         },
-        "STAAS_ENABLED": {
-          "$id": "#/properties/STAAS_ENABLED",
-          "type": "string",
-          "description": "Configures integration with STaaS",
-          "internal": true
-        },
         "API_DBAAS_ADDRESS": {
           "$id": "#/properties/API_DBAAS_ADDRESS",
           "type": "string",
           "description": "Internal DBaaS address inside cloud",
-          "internal": true
-        },
-        "STAAS_INTERNAL_ADDRESS": {
-          "$id": "#/properties/STAAS_INTERNAL_ADDRESS",
-          "type": "string",
-          "description": "Internal STaaS address inside cloud",
           "internal": true
         },
         "DBAAS_CLUSTER_DBA_CREDENTIALS_USERNAME": {
@@ -85,6 +56,7 @@
           "type": "string",
           "title": "The DBAAS_CLUSTER_DBA_CREDENTIALS_PASSWORD schema",
           "description": "This credentials are for role cluster-dba.",
+          "default": "password",
           "internal": true
         },    
         "DEPLOYMENT_SESSION_ID": {

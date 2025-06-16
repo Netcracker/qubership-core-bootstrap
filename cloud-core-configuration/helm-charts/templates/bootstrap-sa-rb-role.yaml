@@ -1,0 +1,128 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: synchronizer-user
+  namespace: {{ .Values.NAMESPACE }}
+  annotations:
+    helm.sh/hook: "pre-install, pre-upgrade"
+    helm.sh/hook-weight: "-200"
+    helm.sh/hook-delete-policy: "before-hook-creation"
+  labels:
+    app.kubernetes.io/instance: {{ .Values.SERVICE_NAME }}
+    deployment.qubership.org/sessionId: '{{ .Values.DEPLOYMENT_SESSION_ID }}'
+    app.kubernetes.io/part-of: {{ .Values.SERVICE_NAME | default "platform-bootstrap" }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: synchronizer-role
+  annotations:
+    helm.sh/hook: "pre-install, pre-upgrade"
+    helm.sh/hook-weight: "-200"
+    helm.sh/hook-delete-policy: "before-hook-creation"
+  labels:
+    deployer.cleanup/allow: "true"
+    app.kubernetes.io/part-of: 'Cloud-Core'
+    app.kubernetes.io/managed-by: 'saasDeployer'
+rules:
+  - apiGroups: ["core.qubership.org"]
+    resources: ["*"]
+    verbs: ["get","list","watch", "create", "update", "patch", "delete"]
+  - apiGroups: [""]
+    resources: ["events", "pods"]
+    verbs: ["get","list", "create", "update", "patch"]
+  - apiGroups: ["batch"]
+    resources: ["jobs"]
+    verbs: ["get","list"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "daemonsets", "replicasets", "statefulsets"]
+    verbs: ["get","list"]
+---
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: synchronizer-rolebind
+  namespace: {{ .Values.NAMESPACE }}
+  annotations:
+    helm.sh/hook: "pre-install, pre-upgrade"
+    helm.sh/hook-weight: "-150"
+    helm.sh/hook-delete-policy: "before-hook-creation"
+  labels:
+    deployer.cleanup/allow: "true"
+    app.kubernetes.io/part-of: 'Cloud-Core'
+    app.kubernetes.io/managed-by: 'saasDeployer'
+subjects:
+  - kind: ServiceAccount
+    name: "synchronizer-user"
+    namespace:  {{ .Values.NAMESPACE }}
+roleRef:
+  kind: Role
+  name: "synchronizer-role"
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: finalyzer-user
+  namespace: {{ .Values.NAMESPACE }}
+  annotations:
+    helm.sh/hook: "pre-install, pre-upgrade"
+    helm.sh/hook-weight: "-200"
+    helm.sh/hook-delete-policy: "before-hook-creation"
+  labels:
+    app.kubernetes.io/instance: {{ .Values.SERVICE_NAME }}
+    deployment.qubership.org/sessionId: '{{ .Values.DEPLOYMENT_SESSION_ID }}'
+    app.kubernetes.io/part-of: {{ .Values.SERVICE_NAME | default "platform-bootstrap" }}
+---
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: finalyzer-rolebind
+  annotations:
+    helm.sh/hook: "pre-install, pre-upgrade"
+    helm.sh/hook-weight: "-150"
+    helm.sh/hook-delete-policy: "before-hook-creation"
+  namespace: {{ .Values.NAMESPACE }}
+  labels:
+    deployer.cleanup/allow: "true"
+    app.kubernetes.io/part-of: 'Cloud-Core'
+    app.kubernetes.io/managed-by: 'saasDeployer'
+subjects:
+  - kind: ServiceAccount
+    name: finalyzer-user
+    namespace:  {{ .Values.NAMESPACE }}
+roleRef:
+  kind: Role
+  name: finalyzer-user-role
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: "finalyzer-user-role"
+  annotations:
+    helm.sh/hook: "pre-install, pre-upgrade"
+    helm.sh/hook-weight: "-200"
+    helm.sh/hook-delete-policy: "before-hook-creation"
+  labels:
+    deployer.cleanup/allow: "true"
+    app.kubernetes.io/part-of: 'Cloud-Core'
+    app.kubernetes.io/managed-by: 'saasDeployer'
+rules:
+  - apiGroups: ["cdn.qubership.org", "core.qubership.org"]
+    resources: ["*"]
+    verbs: ["get","list","watch", "create", "update", "patch", "delete"]
+  - apiGroups: [""]
+    resources: ["events", "pods"]
+    verbs: ["get","list", "create", "update", "patch"]
+  - apiGroups: ["batch"]
+    resources: ["jobs"]
+    verbs: ["get","list"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "daemonsets", "replicasets", "statefulsets"]
+    verbs: ["get","list", "delete"]
+  - apiGroups: ["autoscaling"]
+    resources: ["horizontalpodautoscalers"]
+    verbs: ["get","list", "delete"]
+---

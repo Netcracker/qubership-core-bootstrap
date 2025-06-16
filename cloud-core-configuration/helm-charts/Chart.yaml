@@ -1,0 +1,5 @@
+apiVersion: v2
+type: application
+name: "Cloud-Core"
+description: Application Helm chart for the Cloud-Core application
+version: 0.0.1

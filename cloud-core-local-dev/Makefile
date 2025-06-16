@@ -5,7 +5,7 @@
 	deploy-ingress-gateway prepare-bootstrap prepare-bootstrap-print-start \
 	core-bootstrap-image-build-and-load \
 	deploy-core-bootstrap-image wait-core-bootstrap-image finalyzer-prepare create-finalyzer-service-account \
-	cr-synchronizer-image-load deploy-patroni-core deploy-patroni-core-print-start clone-patroni-core-repos \
+	build-and-load-cr-synchronizer-image deploy-patroni-core deploy-patroni-core-print-start clone-patroni-core-repos \
 	update-patroni-storage-class create-patroni-core-crds install-patroni-core wait-for-patroni-pods \
 	deploy-dbaas deploy-dbaas-print-start clone-dbaas-repos build-validation-image label-database-node \
 	install-dbaas build-dbaas-image deploy-patroni-services deploy-patroni-services-print-start \
@@ -194,7 +194,7 @@ deploy-ingress-gateway: create-namespace-cloud-core
 
 # --------------------- bootstrap --------------------
 
-prepare-bootstrap: prepare-bootstrap-print-start core-bootstrap-image-build-and-load deploy-core-bootstrap-image wait-core-bootstrap-image finalyzer-prepare
+prepare-bootstrap: prepare-bootstrap-print-start core-bootstrap-image-build-and-load deploy-cloud-core-configuration finalyzer-prepare
 	@echo "$(GREEN)=== Bootstrap preparation completed$(NC)"
 	@echo ""
 
@@ -214,18 +214,16 @@ core-bootstrap-image-build-and-load:
 	fi
 	@echo ""
 
-deploy-core-bootstrap-image: core-bootstrap-image-build-and-load
-	@echo "$(YELLOW)--- Deploying core-bootstrap-image$(NC)"
-	helm upgrade --install -n cloud-core --create-namespace \
-		core-bootstrap-image ../core-bootstrap/helm-charts/core-bootstrap-image \
-		-f ../core-bootstrap/helm-charts/core-bootstrap-image/values.yaml \
+deploy-cloud-core-configuration: core-bootstrap-image-build-and-load
+	@echo "$(YELLOW)--- Deploying cloud-core-configuration$(NC)"
+	helm upgrade --install -n cloud-core --create-namespace --debug \
+		cloud-core-app-chart ../cloud-core-configuration/helm-charts \
+		-f ../cloud-core-configuration/helm-charts/values.yaml \
 		-f ./general-cluster-values.yaml \
 		--set CONSUL_ENABLED=false \
 		--set NAMESPACE=cloud-core \
 		--set CORE_BOOTSTRAP_IMAGE=core-bootstrap-image:latest \
 		--set API_DBAAS_ADDRESS=http://dbaas-aggregator.dbaas.svc.cluster.local:8080 \
-		--set DBAAS_CLUSTER_DBA_CREDENTIALS_USERNAME=cluster-dba \
-		--set DBAAS_CLUSTER_DBA_CREDENTIALS_PASSWORD=password \
 		$(HELM_DEBUG_FLAGS)
 	@echo ""
 
@@ -252,15 +250,12 @@ wait-core-bootstrap-image:
 
 # ------------- finalyzer (CR synchronizer) -----------------------
 
-finalyzer-prepare: create-finalyzer-service-account cr-synchronizer-image-load
+finalyzer-prepare: build-and-load-cr-synchronizer-image
 
-create-finalyzer-service-account: create-namespace-cloud-core
-	@echo "$(YELLOW)--- Creating ServiceAccount for Bootstrap...$(NC)"
-	kubectl apply -f manifests/finalyzer-user-service-account.yaml
-	@echo ""
-
-cr-synchronizer-image-load:
+build-and-load-cr-synchronizer-image:
 	@echo "$(YELLOW)--- Load cr-synchronizer image$(NC)"
+	# todo VLLA - добавить проверку, что такого имаджа нет в дефолтном репозитории
+	docker buildx build -t cr-synchronizer:latest ../cr-synchronizer
 	@if ! minikube image list -p=$(PROFILE) | grep -q "cr-synchronizer:latest"; then \
 		echo "Loading cr-synchronizer image into minikube..."; \
 		minikube image load cr-synchronizer:latest -p=$(PROFILE); \
