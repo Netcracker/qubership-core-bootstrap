@@ -63,7 +63,7 @@ jobs:
                 "context": "./core-bootstrap"
               }
             ]
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64
           ref: ${{ github.ref }}
           download-artifact: false
           tags: ${{ needs.prepare-version.outputs.tags }}
