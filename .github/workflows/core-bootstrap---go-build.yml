@@ -25,18 +25,15 @@ jobs:
     outputs:
       tags: "${{ steps.prepare_tags.outputs.tags }}"
     steps:
-#      - name: Checkout code
-#        uses: actions/checkout@v4
-
       - name: Get configuration file
         run: |
-          curl https://raw.githubusercontent.com/Netcracker/qubership-core-infra/main/.github/metadata-action-go-config.yml -o .github/metadata-action-go-config.yml
+          curl https://raw.githubusercontent.com/Netcracker/qubership-core-infra/main/.github/metadata-action-go-config.yml -o metadata-action-go-config.yml
 
       - name: Create name
         uses: netcracker/qubership-workflow-hub/actions/metadata-action@main
         id: metadata
         with:
-          configuration-path: .github/metadata-action-go-config.yml
+          configuration-path: metadata-action-go-config.yml
           short-sha: 7
           default-template: "{{ref-name}}-{{timestamp}}-{{github.context.runNumber}}, {{ref-name}}-{{short-sha}}, {{ref-name}}-snapshot"
 
