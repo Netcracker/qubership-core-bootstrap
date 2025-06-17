@@ -58,7 +58,7 @@ jobs:
           component: |
             [
               {
-                "name": "default", 
+                "name": "cr-synchronizer", 
                 "file": "cr-synchronizer/Dockerfile", 
                 "context": "./cr-synchronizer"
               }

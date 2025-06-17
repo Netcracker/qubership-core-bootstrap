@@ -58,7 +58,7 @@ jobs:
           component: |
             [
               {
-                "name": "default", 
+                "name": "core-bootstrap", 
                 "file": "core-bootstrap/Dockerfile", 
                 "context": "./core-bootstrap"
               }
