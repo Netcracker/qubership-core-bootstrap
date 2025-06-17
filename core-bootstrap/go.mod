@@ -6,10 +6,13 @@ toolchain go1.24.0
 
 require (
 	github.com/go-resty/resty/v2 v2.11.0
+	github.com/stretchr/testify v1.10.0
 	k8s.io/api v0.28.4
 	k8s.io/apimachinery v0.28.4
 	k8s.io/client-go v0.28.4
 )
+
+require github.com/stretchr/objx v0.5.2 // indirect
 
 require (
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
