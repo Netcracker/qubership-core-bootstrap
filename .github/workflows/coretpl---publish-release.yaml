@@ -20,7 +20,7 @@
 # - Updates the Helm repository index on GitHub Pages
 # - Publishes the chart package to GitHub Pages
 
-name: Coretpl Helm Library Release
+name: 'Coretpl Helm Library Release'
 
 on:
   workflow_dispatch:
