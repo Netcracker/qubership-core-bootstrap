@@ -1,4 +1,4 @@
-name: Go build
+name: [CR Synchronizer] Go build
 
 on:
   push:
