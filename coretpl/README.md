@@ -46,7 +46,7 @@ To release a new version of the library, follow these steps:
 
 1. Increase the version number in `Chart.yaml`
 2. Push your changes to the `main` branch
-3. Trigger the [Coretpl Helm Library Release](https://github.com/Netcracker/qubership-core-bootstrap/actions/workflows/publish-coretpl-release.yaml) workflow
+3. Trigger the [Coretpl Helm Library Release](https://github.com/Netcracker/qubership-core-bootstrap/actions/workflows/coretpl/publish-coretpl-release.yaml) workflow
 
 The workflow will automatically build and publish the new version to the Helm repository.
 

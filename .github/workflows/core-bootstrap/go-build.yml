@@ -1,0 +1,20 @@
+name: Go build
+
+on:
+  push:
+    paths:
+      - 'core-bootstrap/**'
+  pull_request:
+    types: [ opened, synchronize, reopened ]
+    paths:
+      - 'core-bootstrap/**'
+
+jobs:
+  build:
+    uses: netcracker/qubership-core-infra/.github/workflows/go-build-with-sonar.yaml@v1.0.6
+    with:
+      actor: ${{ github.actor }}
+      sonar-project-key: ${{ vars.SONAR_PROJECT_KEY_CORE_BOOTSTRAP }}
+      go-module-dir: core-bootstrap
+    secrets:
+      sonar-token: ${{ secrets.SONAR_TOKEN }}

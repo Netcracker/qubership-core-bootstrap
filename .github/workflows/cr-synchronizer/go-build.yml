@@ -1,0 +1,20 @@
+name: Go build
+
+on:
+  push:
+    paths:
+      - 'cr-synchronizer/**'
+  pull_request:
+    types: [ opened, synchronize, reopened ]
+    paths:
+      - 'cr-synchronizer/**'
+
+jobs:
+  build:
+    uses: netcracker/qubership-core-infra/.github/workflows/go-build-with-sonar.yaml@v1.0.6
+    with:
+      actor: ${{ github.actor }}
+      sonar-project-key: ${{ vars.SONAR_PROJECT_KEY_CR_SYNCHRONIZER }}
+      go-module-dir: cr-synchronizer
+    secrets:
+      sonar-token: ${{ secrets.SONAR_TOKEN }}
