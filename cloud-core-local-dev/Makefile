@@ -3,8 +3,7 @@
 	deploy-cloud-core-print-start deploy-paas-mediation create-control-plane-service-account update-control-plane-deps \
 	add-helm-repos deploy-control-plane create-facade-operator-crds deploy-facade-operator deploy-site-management \
 	deploy-ingress-gateway prepare-bootstrap prepare-bootstrap-print-start \
-	core-bootstrap-image-build-and-load \
-	deploy-core-bootstrap-image wait-core-bootstrap-image finalyzer-prepare create-finalyzer-service-account \
+	deploy-core-bootstrap-image create-finalyzer-service-account \
 	build-and-load-cr-synchronizer-image deploy-patroni-core deploy-patroni-core-print-start clone-patroni-core-repos \
 	update-patroni-storage-class create-patroni-core-crds install-patroni-core wait-for-patroni-pods \
 	deploy-dbaas deploy-dbaas-print-start clone-dbaas-repos build-validation-image label-database-node \
@@ -194,7 +193,7 @@ deploy-ingress-gateway: create-namespace-cloud-core
 
 # --------------------- bootstrap --------------------
 
-prepare-bootstrap: prepare-bootstrap-print-start core-bootstrap-image-build-and-load deploy-cloud-core-configuration finalyzer-prepare
+prepare-bootstrap: prepare-bootstrap-print-start deploy-cloud-core-configuration
 	@echo "$(GREEN)=== Bootstrap preparation completed$(NC)"
 	@echo ""
 
@@ -202,66 +201,17 @@ prepare-bootstrap-print-start:
 	@echo "$(GREEN)=== Starting bootstrap preparation...$(NC)"
 	@echo ""
 
-core-bootstrap-image-build-and-load:
-	@echo "$(YELLOW)--- Load core-bootstrap-image$(NC)"
-	# todo VLLA - добавить проверку, что такого имаджа нет в дефолтном репозитории
-	docker buildx build -t core-bootstrap-image:latest ../core-bootstrap
-	@if ! minikube image list -p=$(PROFILE) | grep -q "core-bootstrap-image:latest"; then \
-		echo "Loading core-bootstrap-image into minikube..."; \
-		minikube image load core-bootstrap-image:latest -p=$(PROFILE); \
-	else \
-		echo "core-bootstrap-image is already loaded in minikube"; \
-	fi
-	@echo ""
-
-deploy-cloud-core-configuration: core-bootstrap-image-build-and-load
+deploy-cloud-core-configuration:
 	@echo "$(YELLOW)--- Deploying cloud-core-configuration$(NC)"
-	helm upgrade --install -n cloud-core --create-namespace --debug \
+	helm upgrade --install -n cloud-core --create-namespace \
 		cloud-core-app-chart ../cloud-core-configuration/helm-charts \
 		-f ../cloud-core-configuration/helm-charts/values.yaml \
 		-f ./general-cluster-values.yaml \
 		--set CONSUL_ENABLED=false \
 		--set NAMESPACE=cloud-core \
-		--set CORE_BOOTSTRAP_IMAGE=core-bootstrap-image:latest \
+		--set CORE_BOOTSTRAP_IMAGE=ghcr.io/netcracker/core-bootstrap:latest \
 		--set API_DBAAS_ADDRESS=http://dbaas-aggregator.dbaas.svc.cluster.local:8080 \
 		$(HELM_DEBUG_FLAGS)
-	@echo ""
-
-wait-core-bootstrap-image:
-	@echo "$(YELLOW)--- Waiting for core-bootstrap-image job is finished (timeout: 1 minute)...$(NC)"
-	@TIMEOUT=60; \
-	START_TIME=$$(date +%s); \
-	while true; do \
-		CURRENT_TIME=$$(date +%s); \
-		ELAPSED_TIME=$$((CURRENT_TIME - START_TIME)); \
-		if [ $$ELAPSED_TIME -ge $$TIMEOUT ]; then \
-			echo "Timeout reached after 1 minute. Not all jobs are finished."; \
-			exit 1; \
-		fi; \
-		COMPLETED_PODS=$$(kubectl -n cloud-core get pods --selector=job-name=core-bootstrap-image-job --field-selector status.phase=Succeeded -o name | wc -l); \
-		if [ "$$COMPLETED_PODS" -eq 1 ]; then \
-			echo "core-bootstrap-image job is finished"; \
-			break; \
-		fi; \
-		echo "Waiting for core-bootstrap-image pods to be ready... - $$((TIMEOUT - ELAPSED_TIME))s remaining"; \
-		sleep 10; \
-	done
-	@ echo ""
-
-# ------------- finalyzer (CR synchronizer) -----------------------
-
-finalyzer-prepare: build-and-load-cr-synchronizer-image
-
-build-and-load-cr-synchronizer-image:
-	@echo "$(YELLOW)--- Load cr-synchronizer image$(NC)"
-	# todo VLLA - добавить проверку, что такого имаджа нет в дефолтном репозитории
-	docker buildx build -t cr-synchronizer:latest ../cr-synchronizer
-	@if ! minikube image list -p=$(PROFILE) | grep -q "cr-synchronizer:latest"; then \
-		echo "Loading cr-synchronizer image into minikube..."; \
-		minikube image load cr-synchronizer:latest -p=$(PROFILE); \
-	else \
-		echo "cr-synchronizer image is already loaded in minikube"; \
-	fi
 	@echo ""
 
 # ----------- patroni-core ------------------------------
