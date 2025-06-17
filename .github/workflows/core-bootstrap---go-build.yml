@@ -66,6 +66,6 @@ jobs:
           platforms: linux/amd64,linux/arm64
           ref: ${{ github.ref }}
           download-artifact: false
-          tags: ${{ needs.perform-version.outputs.tags }}
+          tags: ${{ needs.prepare-version.outputs.tags }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
