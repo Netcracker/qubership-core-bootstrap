@@ -10,3 +10,4 @@ List of predeploy scripts:
 3. dbaas autobalance scripts - 2 scripts for maas designators per namespace or per microservice
 4. control plane prepare db - creates db for control plane
 5. config server script - creates consult token and stores it in dedicated secret
+
