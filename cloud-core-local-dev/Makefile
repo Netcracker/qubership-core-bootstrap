@@ -152,6 +152,18 @@ deploy-ingress-gateway: clone-repos prepare-bootstrap
 		$(HELM_DEBUG_FLAGS)
 	@echo ""
 
+deploy-site-management: clone-repos prepare-bootstrap
+	@echo "$(YELLOW)--- Setting up Site Management...$(NC)"
+	(cd repos/qubership-core-site-management/helm-templates/site-management && helm dependency update)
+	helm upgrade --install site-management ./repos/qubership-core-site-management/helm-templates/site-management -n cloud-core \
+		-f ./repos/qubership-core-site-management/helm-templates/site-management/values.yaml \
+		-f ./repos/qubership-core-site-management/helm-templates/site-management/resource-profiles/dev.yaml \
+		-f ./general-cluster-values.yaml \
+		-f ./general-core-values.yaml \
+		--set TAG=latest \
+		$(HELM_DEBUG_FLAGS)
+	@echo ""
+
 deploy-paas-mediation:
 	@echo "$(YELLOW)--- Setting up PaaS Mediation...$(NC)"
 	(cd repos/qubership-core-paas-mediation/helm-templates/paas-mediation && helm dependency update)
@@ -177,19 +189,6 @@ deploy-control-plane: clone-repos prepare-bootstrap add-helm-repos
 		--set SERVICE_NAME=control-plane \
 		--set IMAGE_REPOSITORY=ghcr.io/netcracker/qubership-core-control-plane \
 		--set TAG=fix-dockerfile-snapshot \
-		$(HELM_DEBUG_FLAGS)
-	@echo ""
-
-deploy-site-management: clone-repos prepare-bootstrap
-	@echo "$(YELLOW)--- Setting up Site Management...$(NC)"
-	(cd repos/qubership-core-site-management/helm-templates/site-management && helm dependency update)
-	helm upgrade --install site-management ./repos/qubership-core-site-management/helm-templates/site-management -n cloud-core \
-		-f ./repos/qubership-core-site-management/helm-templates/site-management/resource-profiles/dev.yaml \
-		-f ./general-cluster-values.yaml \
-		-f ./general-core-values.yaml \
-		--set SERVICE_NAME=site-management \
-		--set IMAGE_REPOSITORY=ghcr.io/netcracker/qubership-core-site-management \
-		--set TAG=latest \
 		$(HELM_DEBUG_FLAGS)
 	@echo ""
 
