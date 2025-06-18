@@ -53,6 +53,7 @@ clone-repos:
 	$(call clone_or_update_repo,qubership-core-ingress-gateway,https://github.com/Netcracker/qubership-core-ingress-gateway.git,feature/local-deployment)
 	$(call clone_or_update_repo,qubership-core-site-management,https://github.com/Netcracker/qubership-core-site-management.git,feature/local-deployment)
 	$(call clone_or_update_repo,qubership-core-facade-operator,https://github.com/Netcracker/qubership-core-facade-operator.git,feature/local-deployment)
+	$(call clone_or_update_repo,qubership-core-dbaas-agent,https://github.com/Netcracker/qubership-core-dbaas-agent.git,feature/local-deployment)
 	@echo ""
 
 # Create namespace (parameterized target)
@@ -189,6 +190,19 @@ deploy-control-plane: clone-repos prepare-bootstrap add-helm-repos
 		--set SERVICE_NAME=control-plane \
 		--set IMAGE_REPOSITORY=ghcr.io/netcracker/qubership-core-control-plane \
 		--set TAG=fix-dockerfile-snapshot \
+		$(HELM_DEBUG_FLAGS)
+	@echo ""
+
+
+deploy-dbaas-agent: clone-repos add-helm-repos prepare-bootstrap
+	@echo "$(YELLOW)--- Setting up DBaaS agent...$(NC)"
+	(cd repos/qubership-core-dbaas-agent/helm-templates/dbaas-agent && helm dependency update)
+	helm upgrade --install dbaas-agent ./repos/qubership-core-dbaas-agent/helm-templates/dbaas-agent -n cloud-core \
+		-f ./repos/qubership-core-dbaas-agent/helm-templates/dbaas-agent/values.yaml \
+		-f ./repos/qubership-core-dbaas-agent/helm-templates/dbaas-agent/resource-profiles/dev.yaml \
+		-f ./general-cluster-values.yaml \
+		-f ./general-core-values.yaml \
+		--set TAG=latest \
 		$(HELM_DEBUG_FLAGS)
 	@echo ""
 
