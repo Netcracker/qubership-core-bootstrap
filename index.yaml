@@ -3,7 +3,17 @@ entries:
   coretpl:
   - apiVersion: v2
     appVersion: "0.1"
-    created: "2025-06-11T07:30:31.780674566Z"
+    created: "2025-06-18T10:49:03.297059993Z"
+    description: Cloud-Core Uniform Library
+    digest: 60e088467d3f539e94aef0544f5ddb6e580f4d240dd37387ebbb9e28b4002b8d
+    name: coretpl
+    type: library
+    urls:
+    - https://Netcracker.github.io/qubership-core-bootstrap/coretpl-0.2.2.tgz
+    version: 0.2.2
+  - apiVersion: v2
+    appVersion: "0.1"
+    created: "2025-06-18T10:49:03.296914631Z"
     description: Cloud-Core Uniform Library
     digest: 59a781efd60ba039b989d7197289799d8ee57fa532adf07888fc251dd5690dc0
     name: coretpl
@@ -13,7 +23,7 @@ entries:
     version: 0.2.1
   - apiVersion: v2
     appVersion: "0.1"
-    created: "2025-06-11T07:30:31.780512924Z"
+    created: "2025-06-18T10:49:03.296750915Z"
     description: Cloud-Core Uniform Library
     digest: 447fd3dff5d8f0cbdc7663b14271c5c51e609f673f8f8402c8d80a92ec4e3f1f
     name: coretpl
@@ -21,4 +31,4 @@ entries:
     urls:
     - https://Netcracker.github.io/qubership-core-bootstrap/coretpl-0.2.0.tgz
     version: 0.2.0
-generated: "2025-06-11T07:30:31.780213915Z"
+generated: "2025-06-18T10:49:03.296493554Z"
