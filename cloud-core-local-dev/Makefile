@@ -1,13 +1,13 @@
-.PHONY: all minikube-setup clone-repos deploy-paas-mediation clean deploy-control-plane create-control-plane-service-account \
+.PHONY: all minikube-setup clone-repos deploy-paas-mediation clean deploy-control-plane \
 	create-namespace-% deploy-ingress-gateway add-helm-repos do-magic deploy-consul deploy-monitoring deploy-cloud-core \
-	deploy-cloud-core-print-start deploy-paas-mediation create-control-plane-service-account update-control-plane-deps \
+	deploy-cloud-core-print-start deploy-paas-mediation \
 	add-helm-repos deploy-control-plane create-facade-operator-crds deploy-facade-operator deploy-site-management \
 	deploy-ingress-gateway prepare-bootstrap prepare-bootstrap-print-start \
 	deploy-core-bootstrap-image create-finalyzer-service-account \
 	build-and-load-cr-synchronizer-image deploy-patroni-core deploy-patroni-core-print-start clone-patroni-core-repos \
 	update-patroni-storage-class create-patroni-core-crds install-patroni-core wait-for-patroni-pods \
-	deploy-dbaas deploy-dbaas-print-start clone-dbaas-repos build-validation-image label-database-node \
-	install-dbaas build-dbaas-image deploy-patroni-services deploy-patroni-services-print-start \
+	deploy-dbaas deploy-dbaas-print-start clone-dbaas-repos label-database-node \
+	install-dbaas deploy-patroni-services deploy-patroni-services-print-start \
 	install-patroni-services wait-for-patroni-services deploy-dbaas-with-infra
 
 # Default target
@@ -29,7 +29,7 @@ NC := \033[0m # No Color
 
 
 
-do-magic: minikube-setup clone-repos deploy-monitoring deploy-consul deploy-dbaas-with-infra prepare-bootstrap deploy-control-plane
+do-magic: minikube-setup clone-repos deploy-monitoring deploy-metrics-server deploy-consul deploy-dbaas-with-infra prepare-bootstrap deploy-cloud-core
 
 
 
@@ -83,6 +83,15 @@ deploy-monitoring:
 	@echo "$(GREEN)=== Monitoring is deployed$(NC)"
 	@echo ""
 
+
+# ------------------- metrics-server -------------------------------
+deploy-metrics-server:
+	@echo "$(GREEN)=== Deploying Metrics Server...$(NC)"
+	@echo ""
+	kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
+	@echo "$(GREEN)=== Metrics Server is deployed$(NC)"
+	@echo ""
+
 # ------------------ cloud core ---------------------------
 
 deploy-cloud-core: deploy-control-plane deploy-paas-mediation deploy-site-management deploy-ingress-gateway
@@ -95,7 +104,7 @@ deploy-cloud-core-print-start:
 
 deploy-paas-mediation:
 	@echo "$(YELLOW)--- Setting up PaaS Mediation...$(NC)"
-	(cd repos/qubership-core-paas-mediation/helm-templates/paas-mediation && helm dependency build)
+	(cd repos/qubership-core-paas-mediation/helm-templates/paas-mediation && helm dependency update)
 	helm upgrade --install -n cloud-core --create-namespace \
 		paas-mediation ./repos/qubership-core-paas-mediation/helm-templates/paas-mediation \
 		-f ./repos/qubership-core-paas-mediation/helm-templates/paas-mediation/resource-profiles/dev.yaml \
@@ -107,24 +116,14 @@ deploy-paas-mediation:
 		$(HELM_DEBUG_FLAGS)
 	@echo ""
 
-create-control-plane-service-account: create-namespace-cloud-core
-	@echo "$(YELLOW)--- Creating ServiceAccount for Control Plane...$(NC)"
-	kubectl apply -f manifests/control-plane-service-account.yaml
-	@echo ""
-
-update-control-plane-deps:
-	@echo "$(YELLOW)--- Updating Control Plane helm dependencies...$(NC)"
-	@cd ./repos/qubership-core-control-plane/helm-templates/control-plane && helm dependency update && cd -
-	@echo ""
-
 add-helm-repos:
 	@echo "$(YELLOW)--- Adding coretpl helm repositories...$(NC)"
 	helm repo add coretpl https://netcracker.github.io/qubership-core-bootstrap/
 	@echo ""
 
-deploy-control-plane: clone-repos create-namespace-cloud-core create-control-plane-service-account prepare-bootstrap add-helm-repos
+deploy-control-plane: clone-repos prepare-bootstrap add-helm-repos
 	@echo "$(YELLOW)--- Setting up Control Plane...$(NC)"
-	(cd repos/qubership-core-control-plane/helm-templates/control-plane && helm dependency build)
+	(cd repos/qubership-core-control-plane/helm-templates/control-plane && helm dependency update)
 	helm upgrade --install -n cloud-core --create-namespace \
 		control-plane ./repos/qubership-core-control-plane/helm-templates/control-plane \
 		-f ./repos/qubership-core-control-plane/helm-templates/control-plane/resource-profiles/dev.yaml \
@@ -154,7 +153,7 @@ create-facade-operator-crds:
 
 deploy-facade-operator: clone-repos create-namespace-cloud-core deploy-monitoring prepare-bootstrap add-helm-repos create-facade-operator-crds
 	@echo "$(YELLOW)--- Setting up Facade Operator...$(NC)"
-	(cd repos/qubership-core-facade-operator/helm-templates/facade-operator && helm dependency build)
+	(cd repos/qubership-core-facade-operator/helm-templates/facade-operator && helm dependency update)
 	helm upgrade --install facade-operator ./repos/qubership-core-facade-operator/helm-templates/facade-operator -n cloud-core \
 		-f ./repos/qubership-core-facade-operator/helm-templates/facade-operator/resource-profiles/dev.yaml \
 		-f ./general-cluster-values.yaml \
@@ -167,7 +166,7 @@ deploy-facade-operator: clone-repos create-namespace-cloud-core deploy-monitorin
 
 deploy-site-management: create-namespace-cloud-core deploy-monitoring
 	@echo "$(YELLOW)--- Setting up Site Management...$(NC)"
-	(cd repos/qubership-core-site-management/helm-templates/site-management && helm dependency build)
+	(cd repos/qubership-core-site-management/helm-templates/site-management && helm dependency update)
 	helm upgrade --install site-management ./repos/qubership-core-site-management/helm-templates/site-management -n cloud-core \
 		-f ./repos/qubership-core-site-management/helm-templates/site-management/resource-profiles/dev.yaml \
 		-f ./general-cluster-values.yaml \
@@ -180,7 +179,7 @@ deploy-site-management: create-namespace-cloud-core deploy-monitoring
 
 deploy-ingress-gateway: create-namespace-cloud-core
 	@echo "$(YELLOW)--- Setting up Ingress Gateway...$(NC)"
-	(cd repos/qubership-core-ingress-gateway/helm-templates/frontend-gateway && helm dependency build)
+	(cd repos/qubership-core-ingress-gateway/helm-templates/frontend-gateway && helm dependency update)
 	helm upgrade --install ingress-gateway ./repos/qubership-core-ingress-gateway/helm-templates/frontend-gateway -n cloud-core \
 		-f ./repos/qubership-core-ingress-gateway/helm-templates/frontend-gateway/resource-profiles/dev.yaml \
 		-f ./general-cluster-values.yaml \
@@ -295,7 +294,7 @@ wait-for-patroni-pods: install-patroni-core
 
 # --------------------- dbaas ----------------------------
 
-deploy-dbaas: deploy-dbaas-print-start clone-dbaas-repos build-validation-image label-database-node install-dbaas
+deploy-dbaas: deploy-dbaas-print-start clone-dbaas-repos label-database-node install-dbaas
 	@echo "$(GREEN)=== DBaaS installation completed$(NC)"
 	@echo ""
 
@@ -341,7 +340,7 @@ label-database-node:
 	fi
 	@echo ""
 
-install-dbaas: build-validation-image label-database-node
+install-dbaas: label-database-node
 	@echo "$(YELLOW)--- Deploying DBaaS...$(NC)"
 	helm upgrade --install -n dbaas --create-namespace \
 		dbaas-aggregator ./repos/qubership-dbaas/helm-templates/dbaas-aggregator \
@@ -350,7 +349,7 @@ install-dbaas: build-validation-image label-database-node
 		-f ./dbaas-values.yaml \
 		--set SERVICE_NAME=dbaas-aggregator \
 		--set IMAGE_REPOSITORY=ghcr.io/netcracker/qubership-dbaas \
-		--set TAG=main-snapshot \
+		--set TAG=latest \
 		$(HELM_DEBUG_FLAGS)
 	@echo ""
 

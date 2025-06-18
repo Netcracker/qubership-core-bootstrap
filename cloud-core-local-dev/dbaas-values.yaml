@@ -8,4 +8,4 @@ POSTGRES_DBAAS_USER: "postgres"
 POSTGRES_DBAAS_PASSWORD: ''
 POSTGRES_DBAAS_DATABASE_NAME: "dbaas"
 PRODUCTION_MODE: false
-DECLARATIVE_HOOK_IMAGE: "dbaas-validation-image:latest"
+DECLARATIVE_HOOK_IMAGE: "ghcr.io/netcracker/qubership-dbaas-validation-image:latest"
