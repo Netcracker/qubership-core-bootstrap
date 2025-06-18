@@ -1,7 +1,7 @@
 .PHONY: all minikube-setup clone-repos deploy-paas-mediation clean deploy-control-plane \
 	create-namespace-% deploy-ingress-gateway add-helm-repos do-magic deploy-consul deploy-monitoring deploy-cloud-core \
 	deploy-cloud-core-print-start deploy-paas-mediation \
-	add-helm-repos deploy-control-plane create-facade-operator-crds deploy-facade-operator deploy-site-management \
+	deploy-control-plane create-facade-operator-crds deploy-facade-operator deploy-site-management \
 	deploy-ingress-gateway prepare-bootstrap prepare-bootstrap-print-start \
 	deploy-core-bootstrap-image create-finalyzer-service-account \
 	build-and-load-cr-synchronizer-image deploy-patroni-core deploy-patroni-core-print-start clone-patroni-core-repos \
@@ -33,7 +33,7 @@ do-magic: minikube-setup clone-repos deploy-monitoring deploy-metrics-server dep
 
 
 
-# Start minikube cluster
+
 minikube-setup:
 	@echo "$(YELLOW)--- Checking minikube profile status...$(NC)"
 	@if minikube profile list | grep "$(PROFILE)" | grep -q "OK"; then \
@@ -44,7 +44,6 @@ minikube-setup:
 	fi
 	@echo ""
 
-# Clone required repositories
 clone-repos:
 	@echo "$(YELLOW)--- Cloning required repositories...$(NC)"
 	mkdir -p repos
@@ -94,12 +93,63 @@ deploy-metrics-server:
 
 # ------------------ cloud core ---------------------------
 
-deploy-cloud-core: deploy-control-plane deploy-paas-mediation deploy-site-management deploy-ingress-gateway
+deploy-cloud-core: deploy-facade-operator deploy-ingress-gateway deploy-site-management deploy-control-plane deploy-paas-mediation
 	@echo "$(GREEN)=== Cloud Core installation completed$(NC)"
 	@echo ""
 
 deploy-cloud-core-print-start:
 	@echo "$(GREEN)=== Starting Cloud Core installation...$(NC)"
+	@echo ""
+
+add-helm-repos:
+	@echo "$(YELLOW)--- Adding required helm repositories...$(NC)"
+	helm repo add coretpl https://netcracker.github.io/qubership-core-bootstrap/
+	helm repo add hashicorp https://helm.releases.hashicorp.com
+	helm repo add grafana https://grafana.github.io/helm-charts
+	helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+	helm repo update
+	@echo ""
+
+create-facade-operator-crds:
+	@echo "$(YELLOW)--- Create Facade Operator CRDs...$(NC)"
+	@if ! kubectl get crd facadeservices.qubership.org >/dev/null 2>&1; then \
+		echo "Creating facadeservices.qubership.org CRD..."; \
+		kubectl apply -f ./repos/qubership-core-facade-operator/helm-templates/facade-operator/new-crd/facade-service-crd-v1.yaml; \
+	else \
+		echo "facadeservices.qubership.org CRD already exists"; \
+	fi
+	@if ! kubectl get crd gateways.core.qubership.org >/dev/null 2>&1; then \
+		echo "Creating gateways.core.qubership.org CRD..."; \
+		kubectl apply -f ./repos/qubership-core-facade-operator/helm-templates/facade-operator/new-crd/gateway-crd-v1.yaml; \
+	else \
+		echo "gateways.core.qubership.org CRD already exists"; \
+	fi
+	@echo ""
+
+deploy-facade-operator: clone-repos add-helm-repos prepare-bootstrap create-facade-operator-crds
+	@echo "$(YELLOW)--- Setting up Facade Operator...$(NC)"
+	(cd repos/qubership-core-facade-operator/helm-templates/facade-operator && helm dependency update)
+	helm upgrade --install facade-operator ./repos/qubership-core-facade-operator/helm-templates/facade-operator -n cloud-core \
+		-f ./repos/qubership-core-facade-operator/helm-templates/facade-operator/values.yaml \
+		-f ./repos/qubership-core-facade-operator/helm-templates/facade-operator/resource-profiles/dev.yaml \
+		-f ./general-cluster-values.yaml \
+		-f ./general-core-values.yaml \
+		--set TAG=latest \
+		$(HELM_DEBUG_FLAGS)
+	@echo ""
+
+deploy-ingress-gateway: clone-repos prepare-bootstrap
+	@echo "$(YELLOW)--- Setting up Ingress Gateway...$(NC)"
+	(cd repos/qubership-core-ingress-gateway/helm-templates/frontend-gateway && helm dependency update)
+	helm upgrade --install ingress-gateway ./repos/qubership-core-ingress-gateway/helm-templates/frontend-gateway -n cloud-core \
+		-f ./repos/qubership-core-ingress-gateway/helm-templates/frontend-gateway/values.yaml \
+		-f ./repos/qubership-core-ingress-gateway/helm-templates/frontend-gateway/resource-profiles/dev.yaml \
+		-f ./general-cluster-values.yaml \
+		-f ./general-core-values.yaml \
+		--set CLOUD_PUBLIC_HOST=svc.cluster.local \
+		--set CLOUD_PRIVATE_HOST=svc.cluster.local \
+		--set TAG=main-20250325151826-6 \
+		$(HELM_DEBUG_FLAGS)
 	@echo ""
 
 deploy-paas-mediation:
@@ -116,11 +166,6 @@ deploy-paas-mediation:
 		$(HELM_DEBUG_FLAGS)
 	@echo ""
 
-add-helm-repos:
-	@echo "$(YELLOW)--- Adding coretpl helm repositories...$(NC)"
-	helm repo add coretpl https://netcracker.github.io/qubership-core-bootstrap/
-	@echo ""
-
 deploy-control-plane: clone-repos prepare-bootstrap add-helm-repos
 	@echo "$(YELLOW)--- Setting up Control Plane...$(NC)"
 	(cd repos/qubership-core-control-plane/helm-templates/control-plane && helm dependency update)
@@ -135,36 +180,7 @@ deploy-control-plane: clone-repos prepare-bootstrap add-helm-repos
 		$(HELM_DEBUG_FLAGS)
 	@echo ""
 
-create-facade-operator-crds:
-	@echo "$(YELLOW)--- Create Facade Operator CRDs...$(NC)"
-	@if ! kubectl get crd facadeservices.qubership.org >/dev/null 2>&1; then \
-		echo "Creating facadeservices.qubership.org CRD..."; \
-		kubectl create -f ./repos/qubership-core-facade-operator/helm-templates/facade-operator/new-crd/facade-service-crd-v1.yaml; \
-	else \
-		echo "facadeservices.qubership.org CRD already exists"; \
-	fi
-	@if ! kubectl get crd gateways.core.qubership.org >/dev/null 2>&1; then \
-		echo "Creating gateways.core.qubership.org CRD..."; \
-		kubectl create -f ./repos/qubership-core-facade-operator/helm-templates/facade-operator/new-crd/gateway-crd-v1.yaml; \
-	else \
-		echo "gateways.core.qubership.org CRD already exists"; \
-	fi
-	@echo ""
-
-deploy-facade-operator: clone-repos create-namespace-cloud-core deploy-monitoring prepare-bootstrap add-helm-repos create-facade-operator-crds
-	@echo "$(YELLOW)--- Setting up Facade Operator...$(NC)"
-	(cd repos/qubership-core-facade-operator/helm-templates/facade-operator && helm dependency update)
-	helm upgrade --install facade-operator ./repos/qubership-core-facade-operator/helm-templates/facade-operator -n cloud-core \
-		-f ./repos/qubership-core-facade-operator/helm-templates/facade-operator/resource-profiles/dev.yaml \
-		-f ./general-cluster-values.yaml \
-		-f ./general-core-values.yaml \
-		--set SERVICE_NAME=facade-operator \
-		--set IMAGE_REPOSITORY=ghcr.io/netcracker/qubership-core-facade-operator \
-		--set TAG=latest \
-		$(HELM_DEBUG_FLAGS)
-	@echo ""
-
-deploy-site-management: create-namespace-cloud-core deploy-monitoring
+deploy-site-management: clone-repos prepare-bootstrap
 	@echo "$(YELLOW)--- Setting up Site Management...$(NC)"
 	(cd repos/qubership-core-site-management/helm-templates/site-management && helm dependency update)
 	helm upgrade --install site-management ./repos/qubership-core-site-management/helm-templates/site-management -n cloud-core \
@@ -173,19 +189,6 @@ deploy-site-management: create-namespace-cloud-core deploy-monitoring
 		-f ./general-core-values.yaml \
 		--set SERVICE_NAME=site-management \
 		--set IMAGE_REPOSITORY=ghcr.io/netcracker/qubership-core-site-management \
-		--set TAG=latest \
-		$(HELM_DEBUG_FLAGS)
-	@echo ""
-
-deploy-ingress-gateway: create-namespace-cloud-core
-	@echo "$(YELLOW)--- Setting up Ingress Gateway...$(NC)"
-	(cd repos/qubership-core-ingress-gateway/helm-templates/frontend-gateway && helm dependency update)
-	helm upgrade --install ingress-gateway ./repos/qubership-core-ingress-gateway/helm-templates/frontend-gateway -n cloud-core \
-		-f ./repos/qubership-core-ingress-gateway/helm-templates/frontend-gateway/resource-profiles/dev.yaml \
-		-f ./general-cluster-values.yaml \
-		-f ./general-core-values.yaml \
-		--set SERVICE_NAME=ingress-gateway \
-		--set IMAGE_REPOSITORY=ghcr.io/netcracker/qubership-core-ingress-gateway \
 		--set TAG=latest \
 		$(HELM_DEBUG_FLAGS)
 	@echo ""
@@ -251,13 +254,13 @@ create-patroni-core-crds: clone-patroni-core-repos
 	@echo "$(YELLOW)--- Create CRD for pg-operator$(NC)"
 	@if ! kubectl get crd patronicores.qubership.org >/dev/null 2>&1; then \
 		echo "Creating patronicores.qubership.org CRD..."; \
-		kubectl create -f ./repos/pgskipper-operator/charts/patroni-core/crds/qubership.org_patronicores.yaml; \
+		kubectl apply -f ./repos/pgskipper-operator/charts/patroni-core/crds/qubership.org_patronicores.yaml; \
 	else \
 		echo "patronicores.qubership.org CRD already exists"; \
 	fi
 	@if ! kubectl get crd patroniservices.qubership.org >/dev/null 2>&1; then \
 		echo "Creating patroniservices.qubership.org CRD..."; \
-		kubectl create -f ./repos/pgskipper-operator/charts/patroni-services/crds/qubership.org_patroniservices.yaml; \
+		kubectl apply -f ./repos/pgskipper-operator/charts/patroni-services/crds/qubership.org_patroniservices.yaml; \
 	else \
 		echo "patroniservices.qubership.org CRD already exists"; \
 	fi
@@ -306,28 +309,6 @@ clone-dbaas-repos:
 	@echo "$(YELLOW)--- Cloning required repositories...$(NC)"
 	mkdir -p repos
 	git clone -b feature/local-deployment https://github.com/Netcracker/qubership-dbaas.git repos/qubership-dbaas || echo "Directory already exists"
-	@echo ""
-
-build-validation-image: clone-dbaas-repos
-	@echo "$(YELLOW)--- Building validation image...$(NC)"
-	docker buildx build -t dbaas-validation-image:latest ./repos/qubership-dbaas/validation-image
-	@if ! minikube image list -p=$(PROFILE) | grep -q "dbaas-validation-image:latest"; then \
-		echo "Loading validation image into minikube..."; \
-		minikube image load dbaas-validation-image:latest -p=$(PROFILE); \
-	else \
-		echo "Validation image is already loaded in minikube"; \
-	fi
-	@echo ""
-
-build-dbaas-image: clone-dbaas-repos
-	@echo "$(YELLOW)--- Building DBaaS image...$(NC)"
-	docker buildx build -t dbaas-aggregator:latest ./repos/qubership-dbaas/dbaas
-	@if ! minikube image list -p=$(PROFILE) | grep -q "dbaas-aggregator:latest"; then \
-		echo "Loading DBaaS image into minikube..."; \
-		minikube image load dbaas-aggregator:latest -p=$(PROFILE); \
-	else \
-		echo "DBaaS image is already loaded in minikube"; \
-	fi
 	@echo ""
 
 label-database-node:
