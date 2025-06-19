@@ -1,11 +1,11 @@
 .PHONY: all minikube-setup clone-repos deploy-paas-mediation clean deploy-control-plane \
 	create-namespace-% deploy-ingress-gateway add-helm-repos do-magic deploy-consul deploy-monitoring deploy-cloud-core \
 	deploy-cloud-core-print-start deploy-paas-mediation \
-	deploy-control-plane create-facade-operator-crds deploy-facade-operator deploy-site-management \
+	deploy-control-plane apply-facade-operator-crds deploy-facade-operator deploy-site-management \
 	deploy-ingress-gateway prepare-bootstrap prepare-bootstrap-print-start \
 	deploy-core-bootstrap-image create-finalyzer-service-account \
 	build-and-load-cr-synchronizer-image deploy-patroni-core deploy-patroni-core-print-start clone-patroni-core-repos \
-	update-patroni-storage-class create-patroni-core-crds install-patroni-core wait-for-patroni-pods \
+	update-patroni-storage-class apply-patroni-core-crds install-patroni-core wait-for-patroni-pods \
 	deploy-dbaas deploy-dbaas-print-start clone-dbaas-repos label-database-node \
 	install-dbaas deploy-patroni-services deploy-patroni-services-print-start \
 	install-patroni-services wait-for-patroni-services deploy-dbaas-with-infra
@@ -29,7 +29,7 @@ NC := \033[0m # No Color
 
 
 
-do-magic: minikube-setup clone-repos deploy-monitoring deploy-metrics-server deploy-consul deploy-dbaas-with-infra prepare-bootstrap deploy-cloud-core
+do-magic: minikube-setup clone-repos deploy-metrics-server deploy-monitoring deploy-consul deploy-dbaas-with-infra prepare-bootstrap deploy-cloud-core
 
 
 
@@ -54,6 +54,8 @@ clone-repos:
 	$(call clone_or_update_repo,qubership-core-site-management,https://github.com/Netcracker/qubership-core-site-management.git,feature/local-deployment)
 	$(call clone_or_update_repo,qubership-core-facade-operator,https://github.com/Netcracker/qubership-core-facade-operator.git,feature/local-deployment)
 	$(call clone_or_update_repo,qubership-core-dbaas-agent,https://github.com/Netcracker/qubership-core-dbaas-agent.git,feature/local-deployment)
+	$(call clone_or_update_repo,qubership-core-core-operator,https://github.com/Netcracker/qubership-core-core-operator.git,feature/local-deployment)
+	$(call clone_or_update_repo,qubership-core-config-server,https://github.com/Netcracker/qubership-core-config-server.git,feature/local-deployment)
 	@echo ""
 
 # Create namespace (parameterized target)
@@ -79,7 +81,9 @@ deploy-consul:
 deploy-monitoring:
 	@echo "$(GREEN)=== Deploying Monitoring...$(NC)"
 	@echo ""
-	helm upgrade --install monitoring-operator ./repos/qubership-monitoring-operator/charts/qubership-monitoring-operator --namespace monitoring --create-namespace
+	helm upgrade --install --namespace monitoring --create-namespace \
+		monitoring-operator ./repos/qubership-monitoring-operator/charts/qubership-monitoring-operator \
+		-f ./repos/qubership-monitoring-operator/charts/qubership-monitoring-operator/values.yaml
 	@echo "$(GREEN)=== Monitoring is deployed$(NC)"
 	@echo ""
 
@@ -89,12 +93,13 @@ deploy-metrics-server:
 	@echo "$(GREEN)=== Deploying Metrics Server...$(NC)"
 	@echo ""
 	kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
+	kubectl patch deployment metrics-server -n kube-system --type='json' -p='[{"op": "add", "path": "/spec/template/spec/containers/0/args/-", "value": "--kubelet-insecure-tls"}]'
 	@echo "$(GREEN)=== Metrics Server is deployed$(NC)"
 	@echo ""
 
 # ------------------ cloud core ---------------------------
 
-deploy-cloud-core: deploy-facade-operator deploy-ingress-gateway deploy-site-management deploy-control-plane deploy-paas-mediation
+deploy-cloud-core: add-helm-repos deploy-facade-operator deploy-ingress-gateway deploy-control-plane deploy-paas-mediation deploy-dbaas-agent deploy-core-operator deploy-config-server deploy-site-management
 	@echo "$(GREEN)=== Cloud Core installation completed$(NC)"
 	@echo ""
 
@@ -111,7 +116,7 @@ add-helm-repos:
 	helm repo update
 	@echo ""
 
-create-facade-operator-crds:
+apply-facade-operator-crds:
 	@echo "$(YELLOW)--- Create Facade Operator CRDs...$(NC)"
 	@if ! kubectl get crd facadeservices.qubership.org >/dev/null 2>&1; then \
 		echo "Creating facadeservices.qubership.org CRD..."; \
@@ -127,7 +132,7 @@ create-facade-operator-crds:
 	fi
 	@echo ""
 
-deploy-facade-operator: clone-repos add-helm-repos prepare-bootstrap create-facade-operator-crds
+deploy-facade-operator: clone-repos prepare-bootstrap apply-facade-operator-crds
 	@echo "$(YELLOW)--- Setting up Facade Operator...$(NC)"
 	(cd repos/qubership-core-facade-operator/helm-templates/facade-operator && helm dependency update)
 	helm upgrade --install facade-operator ./repos/qubership-core-facade-operator/helm-templates/facade-operator -n cloud-core \
@@ -165,36 +170,34 @@ deploy-site-management: clone-repos prepare-bootstrap
 		$(HELM_DEBUG_FLAGS)
 	@echo ""
 
-deploy-paas-mediation:
+deploy-paas-mediation: clone-repos prepare-bootstrap
 	@echo "$(YELLOW)--- Setting up PaaS Mediation...$(NC)"
 	(cd repos/qubership-core-paas-mediation/helm-templates/paas-mediation && helm dependency update)
 	helm upgrade --install -n cloud-core --create-namespace \
 		paas-mediation ./repos/qubership-core-paas-mediation/helm-templates/paas-mediation \
+		-f ./repos/qubership-core-paas-mediation/helm-templates/paas-mediation/values.yaml \
 		-f ./repos/qubership-core-paas-mediation/helm-templates/paas-mediation/resource-profiles/dev.yaml \
 		-f ./general-cluster-values.yaml \
 		-f ./general-core-values.yaml \
-		--set SERVICE_NAME=paas-mediation \
-		--set IMAGE_REPOSITORY=ghcr.io/netcracker/qubership-core-paas-mediation \
 		--set TAG=latest \
 		$(HELM_DEBUG_FLAGS)
 	@echo ""
 
-deploy-control-plane: clone-repos prepare-bootstrap add-helm-repos
+deploy-control-plane: clone-repos prepare-bootstrap
 	@echo "$(YELLOW)--- Setting up Control Plane...$(NC)"
 	(cd repos/qubership-core-control-plane/helm-templates/control-plane && helm dependency update)
 	helm upgrade --install -n cloud-core --create-namespace \
 		control-plane ./repos/qubership-core-control-plane/helm-templates/control-plane \
+		-f ./repos/qubership-core-control-plane/helm-templates/control-plane/values.yaml \
 		-f ./repos/qubership-core-control-plane/helm-templates/control-plane/resource-profiles/dev.yaml \
 		-f ./general-cluster-values.yaml \
 		-f ./general-core-values.yaml \
-		--set SERVICE_NAME=control-plane \
-		--set IMAGE_REPOSITORY=ghcr.io/netcracker/qubership-core-control-plane \
 		--set TAG=fix-dockerfile-snapshot \
 		$(HELM_DEBUG_FLAGS)
 	@echo ""
 
 
-deploy-dbaas-agent: clone-repos add-helm-repos prepare-bootstrap
+deploy-dbaas-agent: clone-repos prepare-bootstrap
 	@echo "$(YELLOW)--- Setting up DBaaS agent...$(NC)"
 	(cd repos/qubership-core-dbaas-agent/helm-templates/dbaas-agent && helm dependency update)
 	helm upgrade --install dbaas-agent ./repos/qubership-core-dbaas-agent/helm-templates/dbaas-agent -n cloud-core \
@@ -203,6 +206,38 @@ deploy-dbaas-agent: clone-repos add-helm-repos prepare-bootstrap
 		-f ./general-cluster-values.yaml \
 		-f ./general-core-values.yaml \
 		--set TAG=latest \
+		$(HELM_DEBUG_FLAGS)
+	@echo ""
+
+apply-core-operator-crds:
+	@echo "$(YELLOW)--- Applying Core Operator CRDs...$(NC)"
+	kubectl apply -f ./repos/qubership-core-core-operator/helm-templates/core-operator/new-crd
+	@echo ""
+
+deploy-core-operator: clone-repos prepare-bootstrap apply-core-operator-crds
+	@echo "$(YELLOW)--- Setting up Core Operator...$(NC)"
+	(cd repos/qubership-core-core-operator/helm-templates/core-operator && helm dependency update)
+	helm upgrade --install core-operator ./repos/qubership-core-core-operator/helm-templates/core-operator -n cloud-core \
+		-f ./repos/qubership-core-core-operator/helm-templates/core-operator/values.yaml \
+		-f ./repos/qubership-core-core-operator/helm-templates/core-operator/resource-profiles/dev.yaml \
+		-f ./general-cluster-values.yaml \
+		-f ./general-core-values.yaml \
+		--set IMAGE_REPOSITORY=core-operator \
+		--set TAG=latest \
+		$(HELM_DEBUG_FLAGS)
+	@echo ""
+
+deploy-config-server: clone-repos prepare-bootstrap
+	@echo "$(YELLOW)--- Setting up Config Server...$(NC)"
+	(cd repos/qubership-core-config-server/helm-templates/config-server && helm dependency update)
+	helm upgrade --install config-server ./repos/qubership-core-config-server/helm-templates/config-server -n cloud-core \
+		-f ./repos/qubership-core-config-server/helm-templates/config-server/values.yaml \
+		-f ./repos/qubership-core-config-server/helm-templates/config-server/resource-profiles/dev.yaml \
+		-f ./general-cluster-values.yaml \
+		-f ./general-core-values.yaml \
+		--set IMAGE_REPOSITORY=config-server \
+		--set TAG=latest \
+		--set CONSUL_ENABLED=false \
 		$(HELM_DEBUG_FLAGS)
 	@echo ""
 
@@ -225,7 +260,6 @@ deploy-cloud-core-configuration:
 		--set CONSUL_ENABLED=false \
 		--set NAMESPACE=cloud-core \
 		--set CORE_BOOTSTRAP_IMAGE=ghcr.io/netcracker/core-bootstrap:latest \
-		--set API_DBAAS_ADDRESS=http://dbaas-aggregator.dbaas.svc.cluster.local:8080 \
 		$(HELM_DEBUG_FLAGS)
 	@echo ""
 
@@ -263,7 +297,7 @@ update-patroni-storage-class: clone-patroni-core-repos
 	@echo "Storage class update completed"
 	@echo ""
 
-create-patroni-core-crds: clone-patroni-core-repos
+apply-patroni-core-crds: clone-patroni-core-repos
 	@echo "$(YELLOW)--- Create CRD for pg-operator$(NC)"
 	@if ! kubectl get crd patronicores.qubership.org >/dev/null 2>&1; then \
 		echo "Creating patronicores.qubership.org CRD..."; \
@@ -279,7 +313,7 @@ create-patroni-core-crds: clone-patroni-core-repos
 	fi
 	@echo ""
 
-install-patroni-core: clone-patroni-core-repos update-patroni-storage-class create-patroni-core-crds
+install-patroni-core: clone-patroni-core-repos update-patroni-storage-class apply-patroni-core-crds
 	@echo "$(YELLOW)--- Deploying PG operator...$(NC)"
 	helm upgrade --install --namespace=postgres --create-namespace \
  		 patroni-core ./repos/pgskipper-operator/charts/patroni-core \
