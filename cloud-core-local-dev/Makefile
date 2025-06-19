@@ -166,7 +166,7 @@ deploy-site-management: clone-repos prepare-bootstrap
 		-f ./repos/qubership-core-site-management/helm-templates/site-management/resource-profiles/dev.yaml \
 		-f ./general-cluster-values.yaml \
 		-f ./general-core-values.yaml \
-		--set TAG=latest \
+		--set TAG=feature-local-deployment-snapshot \
 		$(HELM_DEBUG_FLAGS)
 	@echo ""
 
@@ -265,7 +265,7 @@ deploy-cloud-core-configuration:
 
 # ----------- patroni-core ------------------------------
 
-deploy-patroni-core: deploy-patroni-core-print-start clone-patroni-core-repos update-patroni-storage-class create-patroni-core-crds install-patroni-core wait-for-patroni-pods
+deploy-patroni-core: deploy-patroni-core-print-start clone-patroni-core-repos update-patroni-storage-class apply-patroni-core-crds install-patroni-core wait-for-patroni-pods
 	@echo "$(GREEN)=== Patroni core installation completed$(NC)"
 
 deploy-patroni-core-print-start:
@@ -301,13 +301,13 @@ apply-patroni-core-crds: clone-patroni-core-repos
 	@echo "$(YELLOW)--- Create CRD for pg-operator$(NC)"
 	@if ! kubectl get crd patronicores.qubership.org >/dev/null 2>&1; then \
 		echo "Creating patronicores.qubership.org CRD..."; \
-		kubectl apply -f ./repos/pgskipper-operator/charts/patroni-core/crds/qubership.org_patronicores.yaml; \
+		kubectl create -f ./repos/pgskipper-operator/charts/patroni-core/crds/qubership.org_patronicores.yaml; \
 	else \
 		echo "patronicores.qubership.org CRD already exists"; \
 	fi
 	@if ! kubectl get crd patroniservices.qubership.org >/dev/null 2>&1; then \
 		echo "Creating patroniservices.qubership.org CRD..."; \
-		kubectl apply -f ./repos/pgskipper-operator/charts/patroni-services/crds/qubership.org_patroniservices.yaml; \
+		kubectl create -f ./repos/pgskipper-operator/charts/patroni-services/crds/qubership.org_patroniservices.yaml; \
 	else \
 		echo "patroniservices.qubership.org CRD already exists"; \
 	fi
@@ -383,7 +383,7 @@ install-dbaas: label-database-node
 
 # --------------------- patroni-services -------------------------------
 
-deploy-patroni-services: deploy-patroni-services-print-start clone-patroni-core-repos update-patroni-storage-class create-patroni-core-crds install-patroni-services wait-for-patroni-services
+deploy-patroni-services: deploy-patroni-services-print-start clone-patroni-core-repos update-patroni-storage-class apply-patroni-core-crds install-patroni-services wait-for-patroni-services
 	@echo "$(GREEN)=== Patroni services installation completed$(NC)"
 	@echo ""
 
