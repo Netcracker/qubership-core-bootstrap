@@ -83,12 +83,44 @@ clone-repos:
 
 # -------------------------- consul -----------------------
 
-deploy-consul:
+deploy-consul-old:
 	@echo "$(GREEN)=== Deploying Consul...$(NC)"
 	@echo ""
 	helm upgrade --install --values ./consul-chart-3/values.yaml consul ./consul-chart-3/ --namespace consul --create-namespace
 	@echo "$(GREEN)=== Consul is deployed$(NC)"
 	@echo ""
+
+deploy-consul: deploy-consul-print-start clone-consul-repo change-consul-values install-consul
+	@echo "$(GREEN)=== Consul setup completed...$(NC)"
+	@echo ""
+
+deploy-consul-print-start:
+	@echo "$(GREEN)=== Starting Consul setup...$(NC)"
+	@echo ""
+
+clone-consul-repo:
+	@echo "$(YELLOW)--- Cloning consul repository...$(NC)"
+	$(call clone_or_update_repo,consul-k8s,https://github.com/hashicorp/consul-k8s,main)
+
+change-consul-values:
+	@echo "$(YELLOW)--- Updating Consul Helm chart security context...$(NC)"
+	@if [ -f ./repos/consul-k8s/charts/consul/templates/_helpers.tpl ]; then \
+		sed -i 's/runAsNonRoot: true/runAsNonRoot: false/g' ./repos/consul-k8s/charts/consul/templates/_helpers.tpl; \
+		sed -i 's/runAsUser: 100/runAsUser: 0/g' ./repos/consul-k8s/charts/consul/templates/_helpers.tpl; \
+		echo "Security context updated in _helpers.tpl"; \
+	else \
+		echo "Error: _helpers.tpl not found"; \
+		exit 1; \
+	fi
+	@echo ""
+
+install-consul:
+	@echo "$(YELLOW)--- Installing consul...$(NC)"
+	helm upgrade --install --namespace consul --create-namespace \
+ 		consul ./repos/consul-k8s/charts/consul/ \
+ 		-f ./repos/consul-k8s/charts/consul/values.yaml \
+ 		--set server.securityContext.runAsNonRoot=false \
+ 		--set server.securityContext.runAsUser=0
 
 # todo - add waiting step
 
@@ -443,9 +475,9 @@ define clone_or_update_repo
 	else \
 		echo "Cloning $(1)..."; \
 		if [ -n "$(3)" ]; then \
-			git clone -b $(3) $(2) repos/$(1); \
+			git clone --depth 1 -b $(3) $(2) repos/$(1); \
 		else \
-			git clone $(2) repos/$(1); \
+			git clone --depth 1 $(2) repos/$(1); \
 		fi; \
 	fi
 endef
