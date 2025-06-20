@@ -466,6 +466,22 @@ deploy-config-server: clone-repos prepare-core-bootstrap
 		$(HELM_DEBUG_FLAGS)
 	@echo ""
 
+build-and-load-core-operator-docker-image:
+	@echo "$(YELLOW)--- Building core-operator docker image...$(NC)"
+	(cd repos/qubership-core-core-operator && \
+		mvn clean install -Dmaven.test.skip=true && \
+		docker buildx build -t=core-operator:latest .)
+	minikube image load core-operator:latest -p=$(PROFILE)
+
+build-and-load-config-server-docker-image:
+	@echo "$(YELLOW)--- Building config-server docker image...$(NC)"
+	(cd repos/qubership-core-config-server && \
+		mvn clean install -Dmaven.test.skip=true && \
+		docker buildx build -t=config-server:latest .)
+	minikube image load config-server:latest -p=$(PROFILE)
+
+build-and-load-missed-images: build-and-load-core-operator-docker-image build-and-load-config-server-docker-image
+
 # ------------------------------------------------------------------------------
 
 define clone_or_update_repo
