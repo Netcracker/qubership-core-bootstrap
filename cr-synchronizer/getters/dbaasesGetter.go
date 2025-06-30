@@ -41,12 +41,12 @@ func (ng *DBaaSesRunner) Name() string {
 
 func (ng *DBaaSesRunner) initialize() {
 	log.Info().Str("type", "creator").Str("kind", "dbaas").Msgf("starting declarationCreator")
-	schemeRes, listRes := ng.declarationCreator(ng.resources, dbaasPlural)
+	schemeRes := ng.declarationCreator(ng.resources, dbaasPlural)
 	log.Info().Str("type", "creator").Str("kind", "dbaas").Msgf("finished declarationCreator")
-	if len(listRes) > 0 {
-		for _, declarativeName := range listRes {
+	for resource, names := range schemeRes {
+		for _, declarativeName := range names {
 			log.Info().Str("type", "waiter").Str("kind", "dbaas").Str("name", declarativeName).Msgf("starting declarationWaiter")
-			ng.declarationWaiter(schemeRes, declarativeName)
+			ng.declarationWaiter(resource, declarativeName)
 			log.Info().Str("type", "waiter").Str("kind", "dbaas").Str("name", declarativeName).Msgf("finished declarationWaiter")
 		}
 	}
