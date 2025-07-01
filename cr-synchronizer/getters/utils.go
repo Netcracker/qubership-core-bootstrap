@@ -26,7 +26,7 @@ import (
 )
 
 const (
-	mountPath                      = "/Users/estetsenko/declaratives"
+	mountPath                      = "/mnt/declaratives"
 	MaaSKind                       = "MaaS"
 	MeshKind                       = "Mesh"
 	DBaaSKind                      = "DBaaS"
