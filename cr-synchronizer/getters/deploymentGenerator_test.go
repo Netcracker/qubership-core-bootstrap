@@ -44,13 +44,15 @@ func TestDeclarationWaiter_UpdatedPhase(t *testing.T) {
 	fclient := k8sClientDynamic.NewSimpleDynamicClient(scheme)
 	fakeClientSet := fake.NewSimpleClientset()
 
-	ng := &DeploymentGenerator{
-		client:          fclient,
-		recorder:        &testRecorder{},
-		scheme:          scheme,
-		runtimeReceiver: &unstructured.Unstructured{},
-		clientset:       &fakeClientset{appsV1: fakeClientSet.AppsV1()},
-	}
+	ng := NewDeploymentGenerator(
+		fclient,
+		&testRecorder{},
+		&fakeClientset{appsV1: fakeClientSet.AppsV1()},
+		scheme,
+		&unstructured.Unstructured{},
+		false,
+		10,
+	)
 
 	obj := &unstructured.Unstructured{}
 	obj.SetName("test-resource")
