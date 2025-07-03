@@ -30,7 +30,7 @@ func (ng *DBaaSesRunner) Generate() {
 	}
 }
 
-func NewDBaaSesRunnerGenerator(resources []unstructured.Unstructured, client dynamic.Interface, recorder EventRecorder, clientset ncapi.Interface, scheme *runtime.Scheme, runtimeReceiver runtime.Object) *DBaaSesRunner {
+func NewDBaaSesRunnerGenerator(resources []unstructured.Unstructured, client dynamic.Interface, recorder EventRecorder, clientset ncapi.Interface, scheme *runtime.Scheme, runtimeReceiver runtime.Object, timeoutSeconds int) *DBaaSesRunner {
 	return &DBaaSesRunner{
 		resources: resources,
 		DeploymentGenerator: DeploymentGenerator{
@@ -39,6 +39,7 @@ func NewDBaaSesRunnerGenerator(resources []unstructured.Unstructured, client dyn
 			recorder:        recorder,
 			scheme:          scheme,
 			runtimeReceiver: runtimeReceiver,
+			timeoutSeconds:  timeoutSeconds,
 		},
 	}
 }

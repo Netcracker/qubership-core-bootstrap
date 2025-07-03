@@ -30,7 +30,7 @@ func (ng *MaaSesRunner) Generate() {
 	}
 }
 
-func NewMaaSesRunnerGenerator(resources []unstructured.Unstructured, client dynamic.Interface, recorder EventRecorder, clientset ncapi.Interface, scheme *runtime.Scheme, runtimeReceiver runtime.Object) *MaaSesRunner {
+func NewMaaSesRunnerGenerator(resources []unstructured.Unstructured, client dynamic.Interface, recorder EventRecorder, clientset ncapi.Interface, scheme *runtime.Scheme, runtimeReceiver runtime.Object, timeoutSeconds int) *MaaSesRunner {
 	return &MaaSesRunner{
 		resources: resources,
 		DeploymentGenerator: DeploymentGenerator{
@@ -39,6 +39,7 @@ func NewMaaSesRunnerGenerator(resources []unstructured.Unstructured, client dyna
 			recorder:        recorder,
 			scheme:          scheme,
 			runtimeReceiver: runtimeReceiver,
+			timeoutSeconds:  timeoutSeconds,
 		},
 	}
 }

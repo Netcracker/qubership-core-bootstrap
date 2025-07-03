@@ -24,7 +24,7 @@ type GenericRunner struct {
 	DeploymentGenerator
 }
 
-func NewGenericRunnerGenerator(client dynamic.Interface, recorder EventRecorder, clientset ncapi.Interface, scheme *runtime.Scheme, runtimeReceiver runtime.Object) *GenericRunner {
+func NewGenericRunnerGenerator(client dynamic.Interface, recorder EventRecorder, clientset ncapi.Interface, scheme *runtime.Scheme, runtimeReceiver runtime.Object, timeoutSeconds int) *GenericRunner {
 	return &GenericRunner{
 		DeploymentGenerator: DeploymentGenerator{
 			client:          client,
@@ -32,6 +32,7 @@ func NewGenericRunnerGenerator(client dynamic.Interface, recorder EventRecorder,
 			recorder:        recorder,
 			scheme:          scheme,
 			runtimeReceiver: runtimeReceiver,
+			timeoutSeconds:  timeoutSeconds,
 		},
 	}
 }

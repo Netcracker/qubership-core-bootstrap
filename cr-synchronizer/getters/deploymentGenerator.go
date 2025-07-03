@@ -14,7 +14,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/dynamic"
 	"os"
-	"strconv"
 	"time"
 )
 
@@ -29,27 +28,25 @@ type DeploymentGenerator struct {
 	clientset       ncapi.Interface
 	scheme          *runtime.Scheme
 	runtimeReceiver runtime.Object
+	timeoutSeconds  int
+	postDeploy      bool
 }
 
-func NewDeploymentGenerator(client dynamic.Interface, recorder EventRecorder, clientset ncapi.Interface, scheme *runtime.Scheme, runtimeReceiver runtime.Object) *DeploymentGenerator {
+func NewDeploymentGenerator(client dynamic.Interface, recorder EventRecorder, clientset ncapi.Interface, scheme *runtime.Scheme, runtimeReceiver runtime.Object, postDeploy bool, timeoutSeconds int) *DeploymentGenerator {
 	return &DeploymentGenerator{
 		client:          client,
 		recorder:        recorder,
 		clientset:       clientset,
 		scheme:          scheme,
 		runtimeReceiver: runtimeReceiver,
+		timeoutSeconds:  timeoutSeconds,
+		postDeploy:      postDeploy,
 	}
 }
 
 func (ng *DeploymentGenerator) Run() {
 	var generatorManager *GeneratorManager
-	rptm = 30
-	if val, ok := os.LookupEnv("RESOURCE_POLLING_TIMEOUT"); ok {
-		if parsed, err := strconv.Atoi(val); err == nil {
-			rptm = parsed
-		}
-	}
-	if !postdeploy {
+	if !ng.postDeploy {
 		log.Info().Str("mode", "synchronizer").Msgf("Synchronizer hook started")
 		installedDeclaratives := prepareDataFromFiles()
 		generatorManager = ng.createKnownGeneratorManager(installedDeclaratives)
@@ -64,7 +61,7 @@ func (ng *DeploymentGenerator) createGenericGeneratorManager() *GeneratorManager
 	generatorManager = &GeneratorManager{
 		generators: make(map[string]Generator),
 	}
-	generatorManager.register(NewGenericRunnerGenerator(ng.client, ng.recorder, ng.clientset, ng.scheme, ng.runtimeReceiver))
+	generatorManager.register(NewGenericRunnerGenerator(ng.client, ng.recorder, ng.clientset, ng.scheme, ng.runtimeReceiver, ng.timeoutSeconds))
 	return generatorManager
 }
 
@@ -72,8 +69,8 @@ func (ng *DeploymentGenerator) createKnownGeneratorManager(dcl map[string][]unst
 	generatorManager = &GeneratorManager{
 		generators: make(map[string]Generator),
 	}
-	generatorManager.register(NewMaaSesRunnerGenerator(dcl[MaaSKind], ng.client, ng.recorder, ng.clientset, ng.scheme, ng.runtimeReceiver))
-	generatorManager.register(NewDBaaSesRunnerGenerator(dcl[DBaaSKind], ng.client, ng.recorder, ng.clientset, ng.scheme, ng.runtimeReceiver))
+	generatorManager.register(NewMaaSesRunnerGenerator(dcl[MaaSKind], ng.client, ng.recorder, ng.clientset, ng.scheme, ng.runtimeReceiver, ng.timeoutSeconds))
+	generatorManager.register(NewDBaaSesRunnerGenerator(dcl[DBaaSKind], ng.client, ng.recorder, ng.clientset, ng.scheme, ng.runtimeReceiver, ng.timeoutSeconds))
 	return generatorManager
 }
 
@@ -267,7 +264,7 @@ func (ng *DeploymentGenerator) handlePhaseChange(resourceType schema.GroupVersio
 func (ng *DeploymentGenerator) declarationWaiter(resourceType schema.GroupVersionResource, resourceName string) {
 	log.Info().Str("type", "waiter").Str("name", resourceName).Str("resourceGroup", resourceType.Group).Msgf("starting waiter for resource")
 
-	timeout := time.After(time.Duration(rptm) * time.Second)
+	timeout := time.After(time.Duration(ng.timeoutSeconds) * time.Second)
 	done := make(chan bool)
 
 	go func() {
@@ -275,7 +272,7 @@ func (ng *DeploymentGenerator) declarationWaiter(resourceType schema.GroupVersio
 
 		watcher, err := ng.client.Resource(resourceType).Namespace(namespace).Watch(context.TODO(), v1.ListOptions{
 			FieldSelector:  "metadata.name=" + resourceName,
-			TimeoutSeconds: func() *int64 { t := int64(rptm); return &t }(),
+			TimeoutSeconds: func() *int64 { t := int64(ng.timeoutSeconds); return &t }(),
 		})
 		if err != nil {
 			log.Fatal().Stack().Str("name", resourceName).Str("group", resourceType.Group).Err(err).Msg("Failed to start watch on declaration")
@@ -320,7 +317,7 @@ func (ng *DeploymentGenerator) declarationWaiter(resourceType schema.GroupVersio
 }
 
 func (ng *DeploymentGenerator) GenericWaiter(deploymentRes schema.GroupVersionResource, declarativeAsUnstructured unstructured.Unstructured) {
-	to := time.After(time.Duration(rptm) * time.Second)
+	to := time.After(time.Duration(ng.timeoutSeconds) * time.Second)
 	done := make(chan bool)
 	var err error
 	go func() {

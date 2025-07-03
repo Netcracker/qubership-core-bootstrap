@@ -26,9 +26,7 @@ const (
 	manager                        = "cr-synchronizer"
 )
 
-var rptm = 30
 var deploymentName, serviceName, namespace, receiverKind string
-var postdeploy bool
 var log zerolog.Logger
 var wr diode.Writer
 

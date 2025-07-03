@@ -55,9 +55,8 @@ func init() {
 	serviceName = os.Getenv("SERVICE_NAME")
 }
 
-func StartGenerator(pst bool) {
-	postdeploy = pst
-	prepare()
+func StartGenerator(postDeploy bool, timeoutSec int) {
+	prepare(postDeploy, timeoutSec)
 	wr.Close()
 }
 
@@ -86,7 +85,7 @@ func (gm *GeneratorManager) run() {
 	generatorsWaitGroup.Wait()
 }
 
-func prepare() {
+func prepare(postDeploy bool, timeoutSec int) {
 	config, err := rest.InClusterConfig()
 	if err != nil {
 		log.Fatal().Stack().Err(err).Msg("InCluster config can't be initialized")
@@ -109,7 +108,7 @@ func prepare() {
 	if err != nil {
 		log.Fatal().Stack().Err(err).Msg("Dynamic Client can't be initialized")
 	}
-	NewDeploymentGenerator(client, recorder, clientSet, scheme.Scheme, runtimeReceiver).Run()
+	NewDeploymentGenerator(client, recorder, clientSet, scheme.Scheme, runtimeReceiver, postDeploy, timeoutSec).Run()
 
 	log.Info().Str("type", "init").Msgf("generator finished")
 }
