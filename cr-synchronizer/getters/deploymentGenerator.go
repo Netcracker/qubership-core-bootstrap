@@ -278,7 +278,7 @@ func (ng *DeploymentGenerator) declarationWaiter(resourceType schema.GroupVersio
 			log.Warn().Str("name", resourceName).Msg("Received non-unstructured object from watch")
 			return
 		}
-		phaseField, isFound, err := unstructured.NestedString(obj.Object, "spec", "status", "phase")
+		phaseField, isFound, err := unstructured.NestedString(obj.Object, "status", "phase")
 		if !isFound {
 			log.Warn().Str("type", "waiter").Stack().Str("name", resourceName).Str("group", resourceType.Group).Err(err).Msg("Phase field not found")
 		}
