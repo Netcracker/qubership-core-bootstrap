@@ -230,7 +230,7 @@ func (ng *DeploymentGenerator) setOwnerRef(resourceType schema.GroupVersionResou
 
 }
 
-func (ng *DeploymentGenerator) handlePhaseChange(resourceType schema.GroupVersionResource, resourceName string, result *unstructured.Unstructured, phaseField string, done chan<- bool) bool {
+func (ng *DeploymentGenerator) handlePhaseChange(resourceType schema.GroupVersionResource, resourceName string, result *unstructured.Unstructured, phaseField string) bool {
 	kind := result.GetKind()
 	switch phaseField {
 	case "WaitingForDependency", "BackingOff", "Updating":
@@ -253,7 +253,6 @@ func (ng *DeploymentGenerator) handlePhaseChange(resourceType schema.GroupVersio
 		log.Info().Str("type", "waiter").Str("name", resourceName).Msg("start setting owner reference on stable phase 'Updated'")
 		ng.setOwnerRef(resourceType, resourceName)
 		log.Info().Str("type", "waiter").Str("name", resourceName).Msg("finished setting owner reference on stable phase 'Updated'")
-		done <- true
 		return true
 	default:
 		log.Info().Str("type", "waiter").Str("name", resourceName).Str("kind", kind).Msgf("Resource still does not have phase field")
@@ -264,55 +263,33 @@ func (ng *DeploymentGenerator) handlePhaseChange(resourceType schema.GroupVersio
 func (ng *DeploymentGenerator) declarationWaiter(resourceType schema.GroupVersionResource, resourceName string) {
 	log.Info().Str("type", "waiter").Str("name", resourceName).Str("resourceGroup", resourceType.Group).Msgf("starting waiter for resource")
 
-	timeout := time.After(time.Duration(ng.timeoutSeconds) * time.Second)
-	done := make(chan bool)
+	watcher, err := ng.client.Resource(resourceType).Namespace(namespace).Watch(context.TODO(), v1.ListOptions{
+		FieldSelector:  "metadata.name=" + resourceName,
+		TimeoutSeconds: func() *int64 { t := int64(ng.timeoutSeconds); return &t }(),
+	})
+	if err != nil {
+		log.Fatal().Stack().Str("name", resourceName).Str("group", resourceType.Group).Err(err).Msg("Failed to start watch on declaration")
+	}
+	defer watcher.Stop()
 
-	go func() {
-		defer log.Info().Str("type", "waiter").Str("resource", resourceName).Str("group", resourceType.Group).Msgf("Waiting done")
-
-		watcher, err := ng.client.Resource(resourceType).Namespace(namespace).Watch(context.TODO(), v1.ListOptions{
-			FieldSelector:  "metadata.name=" + resourceName,
-			TimeoutSeconds: func() *int64 { t := int64(ng.timeoutSeconds); return &t }(),
-		})
+	for event := range watcher.ResultChan() {
+		obj, ok := event.Object.(*unstructured.Unstructured)
+		if !ok {
+			log.Warn().Str("name", resourceName).Msg("Received non-unstructured object from watch")
+			return
+		}
+		phaseField, isFound, err := unstructured.NestedString(obj.Object, "spec", "status", "phase")
+		if !isFound {
+			log.Warn().Str("type", "waiter").Stack().Str("name", resourceName).Str("group", resourceType.Group).Err(err).Msg("Phase field not found")
+		}
 		if err != nil {
-			log.Fatal().Stack().Str("name", resourceName).Str("group", resourceType.Group).Err(err).Msg("Failed to start watch on declaration")
+			log.Warn().Str("type", "waiter").Stack().Str("name", resourceName).Str("group", resourceType.Group).Err(err).Msg("Phase field lookup error")
 		}
-		defer watcher.Stop()
-
-		for {
-			select {
-			case <-done:
-				log.Printf("done return")
-				return
-			case <-timeout:
-				ng.sendEvent("TimeOutReached", "Declaratives failed to progress", resourceName, "")
-				log.Fatal().Stack().Str("name", resourceName).Msg("TimeOutReached")
-				return
-			case event, ok := <-watcher.ResultChan():
-				if !ok {
-					log.Warn().Str("name", resourceName).Msg("Watch channel closed")
-					return
-				}
-				obj, ok := event.Object.(*unstructured.Unstructured)
-				if !ok {
-					log.Warn().Str("name", resourceName).Msg("Received non-unstructured object from watch")
-					continue
-				}
-				phaseField, isFound, err := unstructured.NestedString(obj.Object, "status", "phase")
-				if !isFound {
-					log.Warn().Str("type", "waiter").Stack().Str("name", resourceName).Str("group", resourceType.Group).Err(err).Msg("Phase field not found")
-				}
-				if err != nil {
-					log.Warn().Str("type", "waiter").Stack().Str("name", resourceName).Str("group", resourceType.Group).Err(err).Msg("Phase field lookup error")
-				}
-				if ng.handlePhaseChange(resourceType, resourceName, obj, phaseField, done) {
-					return
-				}
-			}
+		if ng.handlePhaseChange(resourceType, resourceName, obj, phaseField) {
+			return
 		}
-	}()
-	<-done
-
+	}
+	log.Info().Str("type", "waiter").Str("resource", resourceName).Str("group", resourceType.Group).Msgf("Waiting done")
 	log.Info().Str("type", "waiter").Str("name", resourceName).Str("resource", resourceType.Resource).Msgf("finished waiter for resource")
 }
 
