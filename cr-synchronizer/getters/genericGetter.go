@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	v12 "k8s.io/api/apps/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/dynamic"
 	"os"
 	"strings"
 	"time"
@@ -11,9 +13,7 @@ import (
 	ncapi "github.com/netcracker/cr-synchronizer/clientset"
 
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/client-go/dynamic"
 )
 
 const (
@@ -24,11 +24,7 @@ type GenericRunner struct {
 	DeploymentGenerator
 }
 
-func (ng *GenericRunner) Generate() {
-	GoCrChecker(func() { ng.initialize() })
-}
-
-func NewGenericRunnerGenerator(client *dynamic.DynamicClient, recorder EventRecorder, clientset *ncapi.Clientset, scheme *runtime.Scheme, runtimeReceiver runtime.Object) *GenericRunner {
+func NewGenericRunnerGenerator(client dynamic.Interface, recorder EventRecorder, clientset ncapi.Interface, scheme *runtime.Scheme, runtimeReceiver runtime.Object) *GenericRunner {
 	return &GenericRunner{
 		DeploymentGenerator: DeploymentGenerator{
 			client:          client,
@@ -44,7 +40,7 @@ func (ng *GenericRunner) Name() string {
 	return genericRunner
 }
 
-func (ng *GenericRunner) initialize() {
+func (ng *GenericRunner) Generate() {
 	objPluarals := []string{"configurationpackages", "smartplugplugins", "meshes", "securities", "composites", "maases", "dbaases", "gateways"}
 	definedPl, found := os.LookupEnv("DECLARATIONS_PLURALS")
 	if found && len(definedPl) > 0 {
@@ -182,7 +178,7 @@ func (ng *GenericRunner) v1DeploymentAndHpaMigration() {
 	log.Info().Str("type", "migration").Msgf("migration finished successfully")
 }
 
-func CheckDeploymentStatus(clientset *ncapi.Clientset, namespace, deploymentName string) bool {
+func CheckDeploymentStatus(clientset ncapi.Interface, namespace, deploymentName string) bool {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 
