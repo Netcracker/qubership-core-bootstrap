@@ -1,0 +1,10 @@
+{
+  "components" : [
+    {
+      "name": "cr-synchronizer",
+      "file": "cr-synchronizer/Dockerfile",
+      "context": "./cr-synchronizer"
+    }
+  ],
+  "platforms" : "linux/amd64"
+}

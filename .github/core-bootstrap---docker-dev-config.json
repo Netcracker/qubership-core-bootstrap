@@ -1,0 +1,10 @@
+{
+  "components" : [
+    {
+      "name": "core-bootstrap",
+      "file": "core-bootstrap/Dockerfile",
+      "context": "./core-bootstrap"
+    }
+  ],
+  "platforms" : "linux/amd64"
+}
