@@ -1,0 +1,273 @@
+# DBaaS Installation Makefile
+
+# Include configuration
+CONFIG_FILE ?= local.mk
+include $(CONFIG_FILE)
+
+# Define colors for output
+CYAN := \033[0;36m
+GREEN := \033[0;32m
+BLUE := \033[0;34m
+RED := \033[0;31m
+NC := \033[0m
+
+# Conditional helm options
+CREATE_NAMESPACE_OPTION := $(if $(filter true,$(CREATE_NAMESPACE)),--create-namespace,)
+SKIP_CRDS_OPTION := $(if $(filter true,$(SKIP_CRDS)),--skip-crds,)
+
+# Default target
+.PHONY: help
+help:
+	@echo "$(BLUE)=== DBaaS Installation Makefile ===$(NC)"
+	@echo ""
+	@echo "Usage: make <target> [CONFIG_FILE=local.mk]"
+	@echo ""
+	@echo "Targets:"
+	@echo "  install     - Install all DBaaS components"
+	@echo "  uninstall   - Uninstall all DBaaS components"
+	@echo "  validate    - Validate configuration and prerequisites"
+	@echo "  show-config - Show current configuration"
+	@echo "  clean       - Clean up repositories"
+	@echo "  help        - Show this help message"
+	@echo ""
+	@echo "Examples:"
+	@echo "  make install CONFIG_FILE=local.mk"
+	@echo "  make uninstall CONFIG_FILE=local.mk"
+	@echo "  make validate CONFIG_FILE=local.mk"
+
+# Show configuration
+.PHONY: show-config
+show-config:
+	@echo "$(BLUE)=== ENVIRONMENT VARIABLES ===$(NC)"
+	@echo "$(CYAN)--- Postgres namespace: $(NC)$(PG_NAMESPACE)"
+	@echo "$(CYAN)--- DBaaS namespace: $(NC)$(DBAAS_NAMESPACE)"
+	@echo "$(CYAN)--- DBaaS service name: $(NC)$(DBAAS_SERVICE_NAME)"
+	@echo "$(CYAN)--- Postgres password: $(NC)$(POSTGRES_PASSWORD)"
+	@echo "$(CYAN)--- Storage class: $(NC)$(STORAGE_CLASS)"
+	@echo "$(CYAN)--- Node selector key: $(NC)$(NODE_SELECTOR_DBAAS_KEY)"
+	@echo "$(CYAN)--- Region: $(NC)$(REGION_DBAAS)"
+	@echo "$(CYAN)--- Image Tag: $(NC)$(TAG)"
+	@echo "$(CYAN)--- Patroni Core Values File: $(NC)$(PATRONI_CORE_VALUES_FILE)"
+	@echo "$(CYAN)--- DBaaS Values File: $(NC)$(DBAAS_VALUES_FILE)"
+	@echo "$(CYAN)--- Patroni Services Values File: $(NC)$(PATRONI_SERVICES_VALUES_FILE)"
+	@echo ""
+
+# Validate prerequisites
+.PHONY: validate
+validate:
+	@echo "$(BLUE)=== PREREQUISITE CHECKS ===$(NC)"
+	@echo "$(CYAN)--- Checking if helm is available...$(NC)"
+	@command -v helm >/dev/null 2>&1 || (echo "$(RED)Error: helm is not installed or not in PATH$(NC)" && echo "$(CYAN)Please install helm: https://helm.sh/docs/intro/install/$(NC)" && exit 1)
+	@echo "$(GREEN)--- helm found: $(shell helm version --short)$(NC)"
+	@echo "$(CYAN)--- Checking if git is available...$(NC)"
+	@command -v git >/dev/null 2>&1 || (echo "$(RED)Error: git is not installed or not in PATH$(NC)" && echo "$(CYAN)Please install git: https://git-scm.com/downloads$(NC)" && exit 1)
+	@echo "$(GREEN)--- git found: $(shell git --version)$(NC)"
+	@echo "$(CYAN)--- Checking if kubectl is available...$(NC)"
+	@command -v kubectl >/dev/null 2>&1 || (echo "$(RED)Error: kubectl is not installed or not in PATH$(NC)" && echo "$(CYAN)Please install kubectl: https://kubernetes.io/docs/tasks/tools/$(NC)" && exit 1)
+	@echo "$(GREEN)--- kubectl found: $(shell kubectl version --client)$(NC)"
+	@echo "$(CYAN)--- Checking kubectl cluster connection...$(NC)"
+	@kubectl cluster-info >/dev/null 2>&1 || (echo "$(RED)Error: kubectl cannot connect to cluster$(NC)" && echo "$(CYAN)Please check your kubeconfig and cluster status$(NC)" && exit 1)
+	@echo "$(GREEN)--- kubectl cluster connection successful$(NC)"
+	@echo ""
+	@echo "$(BLUE)=== PREREQUISITE CHECK ===$(NC)"
+ifeq ($(SKIP_CRD),true)
+	@echo "$(CYAN)--- Checking if CRDs qubership.org.PatroniCore, qubership.org.PatroniServices exists...$(NC)"
+	@kubectl api-resources | grep -q patronicores || (echo "$(RED)Error: CRD patronicores.qubership.org not found$(NC)" && echo "$(CYAN)Please install the CRD first:$(NC)" && echo "$(CYAN)kubectl apply -f ./pgskipper-operator/charts/patroni-core/crds/qubership.org_patronicores.yaml$(NC)" && exit 1)
+	@echo "$(GREEN)--- CRD patronicores.qubership.org found$(NC)"
+	@kubectl api-resources | grep -q patroniservices || (echo "$(RED)Error: CRD patroniservices.qubership.org not found$(NC)" && echo "$(CYAN)Please install the CRD first:$(NC)" && echo "$(CYAN)kubectl apply -f ./pgskipper-operator/charts/patroni-services/crds/qubership.org_patroniservices.yaml$(NC)" && exit 1)
+	@echo "$(GREEN)--- CRD patroniservices.qubership.org found$(NC)"
+else
+	@echo "$(CYAN)--- Skipping CRD validation (CRD will be installed)...$(NC)"
+endif
+	@echo ""
+	@echo "$(BLUE)=== NAMESPACE CHECK ===$(NC)"
+ifneq ($(CREATE_NAMESPACE),true)
+	@echo "$(CYAN)--- Checking if required namespaces exist...$(NC)"
+	@kubectl get namespace $(PG_NAMESPACE) >/dev/null 2>&1 || (echo "$(RED)Error: Namespace $(PG_NAMESPACE) not found$(NC)" && echo "$(CYAN)Please create the namespace first:$(NC)" && echo "$(CYAN)kubectl create namespace $(PG_NAMESPACE)$(NC)" && exit 1)
+	@echo "$(GREEN)--- Namespace $(PG_NAMESPACE) found$(NC)"
+	@kubectl get namespace $(DBAAS_NAMESPACE) >/dev/null 2>&1 || (echo "$(RED)Error: Namespace $(DBAAS_NAMESPACE) not found$(NC)" && echo "$(CYAN)Please create the namespace first:$(NC)" && echo "$(CYAN)kubectl create namespace $(DBAAS_NAMESPACE)$(NC)" && exit 1)
+	@echo "$(GREEN)--- Namespace $(DBAAS_NAMESPACE) found$(NC)"
+else
+	@echo "$(CYAN)--- Skipping namespace check (CREATE_NAMESPACE=true)...$(NC)"
+endif
+	@echo ""
+
+# Setup repositories
+.PHONY: setup-repos
+setup-repos:
+	@echo "$(BLUE)=== STAGE 1: Repository Setup ===$(NC)"
+	@echo "$(CYAN)--- Stage 1 BEGIN: Cloning repositories...$(NC)"
+	@mkdir -p repos
+	@git clone --depth 1 https://github.com/Netcracker/pgskipper-operator.git repos/pgskipper-operator 2>/dev/null || echo "Directory already exists"
+	@git clone --depth 1 https://github.com/Netcracker/qubership-dbaas.git repos/qubership-dbaas 2>/dev/null || echo "Directory already exists"
+	@echo "$(GREEN)--- Stage 1 END: Repositories ready$(NC)"
+	@echo ""
+
+# Install Patroni Core
+.PHONY: install-patroni-core
+install-patroni-core:
+	@echo "$(BLUE)=== STAGE 2: Patroni Core Installation ===$(NC)"
+	@echo "$(CYAN)--- Stage 2 BEGIN: Installing Patroni Core...$(NC)"
+	@envsubst < $(PATRONI_CORE_VALUES_FILE) | helm upgrade --install --namespace=$(PG_NAMESPACE) $(CREATE_NAMESPACE_OPTION) $(SKIP_CRDS_OPTION) \
+		patroni-core ./repos/pgskipper-operator/charts/patroni-core -f - || \
+		(echo "$(RED)Error: Patroni Core installation failed$(NC)" && echo "$(CYAN)Please check the helm output above for details$(NC)" && exit 1)
+	@echo "$(GREEN)--- Stage 2 END: Patroni Core installation completed$(NC)"
+	@echo ""
+
+# Wait for Patroni pods
+.PHONY: wait-patroni-pods
+wait-patroni-pods:
+	@echo "$(BLUE)=== STAGE 3: Wait for Patroni Pods ===$(NC)"
+	@echo "$(CYAN)--- Stage 3 BEGIN: Waiting for patroni pods to be ready (timeout: 10 minutes)...$(NC)"
+	@TIMEOUT=600; START_TIME=$$(date +%s); \
+	while true; do \
+		CURRENT_TIME=$$(date +%s); \
+		ELAPSED_TIME=$$((CURRENT_TIME - START_TIME)); \
+		if [ $$ELAPSED_TIME -ge $$TIMEOUT ]; then \
+			echo "$(RED)Error: Timeout reached after 10 minutes. Not all pods are running.$(NC)"; \
+			exit 1; \
+		fi; \
+		RUNNING_PATRONI_PODS=$$(kubectl -n $(PG_NAMESPACE) get pods --selector=app=patroni --field-selector=status.phase=Running -o name | wc -l); \
+		RUNNING_MASTER_PODS=$$(kubectl -n $(PG_NAMESPACE) get pods --selector=pgtype=master --field-selector=status.phase=Running -o name | wc -l); \
+		if [ "$$RUNNING_PATRONI_PODS" -eq 2 ] && [ "$$RUNNING_MASTER_PODS" -eq 1 ]; then \
+			echo "All patroni pods are running ($$RUNNING_PATRONI_PODS/2) and master pod is ready ($$RUNNING_MASTER_PODS/1)!"; \
+			break; \
+		fi; \
+		echo "Waiting for pods to be ready... (Patroni: $$RUNNING_PATRONI_PODS/2, Master: $$RUNNING_MASTER_PODS/1) - $$((TIMEOUT - ELAPSED_TIME))s remaining"; \
+		sleep 10; \
+	done
+	@echo "$(GREEN)--- Stage 3 END: Patroni pods are ready$(NC)"
+	@echo ""
+
+# Install DBaaS Aggregator
+.PHONY: install-dbaas-aggregator
+install-dbaas-aggregator:
+	@echo "$(BLUE)=== STAGE 4: DBaaS Aggregator Installation ===$(NC)"
+	@echo "$(CYAN)--- Stage 4 BEGIN: Installing DBaaS Aggregator...$(NC)"
+	@envsubst < $(DBAAS_VALUES_FILE) | helm upgrade --install -n $(DBAAS_NAMESPACE) $(CREATE_NAMESPACE_OPTION) \
+		dbaas-aggregator ./repos/qubership-dbaas/helm-templates/dbaas-aggregator -f - || \
+		(echo "$(RED)Error: DBaaS Aggregator installation failed$(NC)" && echo "$(CYAN)Please check the helm output above for details$(NC)" && exit 1)
+	@echo "$(GREEN)--- Stage 4 END: DBaaS Aggregator installation completed$(NC)"
+	@echo ""
+
+# Wait for DBaaS Aggregator service
+.PHONY: wait-dbaas-aggregator
+wait-dbaas-aggregator:
+	@echo "$(BLUE)=== STAGE 5: Wait for DBaaS Aggregator Service ===$(NC)"
+	@echo "$(CYAN)--- Stage 5 BEGIN: Waiting for dbaas-aggregator service to be ready (timeout: 5 minutes)...$(NC)"
+	@TIMEOUT=300; START_TIME=$$(date +%s); \
+	while true; do \
+		CURRENT_TIME=$$(date +%s); \
+		ELAPSED_TIME=$$((CURRENT_TIME - START_TIME)); \
+		if [ $$ELAPSED_TIME -ge $$TIMEOUT ]; then \
+			echo "$(RED)Error: Timeout reached after 5 minutes. Service is not ready.$(NC)"; \
+			exit 1; \
+		fi; \
+		if kubectl -n $(DBAAS_NAMESPACE) get deployment dbaas-aggregator >/dev/null 2>&1; then \
+			READY_REPLICAS=$$(kubectl -n $(DBAAS_NAMESPACE) get deployment dbaas-aggregator -o jsonpath='{.status.readyReplicas}' 2>/dev/null); \
+			DESIRED_REPLICAS=$$(kubectl -n $(DBAAS_NAMESPACE) get deployment dbaas-aggregator -o jsonpath='{.spec.replicas}' 2>/dev/null); \
+			if [ "$$READY_REPLICAS" = "$$DESIRED_REPLICAS" ] && [ ! -z "$$READY_REPLICAS" ]; then \
+				echo "DBaaS Aggregator deployment is ready! ($$READY_REPLICAS/$$DESIRED_REPLICAS replicas)"; \
+				break; \
+			fi; \
+		fi; \
+		echo "Waiting for DBaaS Aggregator service to be ready... - $$((TIMEOUT - ELAPSED_TIME))s remaining"; \
+		sleep 10; \
+	done
+	@echo "$(GREEN)--- Stage 5 END: DBaaS Aggregator service is ready$(NC)"
+	@echo ""
+
+# Install Patroni Services
+.PHONY: install-patroni-services
+install-patroni-services:
+	@echo "$(BLUE)=== STAGE 6: Patroni Services Installation ===$(NC)"
+	@echo "$(CYAN)--- Stage 6 BEGIN: Installing Patroni Services...$(NC)"
+	@envsubst < $(PATRONI_SERVICES_VALUES_FILE) | helm upgrade --install --namespace=$(PG_NAMESPACE) $(CREATE_NAMESPACE_OPTION) $(SKIP_CRDS_OPTION) \
+		patroni-services ./repos/pgskipper-operator/charts/patroni-services -f - || \
+		(echo "$(RED)Error: Patroni Services installation failed$(NC)" && echo "$(CYAN)Please check the helm output above for details$(NC)" && exit 1)
+	@echo "$(GREEN)--- Stage 6 END: Patroni Services installation completed$(NC)"
+	@echo ""
+
+# Wait for Patroni Services registration
+.PHONY: wait-patroni-services-registration
+wait-patroni-services-registration:
+	@echo "$(BLUE)=== STAGE 7: Wait for Patroni Services Registration ===$(NC)"
+	@echo "$(CYAN)--- Stage 7 BEGIN: Waiting for patroni services registration (timeout: 5 minutes)...$(NC)"
+	@TIMEOUT=300; START_TIME=$$(date +%s); \
+	while true; do \
+		CURRENT_TIME=$$(date +%s); \
+		ELAPSED_TIME=$$((CURRENT_TIME - START_TIME)); \
+		if [ $$ELAPSED_TIME -ge $$TIMEOUT ]; then \
+			echo "$(RED)Error: Timeout reached after 5 minutes. Registration message not found in logs.$(NC)"; \
+			exit 1; \
+		fi; \
+		if kubectl logs -n $(PG_NAMESPACE) -l app=dbaas-postgres-adapter --tail=100 | grep -q "Registration finished"; then \
+			echo "$(GREEN)=== Patroni services registration completed$(NC)"; \
+			break; \
+		fi; \
+		echo "Waiting for patroni services registration... - $$((TIMEOUT - ELAPSED_TIME))s remaining"; \
+		sleep 10; \
+	done
+	@echo "$(GREEN)--- Stage 7 END: Patroni services registration completed$(NC)"
+	@echo ""
+
+# Main install target
+.PHONY: install
+install: validate show-config setup-repos install-patroni-core wait-patroni-pods install-dbaas-aggregator wait-dbaas-aggregator install-patroni-services wait-patroni-services-registration
+	@echo "$(GREEN)=== ALL STAGES COMPLETED SUCCESSFULLY ===$(NC)"
+
+# Uninstall targets
+.PHONY: uninstall-patroni-services
+uninstall-patroni-services:
+	@echo "$(BLUE)=== STAGE 1: Uninstall Patroni Services ===$(NC)"
+	@echo "$(CYAN)--- Stage 1 BEGIN: Uninstalling Patroni Services...$(NC)"
+	@helm uninstall -n $(PG_NAMESPACE) patroni-services 2>/dev/null || echo "Patroni Services not found or already uninstalled"
+	@echo "$(GREEN)--- Stage 1 END: Patroni Services uninstalled$(NC)"
+	@echo ""
+
+.PHONY: uninstall-dbaas-aggregator
+uninstall-dbaas-aggregator:
+	@echo "$(BLUE)=== STAGE 2: Uninstall DBaaS Aggregator ===$(NC)"
+	@echo "$(CYAN)--- Stage 2 BEGIN: Uninstalling DBaaS Aggregator...$(NC)"
+	@helm uninstall -n $(DBAAS_NAMESPACE) dbaas-aggregator 2>/dev/null || echo "DBaaS Aggregator not found or already uninstalled"
+	@echo "$(CYAN)--- Uninstalling DBaaS Aggregator secrets created by scripts, not by helm...$(NC)"
+	@echo "$(CYAN)--- (dbaas-aggregator-env-variables has dynamic resource name and not cleaned by helm)$(NC)"
+	@kubectl delete secret $(DBAAS_SERVICE_NAME)-encryption-secret -n $(DBAAS_NAMESPACE) 2>/dev/null || echo "Secret dbaas-aggregator-encryption-secret not found or already deleted"
+	@kubectl delete secret $(DBAAS_SERVICE_NAME)-env-variables -n $(DBAAS_NAMESPACE) 2>/dev/null || echo "Secret dbaas-aggregator-env-variables not found or already deleted"
+	@kubectl delete secret dbaas-storage-credentials -n $(DBAAS_NAMESPACE) 2>/dev/null || echo "Secret dbaas-storage-credentials not found or already deleted"
+	@echo "$(GREEN)--- Stage 2 END: DBaaS Aggregator uninstalled$(NC)"
+	@echo ""
+
+.PHONY: uninstall-patroni-core
+uninstall-patroni-core:
+	@echo "$(BLUE)=== STAGE 3: Uninstall Patroni Core ===$(NC)"
+	@echo "$(CYAN)--- Stage 3 BEGIN: Uninstalling Patroni Core...$(NC)"
+	@helm uninstall -n $(PG_NAMESPACE) patroni-core 2>/dev/null || echo "Patroni Core not found or already uninstalled"
+	@echo "$(GREEN)--- Stage 3 END: Patroni Core uninstalled$(NC)"
+	@echo ""
+
+# Main uninstall target
+.PHONY: uninstall
+uninstall: show-config uninstall-patroni-services uninstall-dbaas-aggregator uninstall-patroni-core manual-cleanup
+	@echo "$(GREEN)=== ALL COMPONENTS UNINSTALLED SUCCESSFULLY ===$(NC)"
+
+# Clean repositories
+.PHONY: clean
+clean:
+	@echo "$(CYAN)--- Cleaning up repositories...$(NC)"
+	@rm -rf repos/pgskipper-operator repos/qubership-dbaas
+	@echo "$(GREEN)--- Repositories cleaned$(NC)"
+
+# Manual cleanup target for additional resources
+.PHONY: manual-cleanup
+manual-cleanup:
+	@echo "$(CYAN)--- Manual cleanup of additional resources...$(NC)"
+	@echo "$(CYAN)--- Note: Patroni creates config maps, PVCs, services that are not cleaned by helm$(NC)"
+	@echo "$(CYAN)--- kubectl delete configmap -n $(PG_NAMESPACE) -l app=patroni$(NC)"
+	@kubectl delete configmap -n $(PG_NAMESPACE) -l app=patroni || echo "Config map not found or already deleted"
+	@echo "$(CYAN)--- kubectl delete pvc -n $(PG_NAMESPACE) --all$(NC)"
+	@kubectl delete pvc -n $(PG_NAMESPACE) --all || echo "PVCs not found or already deleted"
+	@echo "$(CYAN)--- kubectl delete service -n $(PG_NAMESPACE) --all$(NC)"
+	@kubectl delete service -n $(PG_NAMESPACE) --all || echo "Service not found or already deleted"
+	@echo "$(GREEN)--- Manual cleanup completed$(NC)"
+	@echo ""
