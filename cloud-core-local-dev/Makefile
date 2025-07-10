@@ -512,7 +512,59 @@ install-maas:
 		$(HELM_DEBUG_FLAGS)
 	@echo ""
 
+# ----------------------------- Rabbit -----------------------------------------
 
+deploy-rabbit:
+	@echo "$(GREEN)=== Starting rabbit installation...$(NC)"
+	@echo ""
+
+	@echo "$(GREEN)=== Rabbit installation completed$(NC)"
+	@echo ""
+
+	kubectl get namespace rabbit || kubectl create namespace rabbit
+	kubectl apply -f charts/rabbit.yaml -n rabbit
+
+# ----------------------------- Kafka -----------------------------------------
+
+deploy-kafka:
+	@echo "$(GREEN)=== Starting kafka installation...$(NC)"
+	@echo ""
+
+	@echo "$(GREEN)=== Kafka installation completed$(NC)"
+	@echo ""
+
+	kubectl get namespace kafka || kubectl create namespace kafka
+	kubectl apply -f charts/kafka.yaml -n kafka
+
+
+# ------------------------------ Qubership Kafka --------------------------------------
+
+deploy-qubership-kafka: deploy-qubership-kafka-print-start clone-qubership-kafka-repos install-qubership-kafka
+	@echo "$(GREEN)=== kafka installation completed$(NC)"
+	@echo ""
+
+deploy-qubership-kafka-print-start:
+	@echo "$(GREEN)=== Starting kafka installation...$(NC)"
+	@echo ""
+
+clone-qubership-kafka-repos:
+	@echo "$(YELLOW)--- Cloning kafka repository...$(NC)"
+	mkdir -p repos
+	git clone -b main https://github.com/Netcracker/qubership-kafka.git repos/qubership-kafka|| echo "Directory already exists"
+	@echo ""
+
+install-qubership-kafka:
+	@echo "$(YELLOW)--- Setting up kafka...$(NC)"
+	helm upgrade --install --namespace kafka --create-namespace \
+		kafka ./repos/qubership-kafka/charts/helm/kafka \
+		-f ./repos/qubership-kafka/charts/helm/kafka/values.yaml \
+		-f ./repos/qubership-kafka/charts/helm/kafka/resource-profiles/small.yaml \
+		-f ./general-cluster-values.yaml \
+		-f ./kafka-values.yaml \
+		--set IMAGE_REPOSITORY=ghcr.io/netcracker/qubership-kafka \
+		--set TAG=latest \
+		$(HELM_DEBUG_FLAGS)
+	@echo ""
 
 # ------------------------------------------------------------------------------
 
