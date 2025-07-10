@@ -482,6 +482,38 @@ build-and-load-config-server-docker-image:
 
 build-and-load-missed-images: build-and-load-core-operator-docker-image build-and-load-config-server-docker-image
 
+# ---------------------------- MaaS -------------------------------
+
+deploy-maas: deploy-maas-print-start clone-maas-repos install-maas
+	@echo "$(GREEN)=== MaaS installation completed$(NC)"
+	@echo ""
+
+deploy-maas-print-start:
+	@echo "$(GREEN)=== Starting MaaS installation...$(NC)"
+	@echo ""
+
+clone-maas-repos:
+	@echo "$(YELLOW)--- Cloning MaaS repository...$(NC)"
+	mkdir -p repos
+	git clone -b feature/local-deployment https://github.com/Netcracker/qubership-maas.git repos/qubership-maas|| echo "Directory already exists"
+	@echo ""
+
+install-maas:
+	@echo "$(YELLOW)--- Setting up MaaS...$(NC)"
+	(cd repos/qubership-maas/helm-templates/maas-service && helm dependency update)
+	helm upgrade --install --namespace maas --create-namespace \
+		maas-service ./repos/qubership-maas/helm-templates/maas-service \
+		-f ./repos/qubership-maas/helm-templates/maas-service/values.yaml \
+		-f ./repos/qubership-maas/helm-templates/maas-service/resource-profiles/dev.yaml \
+		-f ./general-cluster-values.yaml \
+		-f ./maas-values.yaml \
+		--set IMAGE_REPOSITORY=ghcr.io/netcracker/qubership-maas \
+		--set TAG=latest \
+		$(HELM_DEBUG_FLAGS)
+	@echo ""
+
+
+
 # ------------------------------------------------------------------------------
 
 define clone_or_update_repo
