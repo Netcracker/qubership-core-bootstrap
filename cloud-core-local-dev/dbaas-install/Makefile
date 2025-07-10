@@ -44,6 +44,7 @@ show-config:
 	@echo "$(CYAN)--- DBaaS service name: $(NC)$(DBAAS_SERVICE_NAME)"
 	@echo "$(CYAN)--- Postgres password: $(NC)$(POSTGRES_PASSWORD)"
 	@echo "$(CYAN)--- Storage class: $(NC)$(STORAGE_CLASS)"
+	@echo "$(CYAN)--- Patroni replicas number: $(NC)$(PATRONI_REPLICAS_NUMBER)"
 	@echo "$(CYAN)--- Node selector key: $(NC)$(NODE_SELECTOR_DBAAS_KEY)"
 	@echo "$(CYAN)--- Region: $(NC)$(REGION_DBAAS)"
 	@echo "$(CYAN)--- Image Tag: $(NC)$(TAG)"
@@ -91,6 +92,25 @@ else
 	@echo "$(CYAN)--- Skipping namespace check (CREATE_NAMESPACE=true)...$(NC)"
 endif
 	@echo ""
+	@echo "$(BLUE)=== NODE with label '$(NODE_SELECTOR_DBAAS_KEY)=$(REGION_DBAAS) CHECK ===$(NC)"
+ifeq ($(ADD_DBAAS_NODE_LABEL),true)
+	@echo "$(CYAN)--- Checking if there is at least 1 node with label '$(NODE_SELECTOR_DBAAS_KEY)=$(REGION_DBAAS)' (for proper DBaaS installation)...$(NC)"
+	@NUMBER_OF_LABELED_NODES=$$(kubectl get nodes -l $(NODE_SELECTOR_DBAAS_KEY)=$(REGION_DBAAS) --no-headers 2>/dev/null | wc -l); \
+	echo "$(GREEN)--- Found $$NUMBER_OF_LABELED_NODES node(s)$(NC)"; \
+	if [ "$$NUMBER_OF_LABELED_NODES" -ge 1 ]; then \
+		echo "$(GREEN)--- Condition satisfied$(NC)"; \
+	else \
+		echo "$(RED)--- Condition not satisfied$(NC)"; \
+		echo "$(CYAN)--- Adding label according to flag ADD_DBAAS_NODE_LABEL$(NC)"; \
+		NODE=$$(kubectl get nodes -o name | head -n 1); \
+		kubectl label $$NODE $(NODE_SELECTOR_DBAAS_KEY)=$(REGION_DBAAS) --overwrite >/dev/null; \
+		echo "$(GREEN)--- Labeled $$NODE with '$(NODE_SELECTOR_DBAAS_KEY)=$(REGION_DBAAS)'$(NC)"; \
+	fi
+else
+	@echo "$(CYAN)--- Skipping nodes check (ADD_DBAAS_NODE_LABEL=false)...$(NC)"
+	@echo "$(CYAN)--- Please ensure your cluster has at least 1 node with label '$(NODE_SELECTOR_DBAAS_KEY)=$(REGION_DBAAS)'$(NC)"
+endif
+	@echo ""	
 
 # Setup repositories
 .PHONY: setup-repos
@@ -129,11 +149,11 @@ wait-patroni-pods:
 		fi; \
 		RUNNING_PATRONI_PODS=$$(kubectl -n $(PG_NAMESPACE) get pods --selector=app=patroni --field-selector=status.phase=Running -o name | wc -l); \
 		RUNNING_MASTER_PODS=$$(kubectl -n $(PG_NAMESPACE) get pods --selector=pgtype=master --field-selector=status.phase=Running -o name | wc -l); \
-		if [ "$$RUNNING_PATRONI_PODS" -eq 2 ] && [ "$$RUNNING_MASTER_PODS" -eq 1 ]; then \
-			echo "All patroni pods are running ($$RUNNING_PATRONI_PODS/2) and master pod is ready ($$RUNNING_MASTER_PODS/1)!"; \
+		if [ "$$RUNNING_PATRONI_PODS" -eq $(PATRONI_REPLICAS_NUMBER) ] && [ "$$RUNNING_MASTER_PODS" -eq 1 ]; then \
+			echo "All patroni pods are running ($$RUNNING_PATRONI_PODS/$(PATRONI_REPLICAS_NUMBER)) and master pod is ready ($$RUNNING_MASTER_PODS/1)!"; \
 			break; \
 		fi; \
-		echo "Waiting for pods to be ready... (Patroni: $$RUNNING_PATRONI_PODS/2, Master: $$RUNNING_MASTER_PODS/1) - $$((TIMEOUT - ELAPSED_TIME))s remaining"; \
+		echo "Waiting for pods to be ready... (Patroni: $$RUNNING_PATRONI_PODS/$(PATRONI_REPLICAS_NUMBER), Master: $$RUNNING_MASTER_PODS/1) - $$((TIMEOUT - ELAPSED_TIME))s remaining"; \
 		sleep 10; \
 	done
 	@echo "$(GREEN)--- Stage 3 END: Patroni pods are ready$(NC)"

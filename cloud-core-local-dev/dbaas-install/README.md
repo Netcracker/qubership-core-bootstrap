@@ -42,10 +42,13 @@ Before running the installation script, ensure you have the following tools inst
 
 ### Kubernetes Cluster Requirements
 
-- A running Kubernetes cluster - _minimum of 3 nodes_.
-- At least one node should have label "NODE_SELECTOR_DBAAS_KEY: REGION_DBAAS" (refer to Configuration File).
-- (optional) Existing namespaces (can be created during installation, requires respective priveleges)
-- (optional) Required Custom Resource Definitions (CRDs) installed (CRDs can be installed by script, requires respective priveleges)
+- A running Kubernetes cluster.
+- (optional) At least one node should have label "NODE_SELECTOR_DBAAS_KEY=REGION_DBAAS" (Label can be added by srcipt)
+- (optional) Existing namespaces. Can be created during installation - requires respective priveleges
+- (optional) Required Custom Resource Definitions (CRDs) installed. CRDs can be installed by script - requires respective priveleges
+
+### Nodes
+  Set `ADD_DBAAS_NODE_LABEL=true` to label one arbitrary node during installation - requires respective priveleges
 
 ### Namespaces
 
@@ -61,7 +64,7 @@ Before running the installation script, ensure you have the following tools inst
 - `patroniservices.qubership.org`
 
 
-Set ```SKIP_CRDS=false,``` if you want to install CRDs along with helm packages (you need to have sufficient cluster priveleges) 
+Set ```SKIP_CRDS=false``` if you want to install CRDs along with helm packages (you need to have sufficient cluster priveleges) 
   
 Set ```SKIP_CRDS=true``` to skip CRDs installation. The script will check CRDs presence during prerequisites validation and provide installation instructions if they're missing
 
@@ -113,6 +116,7 @@ The script uses a .mk configuration file to define all installation and helm pac
 | **PostgreSQL Configuration** |
 | `POSTGRES_PASSWORD` | `password` | Password for PostgreSQL database |
 | `STORAGE_CLASS` | `standard` / `gp2` | Kubernetes storage class for persistent volumes. standard - is value for local deployment (e.g. minikube). gp2 - is value for AWS |
+| `PATRONI_REPLICAS_NUMBER` | 1 | Number of patroni nodes |
 | **DBaaS Configuration** |
 | `DBAAS_SERVICE_NAME` | `dbaas-aggregator` | Service name for DBaaS |
 | `NODE_SELECTOR_DBAAS_KEY` | `region` | Node selector label key for DBaaS pod placement. Default DBaaS label `region: database` used in local.mk. If user have no permissions to add custom node labels - try to pick one of exisitng labels |
@@ -121,6 +125,7 @@ The script uses a .mk configuration file to define all installation and helm pac
 | **Installation Options** |
 | `CREATE_NAMESPACE` | `true` | Automatically create namespaces if they don't exist |
 | `SKIP_CRDS` | `true`/`false` | Skip Custom Resource Definition installation |
+| `ADD_DBAAS_NODE_LABEL` | `true`/`false` | Add 'NODE_SELECTOR_DBAAS_KEY=REGION_DBAAS' label to one arbitrary cluster node for DBaaS requirements satisfaction |
 
 ### Values Files
 
