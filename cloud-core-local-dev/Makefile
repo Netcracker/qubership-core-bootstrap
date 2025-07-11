@@ -494,8 +494,7 @@ deploy-maas-print-start:
 
 clone-maas-repos:
 	@echo "$(YELLOW)--- Cloning MaaS repository...$(NC)"
-	mkdir -p repos
-	git clone -b feature/local-deployment https://github.com/Netcracker/qubership-maas.git repos/qubership-maas|| echo "Directory already exists"
+	$(call clone_or_update_repo,qubership-maas,https://github.com/Netcracker/qubership-maas.git,feature/local-deployment)
 	@echo ""
 
 install-maas:
@@ -511,6 +510,10 @@ install-maas:
 		--set TAG=latest \
 		$(HELM_DEBUG_FLAGS)
 	@echo ""
+
+register-rabbit:
+	bash scripts/register-rabbit-instance-in-maas.sh rabbitmq-1
+	bash scripts/register-rabbit-instance-in-maas.sh rabbitmq-2
 
 # ----------------------------- Rabbit -----------------------------------------
 
@@ -581,3 +584,15 @@ define clone_or_update_repo
 		fi; \
 	fi
 endef
+
+clean-namespace-%:
+	$(eval namespace := $*)
+	@echo "$(YELLOW)--- Clean $(namespace) namespace...$(NC)"
+	-@kubectl delete all --all -n $(namespace)
+	-@kubectl delete pvc --all -n $(namespace)
+	-@kubectl delete configmap --all -n $(namespace)
+	-@kubectl delete secret --all -n $(namespace)
+	-@kubectl delete ingress --all -n $(namespace)
+	-@kubectl delete hpa --all -n $(namespace)
+	-@kubectl delete serviceaccount --all -n $(namespace)
+	@echo ""
