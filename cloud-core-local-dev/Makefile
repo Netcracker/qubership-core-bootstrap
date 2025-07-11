@@ -511,9 +511,13 @@ install-maas:
 		$(HELM_DEBUG_FLAGS)
 	@echo ""
 
-register-rabbit:
+register-rabbit-instances:
 	bash scripts/register-rabbit-instance-in-maas.sh rabbitmq-1
 	bash scripts/register-rabbit-instance-in-maas.sh rabbitmq-2
+
+register-kafka-instances:
+	bash scripts/register-kafka-instance-in-maas.sh kafka-1
+	bash scripts/register-kafka-instance-in-maas.sh kafka-2
 
 # ----------------------------- Rabbit -----------------------------------------
 
@@ -529,7 +533,15 @@ deploy-rabbit:
 
 # ----------------------------- Kafka -----------------------------------------
 
-deploy-kafka:
+deploy-kafka: deploy-kafka-print-start install-kafka wait-for-kafka-server-started
+	@echo "$(GREEN)=== Kafka installation completed$(NC)"
+	@echo ""
+
+deploy-kafka-print-start:
+	@echo "$(GREEN)=== Starting Kafka installation...$(NC)"
+	@echo ""
+
+install-kafka:
 	@echo "$(GREEN)=== Starting kafka installation...$(NC)"
 	@echo ""
 
@@ -539,6 +551,31 @@ deploy-kafka:
 	kubectl get namespace kafka || kubectl create namespace kafka
 	kubectl apply -f charts/kafka.yaml -n kafka
 
+wait-for-kafka-server-started:
+	@echo "$(YELLOW)--- Waiting for kafka server started (timeout: 5 minutes)...$(NC)"
+	@TIMEOUT=300; \
+	START_TIME=$$(date +%s); \
+	while true; do \
+		CURRENT_TIME=$$(date +%s); \
+		ELAPSED_TIME=$$((CURRENT_TIME - START_TIME)); \
+		if [ $$ELAPSED_TIME -ge $$TIMEOUT ]; then \
+			echo "Timeout reached after 5 minutes. Started message not found in logs."; \
+			exit 1; \
+		fi; \
+		KAFKA1_STARTED=$$(kubectl logs -n kafka -l app=kafka-1 --tail=100 | grep -q "Kafka Server started" && echo true || echo false); \
+		KAFKA2_STARTED=$$(kubectl logs -n kafka -l app=kafka-2 --tail=100 | grep -q "Kafka Server started" && echo true || echo false); \
+		if [ "$$KAFKA1_STARTED" = "true" ] && [ "$$KAFKA2_STARTED" = "true" ]; then \
+			echo "$(GREEN)=== Kafka servers started$(NC)"; \
+			break; \
+		fi; \
+		echo "Waiting for kafka server start... - $$((TIMEOUT - ELAPSED_TIME))s remaining"; \
+		sleep 10; \
+	done
+	@echo ""
+
+# ------------------------------ Maas with brokers -----------------------------------
+
+deploy-maas-with-brokers: deploy-maas deploy-rabbit deploy-kafka register-rabbit-instances register-rabbit-instances
 
 # ------------------------------ Qubership Kafka --------------------------------------
 
