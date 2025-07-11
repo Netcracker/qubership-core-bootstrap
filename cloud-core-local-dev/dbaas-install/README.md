@@ -3,16 +3,27 @@
 This repository contains a comprehensive installation script for deploying Database-as-a-Service (DBaaS) using Helm and Kubernetes. The script manages the installation and uninstallation of Patroni Core, Patroni Services, and DBaaS Aggregator components.
 
 ## Quick start
-1. Prepare config file
-
+### 1. Prepare config file
 Script distributed with 2 prepared configurations:  
-  - local.mk - for local deployment (tested on minikube)
-  - aws.mk - for AWS deployment
+   - local.mk - for local deployment
+   - aws.mk - for AWS deployment
 
-2. Execute installation command
-```
-  make install CONFIG_FILE=local.mk
-```
+### 2. Execute installation command
+
+#### minikube installation
+  `make install CONFIG_FILE=local.mk`
+  or
+  `make install`
+  
+  local.mk applied by default
+
+#### rancher-desktop installation
+  `make install STORAGE_CLASS=local-path`
+  
+  local.mk applied by default, storage class will be overriden by argument value
+
+#### AWS installation
+  `make install CONFIG_FILE=aws.mk`
 
 ## Usage
 Usage: `make <target> [CONFIG_FILE=local.mk]`
@@ -42,7 +53,7 @@ Before running the installation script, ensure you have the following tools inst
 
 ### Kubernetes Cluster Requirements
 
-- A running Kubernetes cluster.
+- A running Kubernetes cluster. 
 - (optional) At least one node should have label "NODE_SELECTOR_DBAAS_KEY=REGION_DBAAS" (Label can be added by srcipt)
 - (optional) Existing namespaces. Can be created during installation - requires respective priveleges
 - (optional) Required Custom Resource Definitions (CRDs) installed. CRDs can be installed by script - requires respective priveleges
@@ -115,7 +126,7 @@ The script uses a .mk configuration file to define all installation and helm pac
 | `DBAAS_NAMESPACE` | `dbaas` | Kubernetes namespace for DBaaS Aggregator |
 | **PostgreSQL Configuration** |
 | `POSTGRES_PASSWORD` | `password` | Password for PostgreSQL database |
-| `STORAGE_CLASS` | `standard` / `gp2` | Kubernetes storage class for persistent volumes. standard - is value for local deployment (e.g. minikube). gp2 - is value for AWS |
+| `STORAGE_CLASS` | `standard` / `local-path` / `gp2` | Kubernetes storage class for persistent volumes. standard - is value for minikube deployment. local-path - is value for rancher-desktop.  gp2 - is value for AWS |
 | `PATRONI_REPLICAS_NUMBER` | 1 | Number of patroni nodes |
 | **DBaaS Configuration** |
 | `DBAAS_SERVICE_NAME` | `dbaas-aggregator` | Service name for DBaaS |
