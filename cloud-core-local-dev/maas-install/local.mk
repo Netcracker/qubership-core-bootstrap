@@ -6,15 +6,21 @@ MAAS_PROFILE_FILE ?= ./repos/qubership-maas/helm-templates/maas-service/resource
 MAAS_NAMESPACE ?= maas
 RABBIT_NAMESPACE ?= rabbit
 KAFKA_NAMESPACE ?= kafka
+DBAAS_NAMESPACE ?= dbaas
 
 # maas parameters
 TAG ?= latest
+
+#dbaas parameters
+DBAAS_AGGREGATOR_ADDRESS ?= http://dbaas-aggregator.${DBAAS_NAMESPACE}.svc.cluster.local:8080
 
 export MAAS_VALUES_FILE
 export MAAS_PROFILE_FILE
 export MAAS_NAMESPACE
 export RABBIT_NAMESPACE
 export KAFKA_NAMESPACE
+export DBAAS_NAMESPACE
+export DBAAS_AGGREGATOR_ADDRESS
 export TAG
 
 # installation parameters - not propagated to helm values

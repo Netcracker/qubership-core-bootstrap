@@ -29,6 +29,8 @@ show-config:
 	@echo "$(CYAN)--- MaaS namespace: $(NC)$(MAAS_NAMESPACE)"
 	@echo "$(CYAN)--- RabbitMQ namespace: $(NC)$(RABBIT_NAMESPACE)"
 	@echo "$(CYAN)--- Kafka namespace: $(NC)$(KAFKA_NAMESPACE)"
+	@echo "$(CYAN)--- DBaaS namespace: $(NC)$(DBAAS_NAMESPACE)"
+	@echo "$(CYAN)--- DBaaS aggregator address: $(NC)$(DBAAS_AGGREGATOR_ADDRESS)"
 	@echo "$(CYAN)--- Image tag: $(NC)$(TAG)"
 	@echo ""
 
@@ -62,6 +64,16 @@ else
 	@echo "$(CYAN)--- Skipping namespace check (CREATE_NAMESPACE=true)...$(NC)"
 endif
 	@echo ""
+	@echo "$(BLUE)=== DBAAS CHECK ===$(NC)"
+	@NUMBER_OF_DBAAS_PODS=$$(kubectl -n dbaas get pods --selector=name=dbaas-aggregator --field-selector=status.phase=Running --no-headers | wc -l); \
+	if [ "$$NUMBER_OF_DBAAS_PODS" -eq 1 ]; then \
+		echo "$(GREEN)--- DBaaS is ready$(NC)"; \
+	else \
+		echo "$(RED)--- Error: DBaaS is not ready!$(NC)"; \
+		echo "$(CYAN)--- Please install the DBaaS first$(NC)"; \
+		exit 1; \
+	fi
+	@echo ""
 
 # Setup repositories
 .PHONY: setup-repos
@@ -69,7 +81,7 @@ setup-repos:
 	@echo "$(BLUE)=== STAGE 1: Repository Setup ===$(NC)"
 	@echo "$(CYAN)--- Stage 1 BEGIN: Cloning repositories...$(NC)"
 	@mkdir -p repos
-	git clone -b feature/local-deployment --depth 1 https://github.com/Netcracker/qubership-maas.git repos/qubership-maas 2>/dev/null || echo "Directory already exists"
+	@git clone -b feature/local-deployment --depth 1 https://github.com/Netcracker/qubership-maas.git repos/qubership-maas 2>/dev/null || echo "Directory already exists"
 	@echo "$(GREEN)--- Stage 1 END: Repositories ready$(NC)"
 	@echo ""
 
