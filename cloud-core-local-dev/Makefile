@@ -632,4 +632,5 @@ clean-namespace-%:
 	-@kubectl delete ingress --all -n $(namespace)
 	-@kubectl delete hpa --all -n $(namespace)
 	-@kubectl delete serviceaccount --all -n $(namespace)
+	-@kubectl delete namespace $(namespace)
 	@echo ""
