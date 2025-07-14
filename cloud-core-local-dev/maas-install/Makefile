@@ -24,14 +24,44 @@ help:
 .PHONY: show-config
 show-config:
 	@echo "$(BLUE)=== ENVIRONMENT VARIABLES ===$(NC)"
-	#TODO
+	@echo "$(CYAN)--- MaaS values file: $(NC)$(MAAS_VALUES_FILE)"
+	@echo "$(CYAN)--- MaaS profile file: $(NC)$(MAAS_PROFILE_FILE)"
+	@echo "$(CYAN)--- MaaS namespace: $(NC)$(MAAS_NAMESPACE)"
+	@echo "$(CYAN)--- RabbitMQ namespace: $(NC)$(RABBIT_NAMESPACE)"
+	@echo "$(CYAN)--- Kafka namespace: $(NC)$(KAFKA_NAMESPACE)"
+	@echo "$(CYAN)--- Image tag: $(NC)$(TAG)"
+	@echo ""
 
 # Validate prerequisites
 .PHONY: validate
 validate:
 	@echo "$(BLUE)=== PREREQUISITE CHECKS ===$(NC)"
-	#TODO
-
+	@echo "$(CYAN)--- Checking if helm is available...$(NC)"
+	@command -v helm >/dev/null 2>&1 || (echo "$(RED)Error: helm is not installed or not in PATH$(NC)" && echo "$(CYAN)Please install helm: https://helm.sh/docs/intro/install/$(NC)" && exit 1)
+	@echo "$(GREEN)--- helm found: $(shell helm version --short)$(NC)"
+	@echo "$(CYAN)--- Checking if git is available...$(NC)"
+	@command -v git >/dev/null 2>&1 || (echo "$(RED)Error: git is not installed or not in PATH$(NC)" && echo "$(CYAN)Please install git: https://git-scm.com/downloads$(NC)" && exit 1)
+	@echo "$(GREEN)--- git found: $(shell git --version)$(NC)"
+	@echo "$(CYAN)--- Checking if kubectl is available...$(NC)"
+	@command -v kubectl >/dev/null 2>&1 || (echo "$(RED)Error: kubectl is not installed or not in PATH$(NC)" && echo "$(CYAN)Please install kubectl: https://kubernetes.io/docs/tasks/tools/$(NC)" && exit 1)
+	@echo "$(GREEN)--- kubectl found: $(shell kubectl version --client)$(NC)"
+	@echo "$(CYAN)--- Checking kubectl cluster connection...$(NC)"
+	@kubectl cluster-info >/dev/null 2>&1 || (echo "$(RED)Error: kubectl cannot connect to cluster$(NC)" && echo "$(CYAN)Please check your kubeconfig and cluster status$(NC)" && exit 1)
+	@echo "$(GREEN)--- kubectl cluster connection successful$(NC)"
+	@echo ""
+	@echo "$(BLUE)=== NAMESPACE CHECK ===$(NC)"
+ifneq ($(CREATE_NAMESPACE),true)
+	@echo "$(CYAN)--- Checking if required namespaces exist...$(NC)"
+	@kubectl get namespace $(MAAS_NAMESPACE) >/dev/null 2>&1 || (echo "$(RED)Error: Namespace $(MAAS_NAMESPACE) not found$(NC)" && echo "$(CYAN)Please create the namespace first:$(NC)" && echo "$(CYAN)kubectl create namespace $(MAAS_NAMESPACE)$(NC)" && exit 1)
+	@echo "$(GREEN)--- Namespace $(MAAS_NAMESPACE) found$(NC)"
+	@kubectl get namespace $(RABBIT_NAMESPACE) >/dev/null 2>&1 || (echo "$(RED)Error: Namespace $(RABBIT_NAMESPACE) not found$(NC)" && echo "$(CYAN)Please create the namespace first:$(NC)" && echo "$(CYAN)kubectl create namespace $(RABBIT_NAMESPACE)$(NC)" && exit 1)
+	@echo "$(GREEN)--- Namespace $(RABBIT_NAMESPACE) found$(NC)"
+	@kubectl get namespace $(KAFKA_NAMESPACE) >/dev/null 2>&1 || (echo "$(RED)Error: Namespace $(KAFKA_NAMESPACE) not found$(NC)" && echo "$(CYAN)Please create the namespace first:$(NC)" && echo "$(CYAN)kubectl create namespace $(KAFKA_NAMESPACE)$(NC)" && exit 1)
+	@echo "$(GREEN)--- Namespace $(KAFKA_NAMESPACE) found$(NC)"
+else
+	@echo "$(CYAN)--- Skipping namespace check (CREATE_NAMESPACE=true)...$(NC)"
+endif
+	@echo ""
 
 # Setup repositories
 .PHONY: setup-repos

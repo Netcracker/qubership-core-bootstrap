@@ -8,7 +8,6 @@ RABBIT_NAMESPACE ?= rabbit
 KAFKA_NAMESPACE ?= kafka
 
 # maas parameters
-SERVICE_NAME ?= maas-service
 TAG ?= latest
 
 export MAAS_VALUES_FILE
@@ -16,7 +15,6 @@ export MAAS_PROFILE_FILE
 export MAAS_NAMESPACE
 export RABBIT_NAMESPACE
 export KAFKA_NAMESPACE
-export SERVICE_NAME
 export TAG
 
 # installation parameters - not propagated to helm values
