@@ -117,22 +117,9 @@ install-maas-service:
 wait-for-maas-service-started:
 	@echo "$(BLUE)=== STAGE 3: Wait for MaaS service started  ===$(NC)"
 	@echo "$(CYAN)--- Stage 3 BEGIN: Waiting for MaaS service started (timeout: 5 minutes)...$(NC)"
-	@TIMEOUT=300; START_TIME=$$(date +%s); \
-	while true; do \
-		CURRENT_TIME=$$(date +%s); \
-		ELAPSED_TIME=$$((CURRENT_TIME - START_TIME)); \
-		if [ $$ELAPSED_TIME -ge $$TIMEOUT ]; then \
-			echo "Timeout reached after 5 minutes. Started message not found in logs."; \
-			exit 1; \
-		fi; \
-		MAAS_STARTED=$$(kubectl logs -n $(MAAS_NAMESPACE) -l name=maas-service --tail=100 | grep -q "Starting server on" && echo true || echo false); \
-		if [ "$$MAAS_STARTED" = "true" ]; then \
-			echo "$(GREEN)=== MaaS service started$(NC)"; \
-			break; \
-		fi; \
-		echo "Waiting for MaaS service start... - $$((TIMEOUT - ELAPSED_TIME))s remaining"; \
-		sleep 10; \
-	done
+	@bash scripts/wait-for-service.sh \
+		"MaaS service" \
+		'kubectl logs -n $(MAAS_NAMESPACE) -l name=maas-service --tail=100 | grep -q "Starting server on"'
 	@echo "$(GREEN)--- Stage 3 END: MaaS service is ready$(NC)"
 	@echo ""
 
@@ -154,23 +141,10 @@ endif
 wait-for-rabbit-server-started:
 	@echo "$(BLUE)=== STAGE 5: Wait for RabbitMQ server started  ===$(NC)"
 	@echo "$(CYAN)--- Stage 5 BEGIN: Waiting for rabbit server started (timeout: 5 minutes)...$(NC)"
-	@TIMEOUT=300; START_TIME=$$(date +%s); \
-	while true; do \
-		CURRENT_TIME=$$(date +%s); \
-		ELAPSED_TIME=$$((CURRENT_TIME - START_TIME)); \
-		if [ $$ELAPSED_TIME -ge $$TIMEOUT ]; then \
-			echo "Timeout reached after 5 minutes. Started message not found in logs."; \
-			exit 1; \
-		fi; \
-		RABBIT1_STARTED=$$(kubectl logs -n $(RABBIT_NAMESPACE) -l app=rabbitmq-1 --tail=100 | grep -q "Server startup complete" && echo true || echo false); \
-		RABBIT2_STARTED=$$(kubectl logs -n $(RABBIT_NAMESPACE) -l app=rabbitmq-2 --tail=100 | grep -q "Server startup complete" && echo true || echo false); \
-		if [ "$$RABBIT1_STARTED" = "true" ] && [ "$$RABBIT2_STARTED" = "true" ]; then \
-			echo "$(GREEN)=== RabbitMQ servers started$(NC)"; \
-			break; \
-		fi; \
-		echo "Waiting for rabbit server start... - $$((TIMEOUT - ELAPSED_TIME))s remaining"; \
-		sleep 10; \
-	done
+	@bash scripts/wait-for-service.sh \
+			"RabbitMQ servers" \
+			'kubectl logs -n $(RABBIT_NAMESPACE) -l app=rabbitmq-1 --tail=100 | grep -q "Server startup complete" && \
+			 	kubectl logs -n $(RABBIT_NAMESPACE) -l app=rabbitmq-2 --tail=100 | grep -q "Server startup complete"'
 	@echo "$(GREEN)--- Stage 5 END: RabbitMQ servers are ready$(NC)"
 	@echo ""
 
@@ -192,23 +166,10 @@ endif
 wait-for-kafka-server-started:
 	@echo "$(BLUE)=== STAGE 7: Wait for Kafka server started  ===$(NC)"
 	@echo "$(CYAN)--- Stage 7 BEGIN: Waiting for kafka server started (timeout: 5 minutes)...$(NC)"
-	@TIMEOUT=300; START_TIME=$$(date +%s); \
-	while true; do \
-		CURRENT_TIME=$$(date +%s); \
-		ELAPSED_TIME=$$((CURRENT_TIME - START_TIME)); \
-		if [ $$ELAPSED_TIME -ge $$TIMEOUT ]; then \
-			echo "Timeout reached after 5 minutes. Started message not found in logs."; \
-			exit 1; \
-		fi; \
-		KAFKA1_STARTED=$$(kubectl logs -n $(KAFKA_NAMESPACE) -l app=kafka-1 --tail=100 | grep -q "Kafka Server started" && echo true || echo false); \
-		KAFKA2_STARTED=$$(kubectl logs -n $(KAFKA_NAMESPACE) -l app=kafka-2 --tail=100 | grep -q "Kafka Server started" && echo true || echo false); \
-		if [ "$$KAFKA1_STARTED" = "true" ] && [ "$$KAFKA2_STARTED" = "true" ]; then \
-			echo "$(GREEN)=== Kafka servers started$(NC)"; \
-			break; \
-		fi; \
-		echo "Waiting for kafka server start... - $$((TIMEOUT - ELAPSED_TIME))s remaining"; \
-		sleep 10; \
-	done
+	@bash scripts/wait-for-service.sh \
+		"Kafka servers" \
+		'kubectl logs -n $(KAFKA_NAMESPACE) -l app=kafka-1 --tail=100 | grep -q "Kafka Server started" && \
+			kubectl logs -n $(KAFKA_NAMESPACE) -l app=kafka-2 --tail=100 | grep -q "Kafka Server started"'
 	@echo "$(GREEN)--- Stage 7 END: Kafka servers are ready$(NC)"
 	@echo ""
 
