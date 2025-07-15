@@ -98,7 +98,7 @@ setup-repos:
 	@echo "$(BLUE)=== STAGE 1: Repository Setup ===$(NC)"
 	@echo "$(CYAN)--- Stage 1 BEGIN: Cloning repositories...$(NC)"
 	@mkdir -p repos
-	@git clone -b feature/local-deployment --depth 1 https://github.com/Netcracker/qubership-maas.git repos/qubership-maas 2>/dev/null || echo "Directory already exists"
+	@git clone --depth 1 https://github.com/Netcracker/qubership-maas.git repos/qubership-maas 2>/dev/null || echo "Directory already exists"
 	@echo "$(GREEN)--- Stage 1 END: Repositories ready$(NC)"
 	@echo ""
 
