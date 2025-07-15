@@ -102,8 +102,14 @@ ifeq ($(ADD_DBAAS_NODE_LABEL),true)
 	else \
 		echo "$(RED)--- Condition not satisfied$(NC)"; \
 		echo "$(CYAN)--- Adding label according to flag ADD_DBAAS_NODE_LABEL$(NC)"; \
-		NODE=$$(kubectl get nodes -o name | head -n 1); \
-		kubectl label $$NODE $(NODE_SELECTOR_DBAAS_KEY)=$(REGION_DBAAS) --overwrite >/dev/null; \
+		NODE=$$(kubectl get nodes -o custom-columns=NAME:.metadata.name,UNSCHEDULABLE:.spec.unschedulable,TAINTS:.spec.taints --no-headers \
+  			| awk '!/true/ && !/NoSchedule|NoExecute/ { print $$1 }' | tail -n 1); \
+		if [ -z "$$NODE" ]; then \
+			echo "$(RED)--- Error: No suitable node found for labeling$(NC)"; \
+			exit 1; \
+		fi; \
+		echo "$(CYAN)--- Candidate node: $$NODE$(NC)"; \
+		kubectl label node $$NODE $(NODE_SELECTOR_DBAAS_KEY)=$(REGION_DBAAS) --overwrite >/dev/null; \
 		echo "$(GREEN)--- Labeled $$NODE with '$(NODE_SELECTOR_DBAAS_KEY)=$(REGION_DBAAS)'$(NC)"; \
 	fi
 else
