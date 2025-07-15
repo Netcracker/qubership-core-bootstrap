@@ -18,7 +18,21 @@ CREATE_NAMESPACE_OPTION := $(if $(filter true,$(CREATE_NAMESPACE)),--create-name
 .PHONY: help
 help:
 	@echo "$(BLUE)=== MaaS Installation Makefile ===$(NC)"
-	#TODO
+	@echo ""
+	@echo "Usage: make <target> [CONFIG_FILE=local.mk]"
+	@echo ""
+	@echo "Targets:"
+	@echo "  install     - Install all MaaS components"
+	@echo "  uninstall   - Uninstall all MaaS components"
+	@echo "  validate    - Validate configuration and prerequisites"
+	@echo "  show-config - Show current configuration"
+	@echo "  clean       - Clean up repositories"
+	@echo "  help        - Show this help message"
+	@echo ""
+	@echo "Examples:"
+	@echo "  make install CONFIG_FILE=local.mk"
+	@echo "  make uninstall CONFIG_FILE=local.mk"
+	@echo "  make validate CONFIG_FILE=local.mk"
 
 # Show configuration
 .PHONY: show-config
@@ -65,7 +79,7 @@ else
 endif
 	@echo ""
 	@echo "$(BLUE)=== DBAAS CHECK ===$(NC)"
-	@NUMBER_OF_DBAAS_PODS=$$(kubectl -n dbaas get pods --selector=name=dbaas-aggregator --field-selector=status.phase=Running --no-headers | wc -l); \
+	@NUMBER_OF_DBAAS_PODS=$$(kubectl -n $(DBAAS_NAMESPACE) get pods --selector=name=dbaas-aggregator --field-selector=status.phase=Running --no-headers | wc -l); \
 	if [ "$$NUMBER_OF_DBAAS_PODS" -eq 1 ]; then \
 		echo "$(GREEN)--- DBaaS is ready$(NC)"; \
 	else \
@@ -225,3 +239,51 @@ install: validate show-config setup-repos \
 	install-kafka wait-for-kafka-server-started \
 	register-rabbit-instances register-kafka-instances
 	@echo "$(GREEN)=== ALL STAGES COMPLETED SUCCESSFULLY ===$(NC)"
+
+
+.PHONY: uninstall-maas-service
+uninstall-maas-service:
+	@echo "$(BLUE)=== STAGE 1: Uninstall MaaS service ===$(NC)"
+	@echo "$(CYAN)--- Stage 1 BEGIN: Uninstalling MaaS service...$(NC)"
+	@helm uninstall -n $(MAAS_NAMESPACE) maas-service 2>/dev/null || echo "MaaS service not found or already uninstalled"
+	@echo "$(CYAN)--- Uninstalling MaaS service secrets created by scripts, not by helm...$(NC)"
+	@kubectl delete secret maas-db-cipher-key-secret -n $(MAAS_NAMESPACE) 2>/dev/null || echo "Secret maas-db-cipher-key-secret not found or already deleted"
+	@kubectl delete secret maas-db-postgresql-credentials-secret -n $(MAAS_NAMESPACE) 2>/dev/null || echo "Secret maas-db-postgresql-credentials-secret not found or already deleted"
+	@echo "$(GREEN)--- Stage 1 END: MaaS service uninstalled$(NC)"
+	@echo ""
+
+.PHONY: delete-maas-database
+delete-maas-database:
+	@echo "$(BLUE)=== STAGE 2: Delete MaaS database ===$(NC)"
+	@echo "$(CYAN)--- Stage 2 BEGIN: Deleting MaaS database...$(NC)"
+	bash scripts/remove-maas-database-from-dbaas.sh
+	@echo "$(GREEN)--- Stage 2 END: MaaS database deleted$(NC)"
+	@echo ""
+
+.PHONY: uninstall-rabbit
+uninstall-rabbit:
+	@echo "$(BLUE)=== STAGE 3: Uninstall RabbitMQ ===$(NC)"
+	@echo "$(CYAN)--- Stage 3 BEGIN: Uninstalling RabbitMQ...$(NC)"
+	@kubectl delete -f charts/rabbit.yaml -n $(RABBIT_NAMESPACE) 2>/dev/null || echo "RabbitMQ not found or already uninstalled"
+	@echo "$(GREEN)--- Stage 3 END: RabbitMQ uninstalled$(NC)"
+	@echo ""
+
+.PHONY: uninstall-kafka
+uninstall-kafka:
+	@echo "$(BLUE)=== STAGE 4: Uninstall Kafka ===$(NC)"
+	@echo "$(CYAN)--- Stage 4 BEGIN: Uninstalling Kafka...$(NC)"
+	@kubectl delete -f charts/kafka.yaml -n $(KAFKA_NAMESPACE) 2>/dev/null || echo "Kafka not found or already uninstalled"
+	@echo "$(GREEN)--- Stage 4 END: Kafka uninstalled$(NC)"
+	@echo ""
+
+# Main uninstall target
+.PHONY: uninstall
+uninstall: show-config uninstall-maas-service delete-maas-database uninstall-rabbit uninstall-kafka
+	@echo "$(GREEN)=== ALL COMPONENTS UNINSTALLED SUCCESSFULLY ===$(NC)"
+
+# Clean repositories
+.PHONY: clean
+clean:
+	@echo "$(CYAN)--- Cleaning up repositories...$(NC)"
+	@rm -rf repos/qubership-maas
+	@echo "$(GREEN)--- Repositories cleaned$(NC)"

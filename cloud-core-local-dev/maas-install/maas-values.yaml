@@ -1,3 +1,4 @@
+# ============== Credentials ============================
 MAAS_ACCOUNT_MANAGER_USERNAME: manager
 MAAS_ACCOUNT_MANAGER_PASSWORD: manager
 
@@ -7,11 +8,14 @@ MAAS_DEPLOYER_CLIENT_PASSWORD: client
 DBAAS_CLUSTER_DBA_CREDENTIALS_USERNAME: cluster-dba
 DBAAS_CLUSTER_DBA_CREDENTIALS_PASSWORD: password
 
+# ============== Images ============================
 IMAGE_REPOSITORY: ghcr.io/netcracker/qubership-maas
 TAG: ${TAG}
 DECLARATIVE_HOOK_IMAGE: "ghcr.io/netcracker/qubership-maas-validation-image:latest"
 
+# ============== DBaaS ============================
 DBAAS_AGGREGATOR_ADDRESS: ${DBAAS_AGGREGATOR_ADDRESS}
 
+# ============== Cluster ============================
 PAAS_PLATFORM: "KUBERNETES"
 PAAS_VERSION: "v1.33.1"
