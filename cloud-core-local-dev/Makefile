@@ -482,128 +482,14 @@ build-and-load-config-server-docker-image:
 
 build-and-load-missed-images: build-and-load-core-operator-docker-image build-and-load-config-server-docker-image
 
-# ---------------------------- MaaS -------------------------------
+# ----------------------------------- MAAS -----------------------------
 
-deploy-maas: deploy-maas-print-start clone-maas-repos install-maas
-	@echo "$(GREEN)=== MaaS installation completed$(NC)"
-	@echo ""
-
-deploy-maas-print-start:
+.PHONY: install-maas
+install-maas:
 	@echo "$(GREEN)=== Starting MaaS installation...$(NC)"
 	@echo ""
-
-clone-maas-repos:
-	@echo "$(YELLOW)--- Cloning MaaS repository...$(NC)"
-	$(call clone_or_update_repo,qubership-maas,https://github.com/Netcracker/qubership-maas.git,feature/local-deployment)
-	@echo ""
-
-install-maas:
-	@echo "$(YELLOW)--- Setting up MaaS...$(NC)"
-	(cd repos/qubership-maas/helm-templates/maas-service && helm dependency update)
-	helm upgrade --install --namespace maas --create-namespace \
-		maas-service ./repos/qubership-maas/helm-templates/maas-service \
-		-f ./repos/qubership-maas/helm-templates/maas-service/values.yaml \
-		-f ./repos/qubership-maas/helm-templates/maas-service/resource-profiles/dev.yaml \
-		-f ./general-cluster-values.yaml \
-		-f ./maas-values.yaml \
-		--set IMAGE_REPOSITORY=ghcr.io/netcracker/qubership-maas \
-		--set TAG=latest \
-		$(HELM_DEBUG_FLAGS)
-	@echo ""
-
-register-rabbit-instances:
-	bash scripts/register-rabbit-instance-in-maas.sh rabbitmq-1
-	bash scripts/register-rabbit-instance-in-maas.sh rabbitmq-2
-
-register-kafka-instances:
-	bash scripts/register-kafka-instance-in-maas.sh kafka-1
-	bash scripts/register-kafka-instance-in-maas.sh kafka-2
-
-# ----------------------------- Rabbit -----------------------------------------
-
-deploy-rabbit:
-	@echo "$(GREEN)=== Starting rabbit installation...$(NC)"
-	@echo ""
-
-	@echo "$(GREEN)=== Rabbit installation completed$(NC)"
-	@echo ""
-
-	kubectl get namespace rabbit || kubectl create namespace rabbit
-	kubectl apply -f charts/rabbit.yaml -n rabbit
-
-# ----------------------------- Kafka -----------------------------------------
-
-deploy-kafka: deploy-kafka-print-start install-kafka wait-for-kafka-server-started
-	@echo "$(GREEN)=== Kafka installation completed$(NC)"
-	@echo ""
-
-deploy-kafka-print-start:
-	@echo "$(GREEN)=== Starting Kafka installation...$(NC)"
-	@echo ""
-
-install-kafka:
-	@echo "$(GREEN)=== Starting kafka installation...$(NC)"
-	@echo ""
-
-	@echo "$(GREEN)=== Kafka installation completed$(NC)"
-	@echo ""
-
-	kubectl get namespace kafka || kubectl create namespace kafka
-	kubectl apply -f charts/kafka.yaml -n kafka
-
-wait-for-kafka-server-started:
-	@echo "$(YELLOW)--- Waiting for kafka server started (timeout: 5 minutes)...$(NC)"
-	@TIMEOUT=300; \
-	START_TIME=$$(date +%s); \
-	while true; do \
-		CURRENT_TIME=$$(date +%s); \
-		ELAPSED_TIME=$$((CURRENT_TIME - START_TIME)); \
-		if [ $$ELAPSED_TIME -ge $$TIMEOUT ]; then \
-			echo "Timeout reached after 5 minutes. Started message not found in logs."; \
-			exit 1; \
-		fi; \
-		KAFKA1_STARTED=$$(kubectl logs -n kafka -l app=kafka-1 --tail=100 | grep -q "Kafka Server started" && echo true || echo false); \
-		KAFKA2_STARTED=$$(kubectl logs -n kafka -l app=kafka-2 --tail=100 | grep -q "Kafka Server started" && echo true || echo false); \
-		if [ "$$KAFKA1_STARTED" = "true" ] && [ "$$KAFKA2_STARTED" = "true" ]; then \
-			echo "$(GREEN)=== Kafka servers started$(NC)"; \
-			break; \
-		fi; \
-		echo "Waiting for kafka server start... - $$((TIMEOUT - ELAPSED_TIME))s remaining"; \
-		sleep 10; \
-	done
-	@echo ""
-
-# ------------------------------ Maas with brokers -----------------------------------
-
-deploy-maas-with-brokers: deploy-maas deploy-rabbit deploy-kafka register-rabbit-instances register-rabbit-instances
-
-# ------------------------------ Qubership Kafka --------------------------------------
-
-deploy-qubership-kafka: deploy-qubership-kafka-print-start clone-qubership-kafka-repos install-qubership-kafka
-	@echo "$(GREEN)=== kafka installation completed$(NC)"
-	@echo ""
-
-deploy-qubership-kafka-print-start:
-	@echo "$(GREEN)=== Starting kafka installation...$(NC)"
-	@echo ""
-
-clone-qubership-kafka-repos:
-	@echo "$(YELLOW)--- Cloning kafka repository...$(NC)"
-	mkdir -p repos
-	git clone -b main https://github.com/Netcracker/qubership-kafka.git repos/qubership-kafka|| echo "Directory already exists"
-	@echo ""
-
-install-qubership-kafka:
-	@echo "$(YELLOW)--- Setting up kafka...$(NC)"
-	helm upgrade --install --namespace kafka --create-namespace \
-		kafka ./repos/qubership-kafka/charts/helm/kafka \
-		-f ./repos/qubership-kafka/charts/helm/kafka/values.yaml \
-		-f ./repos/qubership-kafka/charts/helm/kafka/resource-profiles/small.yaml \
-		-f ./general-cluster-values.yaml \
-		-f ./kafka-values.yaml \
-		--set IMAGE_REPOSITORY=ghcr.io/netcracker/qubership-kafka \
-		--set TAG=latest \
-		$(HELM_DEBUG_FLAGS)
+	make -C ./maas install CONFIG_FILE=local.mk
+	@echo "$(GREEN)=== MaaS installation completed$(NC)"
 	@echo ""
 
 # ------------------------------------------------------------------------------

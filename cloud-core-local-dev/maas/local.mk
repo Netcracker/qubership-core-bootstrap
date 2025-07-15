@@ -10,18 +10,15 @@ DBAAS_NAMESPACE ?= dbaas
 
 # maas parameters
 TAG ?= latest
-
-#dbaas parameters
 DBAAS_AGGREGATOR_ADDRESS ?= http://dbaas-aggregator.${DBAAS_NAMESPACE}.svc.cluster.local:8080
 
-# maas credentials
+# credentials
 MAAS_ACCOUNT_MANAGER_USERNAME ?= manager
 MAAS_ACCOUNT_MANAGER_PASSWORD ?= manager
 
 MAAS_DEPLOYER_CLIENT_USERNAME ?= client
 MAAS_DEPLOYER_CLIENT_PASSWORD ?= client
 
-# dbaas credentials
 DBAAS_CLUSTER_DBA_CREDENTIALS_USERNAME ?= cluster-dba
 DBAAS_CLUSTER_DBA_CREDENTIALS_PASSWORD ?= password
 
