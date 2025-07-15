@@ -9,8 +9,8 @@ fi
 
 RABBIT_INSTANCE="$1"
 
-USERNAME=${USERNAME:-manager}
-PASSWORD=${PASSWORD:-manager}
+MAAS_ACCOUNT_MANAGER_USERNAME=${MAAS_ACCOUNT_MANAGER_USERNAME:-manager}
+MAAS_ACCOUNT_MANAGER_PASSWORD=${MAAS_ACCOUNT_MANAGER_PASSWORD:-manager}
 NAMESPACE=${NAMESPACE:-maas}
 SERVICE=maas-service
 LOCAL_PORT=8080
@@ -49,7 +49,7 @@ RESPONSE=$(mktemp)
 HTTP_CODE=$(curl -s -w "%{http_code}" -o "$RESPONSE" \
   -X POST "http://localhost:${LOCAL_PORT}/api/v2/rabbit/instance" \
   -H "Content-Type: application/json" \
-  -u "${USERNAME}:${PASSWORD}" \
+  -u "${MAAS_ACCOUNT_MANAGER_USERNAME}:${MAAS_ACCOUNT_MANAGER_PASSWORD}" \
   -d "${JSON_BODY}")
 
 echo "--- Response HTTP-code: ${HTTP_CODE}"

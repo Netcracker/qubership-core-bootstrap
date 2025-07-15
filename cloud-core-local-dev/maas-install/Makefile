@@ -46,6 +46,9 @@ show-config:
 	@echo "$(CYAN)--- DBaaS namespace: $(NC)$(DBAAS_NAMESPACE)"
 	@echo "$(CYAN)--- DBaaS aggregator address: $(NC)$(DBAAS_AGGREGATOR_ADDRESS)"
 	@echo "$(CYAN)--- Image tag: $(NC)$(TAG)"
+	@echo "$(CYAN)--- MAAS_ACCOUNT_MANAGER_USERNAME: $(NC)$(MAAS_ACCOUNT_MANAGER_USERNAME)"
+	@echo "$(CYAN)--- MAAS_DEPLOYER_CLIENT_USERNAME: $(NC)$(MAAS_DEPLOYER_CLIENT_USERNAME)"
+	@echo "$(CYAN)--- DBAAS_CLUSTER_DBA_CREDENTIALS_USERNAME: $(NC)$(DBAAS_CLUSTER_DBA_CREDENTIALS_USERNAME)"
 	@echo ""
 
 # Validate prerequisites
