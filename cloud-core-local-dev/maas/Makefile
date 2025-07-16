@@ -134,8 +134,8 @@ install-rabbitmq:
 ifeq ($(CREATE_NAMESPACE),true)
 	@kubectl get namespace $(RABBIT_NAMESPACE) || kubectl create namespace $(RABBIT_NAMESPACE)
 endif
-	@kubectl apply -f charts/rabbit.yaml -n $(RABBIT_NAMESPACE) || \
-		(echo "$(RED)Error: RabbitMQ installation failed$(NC)" && echo "$(CYAN)Please check the helm output above for details$(NC)" && exit 1)
+	@helm upgrade --install rabbitmq-1 charts/rabbitmq -n $(RABBIT_NAMESPACE) --set name=rabbitmq-1
+	@helm upgrade --install rabbitmq-2 charts/rabbitmq -n $(RABBIT_NAMESPACE) --set name=rabbitmq-2
 	@echo "$(GREEN)--- Stage 4 END: RabbitMQ installation completed$(NC)"
 	@echo ""
 
@@ -159,8 +159,8 @@ install-kafka:
 ifeq ($(CREATE_NAMESPACE),true)
 	@kubectl get namespace $(KAFKA_NAMESPACE) || kubectl create namespace $(KAFKA_NAMESPACE)
 endif
-	@kubectl apply -f charts/kafka.yaml -n $(KAFKA_NAMESPACE) || \
-		(echo "$(RED)Error: Kafka installation failed$(NC)" && echo "$(CYAN)Please check the helm output above for details$(NC)" && exit 1)
+	@helm upgrade --install kafka-1 charts/kafka -n $(KAFKA_NAMESPACE) --set name=kafka-1
+	@helm upgrade --install kafka-2 charts/kafka -n $(KAFKA_NAMESPACE) --set name=kafka-2
 	@echo "$(GREEN)--- Stage 6 END: Kafka installation completed$(NC)"
 	@echo ""
 
