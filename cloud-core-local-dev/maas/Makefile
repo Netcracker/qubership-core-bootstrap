@@ -37,6 +37,8 @@ help:
 # Show configuration
 .PHONY: show-config
 show-config:
+	@echo "$(BLUE)=== CHOSEN PROFILE ===$(NC)"
+	@echo "$(CYAN)--- Profile: $(NC)$(CONFIG_FILE)"
 	@echo "$(BLUE)=== ENVIRONMENT VARIABLES ===$(NC)"
 	@echo "$(CYAN)--- MaaS values file: $(NC)$(MAAS_VALUES_FILE)"
 	@echo "$(CYAN)--- MaaS profile file: $(NC)$(MAAS_PROFILE_FILE)"
@@ -134,20 +136,21 @@ install-rabbitmq:
 ifeq ($(CREATE_NAMESPACE),true)
 	@kubectl get namespace $(RABBIT_NAMESPACE) || kubectl create namespace $(RABBIT_NAMESPACE)
 endif
-	@helm upgrade --install rabbitmq-1 charts/rabbitmq -n $(RABBIT_NAMESPACE) --set name=rabbitmq-1
-	@helm upgrade --install rabbitmq-2 charts/rabbitmq -n $(RABBIT_NAMESPACE) --set name=rabbitmq-2
+	@for i in $(RABBIT_INSTANCES); do \
+		helm upgrade --install $$i charts/rabbitmq -n $(RABBIT_NAMESPACE) --set name=$$i; \
+	done
 	@echo "$(GREEN)--- Stage 4 END: RabbitMQ installation completed$(NC)"
 	@echo ""
 
-# Wait for Rabbit server started
-.PHONY: wait-for-rabbit-server-started
 wait-for-rabbit-server-started:
 	@echo "$(BLUE)=== STAGE 5: Wait for RabbitMQ server started  ===$(NC)"
 	@echo "$(CYAN)--- Stage 5 BEGIN: Waiting for rabbit server started (timeout: 5 minutes)...$(NC)"
-	@bash scripts/wait-for-service.sh \
-			"RabbitMQ servers" \
-			'kubectl logs -n $(RABBIT_NAMESPACE) -l app=rabbitmq-1 --tail=100 | grep -q "Server startup complete" && \
-			 	kubectl logs -n $(RABBIT_NAMESPACE) -l app=rabbitmq-2 --tail=100 | grep -q "Server startup complete"'
+	@CMD=""; \
+	for i in $(RABBIT_INSTANCES); do \
+		CMD="$$CMD kubectl logs -n $(RABBIT_NAMESPACE) -l app=$$i --tail=100 | grep -q 'Server startup complete' && "; \
+	done; \
+	CMD=$${CMD%&& }; \
+	bash scripts/wait-for-service.sh "RabbitMQ servers" "$$CMD"
 	@echo "$(GREEN)--- Stage 5 END: RabbitMQ servers are ready$(NC)"
 	@echo ""
 
@@ -159,20 +162,21 @@ install-kafka:
 ifeq ($(CREATE_NAMESPACE),true)
 	@kubectl get namespace $(KAFKA_NAMESPACE) || kubectl create namespace $(KAFKA_NAMESPACE)
 endif
-	@helm upgrade --install kafka-1 charts/kafka -n $(KAFKA_NAMESPACE) --set name=kafka-1
-	@helm upgrade --install kafka-2 charts/kafka -n $(KAFKA_NAMESPACE) --set name=kafka-2
+	@for i in $(KAFKA_INSTANCES); do \
+		helm upgrade --install $$i charts/kafka -n $(KAFKA_NAMESPACE) --set name=$$i; \
+	done
 	@echo "$(GREEN)--- Stage 6 END: Kafka installation completed$(NC)"
 	@echo ""
 
-# Wait for Kafka server started
-.PHONY: wait-for-kafka-server-started
 wait-for-kafka-server-started:
 	@echo "$(BLUE)=== STAGE 7: Wait for Kafka server started  ===$(NC)"
 	@echo "$(CYAN)--- Stage 7 BEGIN: Waiting for kafka server started (timeout: 5 minutes)...$(NC)"
-	@bash scripts/wait-for-service.sh \
-		"Kafka servers" \
-		'kubectl logs -n $(KAFKA_NAMESPACE) -l app=kafka-1 --tail=100 | grep -q "Kafka Server started" && \
-			kubectl logs -n $(KAFKA_NAMESPACE) -l app=kafka-2 --tail=100 | grep -q "Kafka Server started"'
+	@CMD=""; \
+	for i in $(KAFKA_INSTANCES); do \
+		CMD="$$CMD kubectl logs -n $(KAFKA_NAMESPACE) -l app=$$i --tail=100 | grep -q 'Kafka Server started' && "; \
+	done; \
+	CMD=$${CMD%&& }; \
+	bash scripts/wait-for-service.sh "Kafka servers" "$$CMD"
 	@echo "$(GREEN)--- Stage 7 END: Kafka servers are ready$(NC)"
 	@echo ""
 
@@ -181,17 +185,20 @@ wait-for-kafka-server-started:
 register-rabbit-instances:
 	@echo "$(BLUE)=== STAGE 8: Register RabbitMQ instances  ===$(NC)"
 	@echo "$(CYAN)--- Stage 8 BEGIN: RabbitMQ instances registration...$(NC)"
-	bash scripts/register-rabbit-instance-in-maas.sh rabbitmq-1
-	bash scripts/register-rabbit-instance-in-maas.sh rabbitmq-2
+	@for i in $(RABBIT_INSTANCES); do \
+		bash scripts/register-rabbit-instance-in-maas.sh $$i; \
+	done
 	@echo "$(GREEN)--- Stage 8 END: RabbitMQ instances are registered$(NC)"
 	@echo ""
 
 # Register Kafka instances
+.PHONY: register-kafka-instances
 register-kafka-instances:
 	@echo "$(BLUE)=== STAGE 9: Register Kafka instances  ===$(NC)"
 	@echo "$(CYAN)--- Stage 9 BEGIN: Kafka instances registration...$(NC)"
-	bash scripts/register-kafka-instance-in-maas.sh kafka-1
-	bash scripts/register-kafka-instance-in-maas.sh kafka-2
+	@for i in $(KAFKA_INSTANCES); do \
+		bash scripts/register-kafka-instance-in-maas.sh $$i; \
+	done
 	@echo "$(GREEN)--- Stage 9 END: Kafka instances are registered$(NC)"
 	@echo ""
 
@@ -228,7 +235,9 @@ delete-maas-database:
 uninstall-rabbit:
 	@echo "$(BLUE)=== STAGE 3: Uninstall RabbitMQ ===$(NC)"
 	@echo "$(CYAN)--- Stage 3 BEGIN: Uninstalling RabbitMQ...$(NC)"
-	@kubectl delete -f charts/rabbit.yaml -n $(RABBIT_NAMESPACE) 2>/dev/null || echo "RabbitMQ not found or already uninstalled"
+	@for i in $(RABBIT_INSTANCES); do \
+		helm uninstall -n $(RABBIT_NAMESPACE) $$i 2>/dev/null || echo "RabbitMQ instance $$i not found or already uninstalled"; \
+	done
 	@echo "$(GREEN)--- Stage 3 END: RabbitMQ uninstalled$(NC)"
 	@echo ""
 
@@ -236,7 +245,9 @@ uninstall-rabbit:
 uninstall-kafka:
 	@echo "$(BLUE)=== STAGE 4: Uninstall Kafka ===$(NC)"
 	@echo "$(CYAN)--- Stage 4 BEGIN: Uninstalling Kafka...$(NC)"
-	@kubectl delete -f charts/kafka.yaml -n $(KAFKA_NAMESPACE) 2>/dev/null || echo "Kafka not found or already uninstalled"
+	@for i in $(KAFKA_INSTANCES); do \
+		helm uninstall -n $(KAFKA_NAMESPACE) $$i 2>/dev/null || echo "Kafka instance $$i not found or already uninstalled"; \
+	done
 	@echo "$(GREEN)--- Stage 4 END: Kafka uninstalled$(NC)"
 	@echo ""
 

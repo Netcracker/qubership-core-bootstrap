@@ -5,15 +5,15 @@ The script manages the installation and uninstallation of Maas Service, RabbitMQ
 
 ## Quick start
 ### 1. Prepare config file
-Script distributed with 1 prepared configuration:
-- local.mk - for local deployment
+Script distributed with 2 prepared configurations:
+- local.mk - for local deployment (1 Kafka and 1 RabbitMQ instance)
+- integration-tests.mk - for integration tests (2 Kafka and 2 RabbitMQ instances)
 
 ### 2. Execute installation command
 
 #### minikube installation
 `make install CONFIG_FILE=local.mk`
-or
-`make install`
+`make install CONFIG_FILE=integration-tests.mk`
 
 local.mk applied by default
 
@@ -32,6 +32,22 @@ Examples:
 - `make install CONFIG_FILE=local.mk`
 - `make uninstall CONFIG_FILE=local.mk`
 - `make validate CONFIG_FILE=local.mk`
+
+## Profiles and Instance Count
+
+The number of Kafka and RabbitMQ instances is controlled by variables in the profile file:
+
+```
+KAFKA_INSTANCES = kafka-1 kafka-2
+RABBIT_INSTANCES = rabbitmq-1 rabbitmq-2
+```
+
+or for minimal profile:
+
+```
+KAFKA_INSTANCES = kafka-1
+RABBIT_INSTANCES = rabbitmq-1
+```
 
 ## Prerequisites
 
@@ -115,12 +131,14 @@ The script uses a .mk configuration file to define all installation and helm pac
 | `DBAAS_CLUSTER_DBA_CREDENTIALS_PASSWORD` | `password`                           | DBaaS cluster DBA password (to register MaaS database) |
 | **Installation Options**                 |
 | `CREATE_NAMESPACE`                       | `true`                               | Automatically create namespaces if they don't exist    |
+| `KAFKA_INSTANCES`                        | `kafka-1 kafka-2`                    | List of Kafka instance names to install                |
+| `RABBIT_INSTANCES`                       | `rabbitmq-1 rabbitmq-2`              | List of RabbitMQ instance names to install             |
 
 ### Values Files
 
 The script uses one main values file template:
 
-1**maas-values.yaml** - Configuration for MaaS component
+**maas-values.yaml** - Configuration for MaaS component
 
 The script uses `envsubst` to substitute environment variables in the values files templates
 
@@ -142,25 +160,25 @@ The installation script performs the following stages:
 - Ensures 1 pod is ready and MaaS server is started
 
 ### Stage 4: RabbitMQ Installation
-- Installs simple RabbitMQ chart using kubectl
+- Installs RabbitMQ chart(s) using Helm for each name in `RABBIT_INSTANCES`
 
 ### Stage 5: Wait for RabbitMQ server started
-- Waits for RabbitMQ deployment to be ready (timeout: 5 minutes)
-- Ensures two pods are ready
+- Waits for all RabbitMQ deployments to be ready (timeout: 5 minutes)
+- Ensures all pods from `RABBIT_INSTANCES` are ready
 
 ### Stage 6: Kafka Installation
-- Installs simple Kafka chart using kubectl
+- Installs Kafka chart(s) using Helm for each name in `KAFKA_INSTANCES`
 
 ### Stage 7: Wait for Kafka server started
-- Waits for Kafka deployment to be ready (timeout: 5 minutes)
-- Ensures two pods are ready
+- Waits for all Kafka deployments to be ready (timeout: 5 minutes)
+- Ensures all pods from `KAFKA_INSTANCES` are ready
 
 ### Stage 8: Register RabbitMQ instances
-- Registers two rabbit instances in MaaS
+- Registers all RabbitMQ instances from `RABBIT_INSTANCES` in MaaS
 - Uses `scripts/register-rabbit-instance-in-maas.sh` script
 
 ### Stage 9: Register Kafka instances
-- Registers two kafka instances in MaaS
+- Registers all Kafka instances from `KAFKA_INSTANCES` in MaaS
 - Uses `scripts/register-kafka-instance-in-maas.sh` script
 
 ## Uninstallation Process
@@ -175,7 +193,7 @@ The uninstallation script performs the following stages:
 - Uses `scripts/remove-maas-database-from-dbaas.sh` script
 
 ### Stage 3: Uninstall RabbitMQ
-- Removes RabbitMQ charts
+- Removes all RabbitMQ Helm releases from `RABBIT_INSTANCES`
 
 ### Stage 4: Uninstall Kafka
-- Removes Kafka charts
+- Removes all Kafka Helm releases from `KAFKA_INSTANCES`

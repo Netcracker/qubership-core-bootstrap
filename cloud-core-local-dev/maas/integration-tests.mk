@@ -40,5 +40,5 @@ export DBAAS_CLUSTER_DBA_CREDENTIALS_PASSWORD
 # installation parameters - not propagated to helm values
 CREATE_NAMESPACE ?= true
 
-KAFKA_INSTANCES = kafka-1
-RABBIT_INSTANCES = rabbitmq-1 
+KAFKA_INSTANCES = kafka-1 kafka-2
+RABBIT_INSTANCES = rabbitmq-1 rabbitmq-2
