@@ -202,13 +202,20 @@ register-kafka-instances:
 	@echo "$(GREEN)--- Stage 9 END: Kafka instances are registered$(NC)"
 	@echo ""
 
+# Check MaaS health
+.PHONY: check-maas-health
+check-maas-health:
+	@echo "$(BLUE)=== STAGE 10: Check MaaS health  ===$(NC)"
+	@bash scripts/check-maas-health.sh
+
 # Main install target
 .PHONY: install
 install: validate show-config setup-repos \
 	install-maas-service wait-for-maas-service-started \
 	install-rabbitmq wait-for-rabbit-server-started \
 	install-kafka wait-for-kafka-server-started \
-	register-rabbit-instances register-kafka-instances
+	register-rabbit-instances register-kafka-instances \
+	check-maas-health
 	@echo "$(GREEN)=== ALL STAGES COMPLETED SUCCESSFULLY ===$(NC)"
 
 
