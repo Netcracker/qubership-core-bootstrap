@@ -9,7 +9,7 @@ DBAAS_NAMESPACE ?= dbaas
 
 # postgres parameters
 POSTGRES_PASSWORD ?= password
-STORAGE_CLASS ?= standard
+#STORAGE_CLASS ?= standard
 PATRONI_REPLICAS_NUMBER ?= 1
 
 # dbaas parameters
@@ -25,7 +25,7 @@ export PG_NAMESPACE
 export DBAAS_NAMESPACE
 export DBAAS_SERVICE_NAME
 export POSTGRES_PASSWORD
-export STORAGE_CLASS
+# export STORAGE_CLASS
 export PATRONI_REPLICAS_NUMBER
 export NODE_SELECTOR_DBAAS_KEY
 export REGION_DBAAS

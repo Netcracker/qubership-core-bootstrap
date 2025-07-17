@@ -10,17 +10,12 @@ Script distributed with 2 prepared configurations:
 
 ### 2. Execute installation command
 
-#### minikube installation
+#### Local installation (minikube/rancher desktop/...)
   `make install CONFIG_FILE=local.mk`
   or
   `make install`
   
   local.mk applied by default
-
-#### rancher-desktop installation
-  `make install STORAGE_CLASS=local-path`
-  
-  local.mk applied by default, storage class will be overriden by argument value
 
 #### AWS installation
   `make install CONFIG_FILE=aws.mk`
@@ -128,7 +123,7 @@ The script uses a .mk configuration file to define all installation and helm pac
 | `DBAAS_NAMESPACE` | `dbaas` | Kubernetes namespace for DBaaS Aggregator |
 | **PostgreSQL Configuration** |
 | `POSTGRES_PASSWORD` | `password` | Password for PostgreSQL database |
-| `STORAGE_CLASS` | `standard` / `local-path` / `gp2` | Kubernetes storage class for persistent volumes. standard - is value for minikube deployment. local-path - is value for rancher-desktop.  gp2 - is value for AWS |
+| `STORAGE_CLASS` | `standard` / `local-path` / `gp2` | Kubernetes storage class for persistent volumes. standard - is value for minikube deployment. local-path - is value for rancher-desktop.  gp2 - is value for AWS. If value is not provided (e.g. in local.mk) - script will try to determine default Storage Class in cluster and apply it. (Requires priveleges to list Storage Classes) |
 | `PATRONI_REPLICAS_NUMBER` | 1 | Number of patroni nodes |
 | **DBaaS Configuration** |
 | `DBAAS_SERVICE_NAME` | `dbaas-aggregator` | Service name for DBaaS |

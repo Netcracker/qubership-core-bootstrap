@@ -136,7 +136,29 @@ setup-repos:
 install-patroni-core:
 	@echo "$(BLUE)=== STAGE 2: Patroni Core Installation ===$(NC)"
 	@echo "$(CYAN)--- Stage 2 BEGIN: Installing Patroni Core...$(NC)"
-	@envsubst < $(PATRONI_CORE_VALUES_FILE) | helm upgrade --install --namespace=$(PG_NAMESPACE) $(CREATE_NAMESPACE_OPTION) $(SKIP_CRDS_OPTION) \
+	@echo "$(BLUE)=== AUTO-DETECTING STORAGE CLASS ===$(NC)"
+	@if [ -z "$(STORAGE_CLASS)" ]; then \
+		echo "$(CYAN)--- STORAGE_CLASS not specified, detecting default storage class...$(NC)"; \
+		DEFAULT_STORAGE_CLASS=$$(kubectl get storageclass -o jsonpath='{.items[?(@.metadata.annotations.storageclass\.kubernetes\.io/is-default-class=="true")].metadata.name}' 2>/dev/null); \
+		if [ -z "$$DEFAULT_STORAGE_CLASS" ]; then \
+			echo "$(CYAN)--- No default storage class found, checking for any available storage class...$(NC)"; \
+			DEFAULT_STORAGE_CLASS=$$(kubectl get storageclass -o jsonpath='{.items[0].metadata.name}' 2>/dev/null); \
+		fi; \
+		if [ -z "$$DEFAULT_STORAGE_CLASS" ]; then \
+			echo "$(RED)Error: No storage class found in cluster$(NC)"; \
+			echo "$(CYAN)Please create a storage class or specify STORAGE_CLASS manually$(NC)"; \
+			exit 1; \
+		fi; \
+		echo "$(GREEN)--- Auto-detected storage class: $$DEFAULT_STORAGE_CLASS$(NC)"; \
+		echo "$(CYAN)--- Setting STORAGE_CLASS=$$DEFAULT_STORAGE_CLASS$(NC)"; \
+		export STORAGE_CLASS=$$DEFAULT_STORAGE_CLASS; \
+		echo "$(GREEN)--- Exported STORAGE_CLASS=$$STORAGE_CLASS$(NC)"; \
+	else \
+		echo "$(GREEN)--- STORAGE_CLASS already specified: $(STORAGE_CLASS)$(NC)"; \
+	fi; \
+	echo "$(GREEN)--- Final STORAGE_CLASS value: $$STORAGE_CLASS$(NC)"; \
+	echo ""; \
+	envsubst < $(PATRONI_CORE_VALUES_FILE) | helm upgrade --install --namespace=$(PG_NAMESPACE) $(CREATE_NAMESPACE_OPTION) $(SKIP_CRDS_OPTION) \
 		patroni-core ./repos/pgskipper-operator/charts/patroni-core -f - || \
 		(echo "$(RED)Error: Patroni Core installation failed$(NC)" && echo "$(CYAN)Please check the helm output above for details$(NC)" && exit 1)
 	@echo "$(GREEN)--- Stage 2 END: Patroni Core installation completed$(NC)"
