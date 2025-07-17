@@ -23,12 +23,14 @@ help:
 	@echo "Usage: make <target> [CONFIG_FILE=local.mk]"
 	@echo ""
 	@echo "Targets:"
-	@echo "  install     - Install all DBaaS components"
-	@echo "  uninstall   - Uninstall all DBaaS components"
-	@echo "  validate    - Validate configuration and prerequisites"
-	@echo "  show-config - Show current configuration"
-	@echo "  clean       - Clean up repositories"
-	@echo "  help        - Show this help message"
+	@echo "  install          - Install all DBaaS components and run smoke test"
+	@echo "  install-without-test - Install all DBaaS components without smoke test"
+	@echo "  uninstall        - Uninstall all DBaaS components"
+	@echo "  smoke-test       - Test database creation via REST API"
+	@echo "  validate         - Validate configuration and prerequisites"
+	@echo "  show-config      - Show current configuration"
+	@echo "  clean            - Clean up repositories"
+	@echo "  help             - Show this help message"
 	@echo ""
 	@echo "Examples:"
 	@echo "  make install CONFIG_FILE=local.mk"
@@ -239,8 +241,137 @@ wait-patroni-services-registration:
 
 # Main install target
 .PHONY: install
-install: validate show-config setup-repos install-patroni-core wait-patroni-pods install-dbaas-aggregator wait-dbaas-aggregator install-patroni-services wait-patroni-services-registration
+install: install-without-test smoke-test
+	@echo "$(GREEN)=== INSTALLATION AND SMOKE TEST COMPLETED SUCCESSFULLY ===$(NC)"
+
+# Install without smoke test
+.PHONY: install-without-test
+install-without-test: validate show-config setup-repos install-patroni-core wait-patroni-pods install-dbaas-aggregator wait-dbaas-aggregator install-patroni-services wait-patroni-services-registration
 	@echo "$(GREEN)=== ALL STAGES COMPLETED SUCCESSFULLY ===$(NC)"
+	@echo ""
+
+# Smoke test - Test DB creation via REST API
+.PHONY: smoke-test
+smoke-test:
+	@echo "$(BLUE)=== SMOKE TEST: Database Creation via REST API (after 30s sleep)===$(NC)"
+	@sleep 30;
+	@echo "$(CYAN)--- Stage BEGIN: Testing database creation via REST API...$(NC)"
+	@echo "$(CYAN)--- Waiting for DBaaS service to be ready...$(NC)"
+	@TIMEOUT=300; START_TIME=$$(date +%s); \
+	while true; do \
+		CURRENT_TIME=$$(date +%s); \
+		ELAPSED_TIME=$$((CURRENT_TIME - START_TIME)); \
+		if [ $$ELAPSED_TIME -ge $$TIMEOUT ]; then \
+			echo "$(RED)Error: Timeout reached after 5 minutes. Service is not ready.$(NC)"; \
+			exit 1; \
+		fi; \
+		if kubectl -n $(DBAAS_NAMESPACE) get service $(DBAAS_SERVICE_NAME) >/dev/null 2>&1; then \
+			echo "$(GREEN)--- DBaaS service is ready$(NC)"; \
+			break; \
+		fi; \
+		echo "Waiting for DBaaS service to be ready... - $$((TIMEOUT - ELAPSED_TIME))s remaining"; \
+		sleep 10; \
+	done
+	@echo "$(CYAN)--- Getting service credentials...$(NC)"
+	@DBAAS_CREDENTIALS_SECRET_NAME=dbaas-aggregator-registration-credentials; \
+	echo "$(CYAN)--- Getting credentials from secret $$DBAAS_CREDENTIALS_SECRET_NAME in namespace $(PG_NAMESPACE)...$(NC)"; \
+	DBAAS_USERNAME=$$(kubectl -n $(PG_NAMESPACE) get secret $$DBAAS_CREDENTIALS_SECRET_NAME -o jsonpath='{.data.username}'  | base64 -d); \
+	DBAAS_PASSWORD=$$(kubectl -n $(PG_NAMESPACE) get secret $$DBAAS_CREDENTIALS_SECRET_NAME -o jsonpath='{.data.password}'  | base64 -d); \
+	if [ -z "$$DBAAS_USERNAME" ] || [ -z "$$DBAAS_PASSWORD" ]; then \
+		echo "$(RED)Error: Could not retrieve DBaaS credentials$(NC)"; \
+		exit 1; \
+	fi; \
+	echo "$(GREEN)--- Credentials retrieved successfully$(NC)"; \
+	echo "$(CYAN)--- Setting up port forward to DBaaS service...$(NC)";\
+	PORT_FOUND=false;\
+	ATTEMPT=1;\
+	while [ $$ATTEMPT -le 10 ] && [ "$$PORT_FOUND" != "true" ]; do \
+		RANDOM_PORT=$$(shuf -i 63000-65900 -n 1); \
+		echo "$(CYAN)--- Attempt $$ATTEMPT: Trying port $$RANDOM_PORT$(NC)"; \
+		if ! netstat -tuln 2>/dev/null | grep -q ":$$RANDOM_PORT "; then \
+			echo "$(GREEN)--- Port $$RANDOM_PORT is available$(NC)"; \
+			kubectl port-forward -n $(DBAAS_NAMESPACE) service/$(DBAAS_SERVICE_NAME) $$RANDOM_PORT:8080 >/dev/null 2>&1 & \
+			PORT_FORWARD_PID=$$!; \
+			echo "$(CYAN)--- Port forward started with PID: $$PORT_FORWARD_PID$(NC)"; \
+			PORT_FOUND=true; \
+		else \
+			echo "$(CYAN)--- Port $$RANDOM_PORT is already in use, trying another port$(NC)"; \
+			ATTEMPT=$$((ATTEMPT + 1)); \
+		fi; \
+	done; \
+	if [ "$$PORT_FOUND" != "true" ]; then \
+		echo "$(RED)Error: Could not find an available port after 10 attempts$(NC)"; \
+		exit 1; \
+	fi; \
+	sleep 10;\
+	echo "$(CYAN)--- Creating test database via REST API (10 attempts with 10s sleep)...$(NC)";\
+	BASIC_AUTH_HEADER=$$(echo -n "$$DBAAS_USERNAME:$$DBAAS_PASSWORD" | base64);\
+	DB_CREATION_SUCCESS=false;\
+	DB_ATTEMPT=1;\
+	while [ $$DB_ATTEMPT -le 10 ] && [ "$$DB_CREATION_SUCCESS" != "true" ]; do \
+		echo "$(CYAN)--- Database creation attempt $$DB_ATTEMPT/10...$(NC)"; \
+		TEST_DB_RESPONSE=$$(curl -s -w "HTTPSTATUS:%{http_code}" -X PUT \
+			"http://localhost:$$RANDOM_PORT/api/v3/dbaas/$(DBAAS_NAMESPACE)/databases" \
+			-H "Content-Type: application/json" \
+			-H "Authorization: Basic $$BASIC_AUTH_HEADER" \
+			-d '{ \
+				"classifier": { \
+					"microserviceName": "smoke-test-service", \
+					"scope": "service", \
+					"namespace": "$(DBAAS_NAMESPACE)" \
+				}, \
+				"type": "postgresql", \
+				"originService": "smoke-test-service" \
+			}' 2>/dev/null); \
+		HTTP_STATUS=$$(echo "$$TEST_DB_RESPONSE" | grep -o "HTTPSTATUS:[0-9]*" | cut -d: -f2); \
+		RESPONSE_BODY=$$(echo "$$TEST_DB_RESPONSE" | sed 's/HTTPSTATUS:[0-9]*//'); \
+		if [ "$$HTTP_STATUS" = "200" ] || [ "$$HTTP_STATUS" = "201" ] || [ "$$HTTP_STATUS" = "202" ]; then \
+			echo "$(GREEN)--- Database creation successful on attempt $$DB_ATTEMPT! HTTP Status: $$HTTP_STATUS$(NC)"; \
+			echo "$(CYAN)--- Response: $$RESPONSE_BODY$(NC)"; \
+			DB_CREATION_SUCCESS=true; \
+		else \
+			echo "$(CYAN)--- Database creation attempt $$DB_ATTEMPT failed. HTTP Status: $$HTTP_STATUS$(NC)"; \
+			echo "$(CYAN)--- Response: $$RESPONSE_BODY$(NC)"; \
+			if [ $$DB_ATTEMPT -lt 10 ]; then \
+				echo "$(CYAN)--- Waiting 10 seconds before next attempt...$(NC)"; \
+				sleep 10; \
+			fi; \
+			DB_ATTEMPT=$$((DB_ATTEMPT + 1)); \
+		fi; \
+	done; \
+	if [ "$$DB_CREATION_SUCCESS" != "true" ]; then \
+		echo "$(RED)Error: Database creation failed after 10 attempts$(NC)"; \
+		echo "$(CYAN)--- Cleaning up: Removing port forward...$(NC)"; \
+		kill $$PORT_FORWARD_PID 2>/dev/null || true; \
+		echo "$(GREEN)--- Cleaning up: Port forward removed$(NC)"; \
+		exit 1; \
+	fi; \
+	echo "$(CYAN)--- Cleaning up: Removing test database...$(NC)"; \
+	DELETE_RESPONSE=$$(curl -s -w "HTTPSTATUS:%{http_code}" -X DELETE \
+		"http://localhost:$$RANDOM_PORT/api/v3/dbaas/$(DBAAS_NAMESPACE)/databases/postgresql" \
+		-H "Content-Type: application/json" \
+		-H "Authorization: Basic $$BASIC_AUTH_HEADER" \
+		-d '{ \
+			"classifier": { \
+				"microserviceName": "smoke-test-service", \
+				"scope": "service", \
+				"namespace": "$(DBAAS_NAMESPACE)" \
+			}, \
+			"originService": "smoke-test-service" \
+		}' 2>/dev/null); \
+	DELETE_STATUS=$$(echo "$$DELETE_RESPONSE" | grep -o "HTTPSTATUS:[0-9]*" | cut -d: -f2); \
+	DELETE_BODY=$$(echo "$$DELETE_RESPONSE" | sed 's/HTTPSTATUS:[0-9]*//'); \
+	if [ "$$DELETE_STATUS" = "200" ] || [ "$$DELETE_STATUS" = "204" ]; then \
+		echo "$(GREEN)--- Database removal successful! HTTP Status: $$DELETE_STATUS$(NC)"; \
+	else \
+		echo "$(RED)--- Database removal failed (this is not critical): HTTP Status: $$DELETE_STATUS$(NC)"; \
+		echo "$(CYAN)--- Response: $$DELETE_BODY$(NC)"; \
+	fi; \
+	echo "$(CYAN)--- Cleaning up: Removing port forward...$(NC)"; \
+	kill $$PORT_FORWARD_PID 2>/dev/null || true; \
+	echo "$(GREEN)--- Cleaning up: Port forward removed$(NC)"; \
+	echo "$(GREEN)--- Stage END: Smoke test completed successfully$(NC)"; \
+	echo ""
 
 # Uninstall targets
 .PHONY: uninstall-patroni-services

@@ -29,8 +29,10 @@ Script distributed with 2 prepared configurations:
 Usage: `make <target> [CONFIG_FILE=local.mk]`
 
 Targets:
-  - install     - Install all DBaaS components
+  - install          - Install all DBaaS components and run smoke test
+  - install-without-test - Install all DBaaS components without smoke test
   - uninstall   - Uninstall all DBaaS components
+  - smoke-test  - Test database creation via REST API
   - validate    - Validate configuration and prerequisites
   - show-config - Show current configuration
   - clean       - Clean up repositories
@@ -40,7 +42,7 @@ Examples:
   - `make install CONFIG_FILE=local.mk`
   - `make uninstall CONFIG_FILE=local.mk`
   - `make validate CONFIG_FILE=local.mk`
-  
+
 ## Prerequisites
 
 Before running the installation script, ensure you have the following tools installed and configured:
