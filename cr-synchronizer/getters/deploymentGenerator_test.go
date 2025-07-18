@@ -39,6 +39,11 @@ func (f *fakeClientset) AppsV1() appsv1.AppsV1Interface             { return f.a
 func (f *fakeClientset) BatchV1() batchv1.BatchV1Interface          { return nil }
 
 func TestDeclarationWaiter_UpdatedPhase(t *testing.T) {
+	// Reset global watcher map for test isolation
+	resourceTypeWatchersMu.Lock()
+	resourceTypeWatchers = make(map[schema.GroupVersionResource]*resourceTypeWatcher)
+	resourceTypeWatchersMu.Unlock()
+
 	resource := schema.GroupVersionResource{Group: "test", Version: "v1", Resource: "tests"}
 	scheme := runtime.NewScheme()
 	fclient := k8sClientDynamic.NewSimpleDynamicClient(scheme)
@@ -55,10 +60,10 @@ func TestDeclarationWaiter_UpdatedPhase(t *testing.T) {
 	)
 
 	obj := &unstructured.Unstructured{}
-	obj.SetName("test-resource")
 	obj.Object = map[string]interface{}{
 		"status": map[string]interface{}{"phase": "Updated"},
 	}
+	obj.SetName("test-resource")
 	fclient.PrependReactor("get", "tests", func(action k8sTesting.Action) (handled bool, ret runtime.Object, err error) {
 		return true, obj, nil
 	})

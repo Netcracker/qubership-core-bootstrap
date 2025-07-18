@@ -12,8 +12,10 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/dynamic"
 	"os"
+	"sync"
 	"time"
 )
 
@@ -30,6 +32,90 @@ type DeploymentGenerator struct {
 	runtimeReceiver runtime.Object
 	timeoutSeconds  int
 	postDeploy      bool
+}
+
+// One watcher per resource type (plural)
+var (
+	resourceTypeWatchersMu sync.Mutex
+	resourceTypeWatchers   = make(map[schema.GroupVersionResource]*resourceTypeWatcher)
+)
+
+type resourceTypeWatcher struct {
+	watcher  watch.Interface
+	mu       sync.Mutex
+	handlers map[string]chan *unstructured.Unstructured
+	stopCh   chan struct{}
+}
+
+func getOrCreateResourceTypeWatcher(client dynamic.Interface, resourceType schema.GroupVersionResource, timeoutSeconds int) *resourceTypeWatcher {
+	resourceTypeWatchersMu.Lock()
+	defer resourceTypeWatchersMu.Unlock()
+	w, ok := resourceTypeWatchers[resourceType]
+	if ok {
+		return w
+	}
+	watcher, err := client.Resource(resourceType).Namespace(namespace).Watch(context.TODO(), v1.ListOptions{
+		TimeoutSeconds: func() *int64 { t := int64(timeoutSeconds); return &t }(),
+	})
+	if err != nil {
+		log.Fatal().Stack().Str("group", resourceType.Group).Str("resource", resourceType.Resource).Err(err).Msg("Failed to start watch on resource type")
+	}
+	w = &resourceTypeWatcher{
+		watcher:  watcher,
+		handlers: make(map[string]chan *unstructured.Unstructured),
+		stopCh:   make(chan struct{}),
+	}
+	resourceTypeWatchers[resourceType] = w
+	go w.run()
+	return w
+}
+
+func (w *resourceTypeWatcher) run() {
+	log.Info().Msg("resourceTypeWatcher: started run loop")
+	for {
+		select {
+		case <-w.stopCh:
+			log.Info().Msg("resourceTypeWatcher: received stop signal, stopping watcher")
+			w.watcher.Stop()
+			return
+		case event, ok := <-w.watcher.ResultChan():
+			if !ok {
+				log.Info().Msg("resourceTypeWatcher: watcher channel closed, exiting run loop")
+				return
+			}
+			obj, ok := event.Object.(*unstructured.Unstructured)
+			if !ok {
+				log.Warn().Msg("resourceTypeWatcher: received non-unstructured object, skipping")
+				continue
+			}
+			name := obj.GetName()
+			log.Info().Str("resourceName", name).Msg("resourceTypeWatcher: received event for resource")
+			w.mu.Lock()
+			ch, ok := w.handlers[name]
+			w.mu.Unlock()
+			if ok {
+				log.Info().Str("resourceName", name).Msg("resourceTypeWatcher: delivering event to handler channel (blocking)")
+				ch <- obj
+				log.Info().Str("resourceName", name).Msg("resourceTypeWatcher: event delivered to handler channel")
+			} else {
+				log.Info().Str("resourceName", name).Msg("resourceTypeWatcher: no handler channel found for resource, event dropped")
+			}
+		}
+	}
+}
+
+func (w *resourceTypeWatcher) register(resourceName string) chan *unstructured.Unstructured {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	ch := make(chan *unstructured.Unstructured, 1)
+	w.handlers[resourceName] = ch
+	return ch
+}
+
+func (w *resourceTypeWatcher) unregister(resourceName string) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	delete(w.handlers, resourceName)
 }
 
 func NewDeploymentGenerator(client dynamic.Interface, recorder EventRecorder, clientset ncapi.Interface, scheme *runtime.Scheme, runtimeReceiver runtime.Object, postDeploy bool, timeoutSeconds int) *DeploymentGenerator {
@@ -263,34 +349,30 @@ func (ng *DeploymentGenerator) handlePhaseChange(resourceType schema.GroupVersio
 func (ng *DeploymentGenerator) declarationWaiter(resourceType schema.GroupVersionResource, resourceName string) {
 	log.Info().Str("type", "waiter").Str("name", resourceName).Str("resourceGroup", resourceType.Group).Msgf("starting waiter for resource")
 
-	watcher, err := ng.client.Resource(resourceType).Namespace(namespace).Watch(context.TODO(), v1.ListOptions{
-		FieldSelector:  "metadata.name=" + resourceName,
-		TimeoutSeconds: func() *int64 { t := int64(ng.timeoutSeconds); return &t }(),
-	})
-	if err != nil {
-		log.Fatal().Stack().Str("name", resourceName).Str("group", resourceType.Group).Err(err).Msg("Failed to start watch on declaration")
-	}
-	defer watcher.Stop()
+	w := getOrCreateResourceTypeWatcher(ng.client, resourceType, ng.timeoutSeconds)
+	ch := w.register(resourceName)
+	defer w.unregister(resourceName)
 
-	for event := range watcher.ResultChan() {
-		obj, ok := event.Object.(*unstructured.Unstructured)
-		if !ok {
-			log.Warn().Str("name", resourceName).Msg("Received non-unstructured object from watch")
+	timeout := time.After(time.Duration(ng.timeoutSeconds) * time.Second)
+	for {
+		select {
+		case <-timeout:
+			ng.sendEvent("TimeOutReached", "Declaratives failed to progress", resourceName, resourceType.Resource)
+			log.Fatal().Stack().Str("name", resourceName).Str("group", resourceType.Group).Msg("TimeOutReached")
 			return
-		}
-		phaseField, isFound, err := unstructured.NestedString(obj.Object, "status", "phase")
-		if !isFound {
-			log.Warn().Str("type", "waiter").Stack().Str("name", resourceName).Str("group", resourceType.Group).Err(err).Msg("Phase field not found")
-		}
-		if err != nil {
-			log.Warn().Str("type", "waiter").Stack().Str("name", resourceName).Str("group", resourceType.Group).Err(err).Msg("Phase field lookup error")
-		}
-		if ng.handlePhaseChange(resourceType, resourceName, obj, phaseField) {
-			return
+		case obj := <-ch:
+			phaseField, isFound, err := unstructured.NestedString(obj.Object, "status", "phase")
+			if !isFound {
+				log.Warn().Str("type", "waiter").Stack().Str("name", resourceName).Str("group", resourceType.Group).Err(err).Msg("Phase field not found")
+			}
+			if err != nil {
+				log.Warn().Str("type", "waiter").Stack().Str("name", resourceName).Str("group", resourceType.Group).Err(err).Msg("Phase field lookup error")
+			}
+			if ng.handlePhaseChange(resourceType, resourceName, obj, phaseField) {
+				return
+			}
 		}
 	}
-	log.Info().Str("type", "waiter").Str("resource", resourceName).Str("group", resourceType.Group).Msgf("Waiting done")
-	log.Info().Str("type", "waiter").Str("name", resourceName).Str("resource", resourceType.Resource).Msgf("finished waiter for resource")
 }
 
 func (ng *DeploymentGenerator) GenericWaiter(deploymentRes schema.GroupVersionResource, declarativeAsUnstructured unstructured.Unstructured) {
