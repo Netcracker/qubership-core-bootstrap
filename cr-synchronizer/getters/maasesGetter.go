@@ -40,12 +40,12 @@ func (ng *MaaSesRunner) Name() string {
 
 func (ng *MaaSesRunner) initialize() {
 	log.Info().Str("type", "creator").Str("kind", "maas").Msgf("starting declarationCreator")
-	schemeRes, listRes := ng.declarationCreator(ng.resources, maasPlural)
+	schemeRes := ng.declarationCreator(ng.resources, maasPlural)
 	log.Info().Str("type", "creator").Str("kind", "maas").Msgf("finished declarationCreator")
-	if len(listRes) > 0 {
-		for _, declarativeName := range listRes {
+	for resource, names := range schemeRes {
+		for _, declarativeName := range names {
 			log.Info().Str("type", "waiter").Str("kind", "maas").Str("name", declarativeName).Msgf("starting declarationWaiter")
-			ng.declarationWaiter(schemeRes, declarativeName)
+			ng.declarationWaiter(resource, declarativeName)
 			log.Info().Str("type", "waiter").Str("kind", "maas").Str("name", declarativeName).Msgf("finished declarationWaiter")
 		}
 	}
