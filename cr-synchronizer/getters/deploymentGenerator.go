@@ -48,12 +48,15 @@ type resourceTypeWatcher struct {
 }
 
 func getOrCreateResourceTypeWatcher(client dynamic.Interface, resourceType schema.GroupVersionResource, timeoutSeconds int) *resourceTypeWatcher {
+	log.Info().Str("resourceType", resourceType.Resource).Msg("getOrCreateResourceTypeWatcher: going to create watcher")
 	resourceTypeWatchersMu.Lock()
 	defer resourceTypeWatchersMu.Unlock()
 	w, ok := resourceTypeWatchers[resourceType]
 	if ok {
+		log.Info().Str("resourceType", resourceType.Resource).Msg("getOrCreateResourceTypeWatcher: reusing existing watcher")
 		return w
 	}
+	log.Info().Str("resourceType", resourceType.Resource).Msg("getOrCreateResourceTypeWatcher: creating new watcher")
 	watcher, err := client.Resource(resourceType).Namespace(namespace).Watch(context.TODO(), v1.ListOptions{
 		TimeoutSeconds: func() *int64 { t := int64(timeoutSeconds); return &t }(),
 	})
@@ -66,6 +69,7 @@ func getOrCreateResourceTypeWatcher(client dynamic.Interface, resourceType schem
 		stopCh:   make(chan struct{}),
 	}
 	resourceTypeWatchers[resourceType] = w
+	log.Info().Str("resourceType", resourceType.Resource).Msg("getOrCreateResourceTypeWatcher: starting watcher")
 	go w.run()
 	return w
 }
