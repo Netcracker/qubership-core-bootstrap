@@ -1,3 +1,4 @@
 /.idea/**
 /cloud-core-local-dev/consul-chart-3/**
 /cloud-core-local-dev/repos/**
+/cloud-core-local-dev/maas/repos/**
