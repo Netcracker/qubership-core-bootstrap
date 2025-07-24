@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"github.com/netcracker/cr-synchronizer/getters"
 	"os"
@@ -8,6 +9,7 @@ import (
 )
 
 func main() {
+	ctx := context.Background()
 	var isPostDeployPhase bool
 	flag.BoolVar(&isPostDeployPhase, "post", false, "use cr-synchronizer as post-deploy waiter")
 	flag.Parse()
@@ -17,5 +19,5 @@ func main() {
 			timeoutSeconds = parsed
 		}
 	}
-	getters.StartGenerator(isPostDeployPhase, timeoutSeconds)
+	getters.StartGenerator(ctx, isPostDeployPhase, timeoutSeconds)
 }

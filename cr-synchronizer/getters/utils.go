@@ -38,15 +38,15 @@ var labels = map[string]string{
 	"app.kubernetes.io/processed-by-operator": componentName,
 }
 
-func setEventReceiver(clientSet *ncapi.Clientset) runtime.Object {
+func setEventReceiver(ctx context.Context, clientSet *ncapi.Clientset) runtime.Object {
 	var runtimeReceiver runtime.Object
 	//for ArgoCd DEPLOYMENT_RESOURCE_NAME == SERVICE_NAME-v1 (if exists)
-	deployment, err := clientSet.AppsV1().Deployments(namespace).Get(context.TODO(), os.Getenv("DEPLOYMENT_RESOURCE_NAME"), v1.GetOptions{})
+	deployment, err := clientSet.AppsV1().Deployments(namespace).Get(ctx, os.Getenv("DEPLOYMENT_RESOURCE_NAME"), v1.GetOptions{})
 	if err != nil {
-		deployment, err = clientSet.AppsV1().Deployments(namespace).Get(context.TODO(), os.Getenv("SERVICE_NAME"), v1.GetOptions{})
+		deployment, err = clientSet.AppsV1().Deployments(namespace).Get(ctx, os.Getenv("SERVICE_NAME"), v1.GetOptions{})
 	}
 	if err != nil {
-		job, err := clientSet.BatchV1().Jobs(namespace).Get(context.TODO(), os.Getenv("WAIT_JOB_NAME"), v1.GetOptions{})
+		job, err := clientSet.BatchV1().Jobs(namespace).Get(ctx, os.Getenv("WAIT_JOB_NAME"), v1.GetOptions{})
 		if err != nil {
 			log.Fatal().Stack().Err(err).Msg("Cant get runtimeObject to send events")
 		}

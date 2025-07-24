@@ -23,6 +23,7 @@ const (
 )
 
 type DeploymentGenerator struct {
+	ctx             context.Context
 	client          dynamic.Interface
 	recorder        EventRecorder
 	clientset       ncapi.Interface
@@ -32,8 +33,9 @@ type DeploymentGenerator struct {
 	postDeploy      bool
 }
 
-func NewDeploymentGenerator(client dynamic.Interface, recorder EventRecorder, clientset ncapi.Interface, scheme *runtime.Scheme, runtimeReceiver runtime.Object, postDeploy bool, timeoutSeconds int) *DeploymentGenerator {
+func NewDeploymentGenerator(ctx context.Context, client dynamic.Interface, recorder EventRecorder, clientset ncapi.Interface, scheme *runtime.Scheme, runtimeReceiver runtime.Object, postDeploy bool, timeoutSeconds int) *DeploymentGenerator {
 	return &DeploymentGenerator{
+		ctx:             ctx,
 		client:          client,
 		recorder:        recorder,
 		clientset:       clientset,
@@ -61,7 +63,7 @@ func (ng *DeploymentGenerator) createGenericGeneratorManager() *GeneratorManager
 	generatorManager = &GeneratorManager{
 		generators: make(map[string]Generator),
 	}
-	generatorManager.register(NewGenericRunnerGenerator(ng.client, ng.recorder, ng.clientset, ng.scheme, ng.runtimeReceiver, ng.timeoutSeconds))
+	generatorManager.register(NewGenericRunnerGenerator(ng.ctx, ng.client, ng.recorder, ng.clientset, ng.scheme, ng.runtimeReceiver, ng.timeoutSeconds))
 	return generatorManager
 }
 
@@ -76,7 +78,7 @@ func (ng *DeploymentGenerator) createKnownGeneratorManager(dcl map[string][]unst
 
 func (ng *DeploymentGenerator) sendEvent(iReason, iMessage, declarativeName, kindDec string) {
 	podName, _ := os.Hostname()
-	pod, err := ng.clientset.CoreV1().Pods(namespace).Get(context.TODO(), podName, v1.GetOptions{})
+	pod, err := ng.clientset.CoreV1().Pods(namespace).Get(ng.ctx, podName, v1.GetOptions{})
 	if err != nil {
 		log.Fatal().Stack().Err(err).Msg("Can't get pod in current namespace")
 	}
@@ -86,7 +88,7 @@ func (ng *DeploymentGenerator) sendEvent(iReason, iMessage, declarativeName, kin
 	if len(pod.OwnerReferences) != 0 {
 		switch pod.OwnerReferences[0].Kind {
 		case "ReplicaSet":
-			replica, repErr := ng.clientset.AppsV1().ReplicaSets(pod.Namespace).Get(context.TODO(), pod.OwnerReferences[0].Name, v1.GetOptions{})
+			replica, repErr := ng.clientset.AppsV1().ReplicaSets(pod.Namespace).Get(ng.ctx, pod.OwnerReferences[0].Name, v1.GetOptions{})
 			if repErr != nil {
 				log.Fatal().Stack().Err(err).Msg("Can't get replicas in current namespace")
 			}
@@ -138,9 +140,9 @@ func (ng *DeploymentGenerator) declarationCreator(resourceList []unstructured.Un
 		customLabels["app.kubernetes.io/managed-by"] = manager
 		declarative.SetLabels(customLabels)
 		resourceNames = append(resourceNames, declarative.GetName())
-		priorDeclarative, err := ng.client.Resource(deploymentRes).Namespace(namespace).Get(context.TODO(), declarative.GetName(), v1.GetOptions{})
+		priorDeclarative, err := ng.client.Resource(deploymentRes).Namespace(namespace).Get(ng.ctx, declarative.GetName(), v1.GetOptions{})
 		if err != nil {
-			resp, err := ng.client.Resource(deploymentRes).Namespace(namespace).Create(context.TODO(), &declarative, v1.CreateOptions{FieldManager: "pre-hook"})
+			resp, err := ng.client.Resource(deploymentRes).Namespace(namespace).Create(ng.ctx, &declarative, v1.CreateOptions{FieldManager: "pre-hook"})
 			if err != nil {
 				log.Fatal().Stack().Str("name", declarative.GetName()).Err(err).Msg("Failed to create resource")
 			}
@@ -150,7 +152,7 @@ func (ng *DeploymentGenerator) declarationCreator(resourceList []unstructured.Un
 			log.Info().Str("type", "updater").Str("resourceVersion-new", declarative.GetResourceVersion()).Str("resourceVersion-old", priorDeclarative.GetResourceVersion())
 
 			declarative.SetResourceVersion(priorDeclarative.GetResourceVersion())
-			result, err := ng.client.Resource(deploymentRes).Namespace(namespace).Update(context.TODO(), &declarative, v1.UpdateOptions{FieldManager: "pre-hook"})
+			result, err := ng.client.Resource(deploymentRes).Namespace(namespace).Update(ng.ctx, &declarative, v1.UpdateOptions{FieldManager: "pre-hook"})
 			if err != nil {
 				log.Fatal().Stack().Str("name", declarative.GetName()).Err(err).Msg("Failed to apply resource")
 			}
@@ -161,7 +163,7 @@ func (ng *DeploymentGenerator) declarationCreator(resourceList []unstructured.Un
 }
 
 func (ng *DeploymentGenerator) setOwnerRef(resourceType schema.GroupVersionResource, resourceName string) {
-	result, err := ng.client.Resource(resourceType).Namespace(namespace).Get(context.TODO(), resourceName, v1.GetOptions{})
+	result, err := ng.client.Resource(resourceType).Namespace(namespace).Get(ng.ctx, resourceName, v1.GetOptions{})
 	if err != nil {
 		log.Fatal().Stack().Str("name", resourceName).Err(err).Msg("Failed to get current custom resource")
 	}
@@ -174,7 +176,7 @@ func (ng *DeploymentGenerator) setOwnerRef(resourceType schema.GroupVersionResou
 	}
 
 	deplClient := ng.clientset.AppsV1().Deployments(namespace)
-	deployment, err := deplClient.Get(context.TODO(), deploymentName, v1.GetOptions{})
+	deployment, err := deplClient.Get(ng.ctx, deploymentName, v1.GetOptions{})
 	if err != nil {
 		log.Warn().Str("type", "waiter").Str("deploymentName", deploymentName).Err(err).Msg("Cant get deployment for current CR, skip owner ref update")
 		return
@@ -196,7 +198,7 @@ func (ng *DeploymentGenerator) setOwnerRef(resourceType schema.GroupVersionResou
 	ok := false
 	for retry := 0; retry < 10; retry++ {
 		// getting updated resource
-		result, err := ng.client.Resource(resourceType).Namespace(namespace).Get(context.TODO(), resourceName, v1.GetOptions{})
+		result, err := ng.client.Resource(resourceType).Namespace(namespace).Get(ng.ctx, resourceName, v1.GetOptions{})
 		if err != nil {
 			log.Fatal().Stack().Str("name", resourceName).Err(err).Msg("Failed to get current custom resource")
 		}
@@ -204,7 +206,7 @@ func (ng *DeploymentGenerator) setOwnerRef(resourceType schema.GroupVersionResou
 		log.Info().Str("type", "waiter").Str("name", result.GetName()).Str("received resource", string(jsonData)).Msgf("setting owner ref for resource")
 
 		result.SetOwnerReferences(ownerRefList)
-		updatedResult, err := ng.client.Resource(resourceType).Namespace(namespace).Update(context.TODO(), result, v1.UpdateOptions{FieldManager: "pre-hook"})
+		updatedResult, err := ng.client.Resource(resourceType).Namespace(namespace).Update(ng.ctx, result, v1.UpdateOptions{FieldManager: "pre-hook"})
 		if err != nil {
 			log.Warn().Str("type", "waiter").Str("err", err.Error()).Msgf("error from kubernetes after update")
 			if k8serrors.IsConflict(err) {
@@ -263,7 +265,7 @@ func (ng *DeploymentGenerator) handlePhaseChange(resourceType schema.GroupVersio
 func (ng *DeploymentGenerator) declarationWaiter(resourceType schema.GroupVersionResource, resourceName string) {
 	log.Info().Str("type", "waiter").Str("name", resourceName).Str("resourceGroup", resourceType.Group).Msgf("starting waiter for resource")
 
-	watcher, err := ng.client.Resource(resourceType).Namespace(namespace).Watch(context.TODO(), v1.ListOptions{
+	watcher, err := ng.client.Resource(resourceType).Namespace(namespace).Watch(ng.ctx, v1.ListOptions{
 		FieldSelector:  "metadata.name=" + resourceName,
 		TimeoutSeconds: func() *int64 { t := int64(ng.timeoutSeconds); return &t }(),
 	})
@@ -307,7 +309,7 @@ func (ng *DeploymentGenerator) GenericWaiter(deploymentRes schema.GroupVersionRe
 				ng.sendEvent("TimeOutReached", "Declaratives failed to progress", declarativeAsUnstructured.GetName(), declarativeAsUnstructured.GetKind())
 				log.Fatal().Stack().Str("name", declarativeAsUnstructured.GetName()).Str("kind", declarativeAsUnstructured.GetKind()).Err(err).Msg("TimeOutReached")
 			default:
-				declarativeAsUnstructured, err := ng.client.Resource(deploymentRes).Namespace(namespace).Get(context.TODO(), declarativeAsUnstructured.GetName(), v1.GetOptions{})
+				declarativeAsUnstructured, err := ng.client.Resource(deploymentRes).Namespace(namespace).Get(ng.ctx, declarativeAsUnstructured.GetName(), v1.GetOptions{})
 				if err != nil {
 					log.Warn().Stack().Str("name", declarativeAsUnstructured.GetName()).Str("group", deploymentRes.Group).Err(err).Msg("Resource cant be fetched")
 				}

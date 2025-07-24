@@ -1,6 +1,7 @@
 package getters
 
 import (
+	"context"
 	"fmt"
 	v1alpha1 "github.com/netcracker/cr-synchronizer/api/types/v1"
 	ncapi "github.com/netcracker/cr-synchronizer/clientset"
@@ -55,8 +56,8 @@ func init() {
 	serviceName = os.Getenv("SERVICE_NAME")
 }
 
-func StartGenerator(postDeploy bool, timeoutSec int) {
-	prepare(postDeploy, timeoutSec)
+func StartGenerator(ctx context.Context, postDeploy bool, timeoutSec int) {
+	prepare(ctx, postDeploy, timeoutSec)
 	wr.Close()
 }
 
@@ -85,7 +86,7 @@ func (gm *GeneratorManager) run() {
 	generatorsWaitGroup.Wait()
 }
 
-func prepare(postDeploy bool, timeoutSec int) {
+func prepare(ctx context.Context, postDeploy bool, timeoutSec int) {
 	config, err := rest.InClusterConfig()
 	if err != nil {
 		log.Fatal().Stack().Err(err).Msg("InCluster config can't be initialized")
@@ -95,7 +96,7 @@ func prepare(postDeploy bool, timeoutSec int) {
 	if err != nil {
 		log.Fatal().Stack().Err(err).Msg("ClientSet can't be initialized")
 	}
-	runtimeReceiver := setEventReceiver(clientSet)
+	runtimeReceiver := setEventReceiver(ctx, clientSet)
 	eventBroadcaster := NewBroadcaster()
 	eventBroadcaster.StartLogging(klog.Infof)
 	eventBroadcaster.StartRecordingToSink(
@@ -108,7 +109,7 @@ func prepare(postDeploy bool, timeoutSec int) {
 	if err != nil {
 		log.Fatal().Stack().Err(err).Msg("Dynamic Client can't be initialized")
 	}
-	NewDeploymentGenerator(client, recorder, clientSet, scheme.Scheme, runtimeReceiver, postDeploy, timeoutSec).Run()
+	NewDeploymentGenerator(ctx, client, recorder, clientSet, scheme.Scheme, runtimeReceiver, postDeploy, timeoutSec).Run()
 
 	log.Info().Str("type", "init").Msgf("generator finished")
 }
