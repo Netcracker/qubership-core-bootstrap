@@ -1,6 +1,7 @@
 package getters
 
 import (
+	"context"
 	ncv1 "github.com/netcracker/cr-synchronizer/clientset/v1"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/apps/v1"
@@ -50,6 +51,7 @@ func TestDeclarationWaiter_UpdatedPhase(t *testing.T) {
 	fakeClientSet := fake.NewSimpleClientset()
 
 	ng := NewDeploymentGenerator(
+		context.Background(),
 		fclient,
 		&testRecorder{},
 		&fakeClientset{appsV1: fakeClientSet.AppsV1()},
