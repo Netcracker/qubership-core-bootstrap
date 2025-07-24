@@ -48,7 +48,7 @@ type resourceTypeWatcher struct {
 	stopCh   chan struct{}
 }
 
-func getOrCreateResourceTypeWatcher(client dynamic.Interface, resourceType schema.GroupVersionResource, timeoutSeconds int) *resourceTypeWatcher {
+func getOrCreateResourceTypeWatcher(ctx context.Context, client dynamic.Interface, resourceType schema.GroupVersionResource, timeoutSeconds int) *resourceTypeWatcher {
 	log.Info().Str("resourceType", resourceType.Resource).Msg("getOrCreateResourceTypeWatcher: going to create watcher")
 	resourceTypeWatchersMu.Lock()
 	defer resourceTypeWatchersMu.Unlock()
@@ -58,7 +58,7 @@ func getOrCreateResourceTypeWatcher(client dynamic.Interface, resourceType schem
 		return w
 	}
 	log.Info().Str("resourceType", resourceType.Resource).Msg("getOrCreateResourceTypeWatcher: creating new watcher")
-	watcher, err := client.Resource(resourceType).Namespace(namespace).Watch(context.TODO(), v1.ListOptions{
+	watcher, err := client.Resource(resourceType).Namespace(namespace).Watch(ctx, v1.ListOptions{
 		TimeoutSeconds: func() *int64 { t := int64(timeoutSeconds); return &t }(),
 	})
 	if err != nil {
@@ -355,7 +355,7 @@ func (ng *DeploymentGenerator) handlePhaseChange(resourceType schema.GroupVersio
 func (ng *DeploymentGenerator) declarationWaiter(resourceType schema.GroupVersionResource, resourceName string) {
 	log.Info().Str("type", "waiter").Str("name", resourceName).Str("resourceGroup", resourceType.Group).Msgf("starting waiter for resource")
 
-	w := getOrCreateResourceTypeWatcher(ng.client, resourceType, ng.timeoutSeconds)
+	w := getOrCreateResourceTypeWatcher(ng.ctx, ng.client, resourceType, ng.timeoutSeconds)
 	ch := w.register(resourceName)
 	defer w.unregister(resourceName)
 
