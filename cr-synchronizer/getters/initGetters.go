@@ -1,6 +1,7 @@
 package getters
 
 import (
+	"context"
 	"fmt"
 	v1alpha1 "github.com/netcracker/cr-synchronizer/api/types/v1"
 	ncapi "github.com/netcracker/cr-synchronizer/clientset"
@@ -16,8 +17,8 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/klog"
 	"os"
-	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -55,9 +56,8 @@ func init() {
 	serviceName = os.Getenv("SERVICE_NAME")
 }
 
-func StartGenerator(pst bool) {
-	postdeploy = pst
-	prepare()
+func StartGenerator(ctx context.Context, postDeploy bool, timeoutSec int) {
+	prepare(ctx, postDeploy, timeoutSec)
 	wr.Close()
 }
 
@@ -74,16 +74,19 @@ func (gm *GeneratorManager) register(generator Generator) {
 }
 
 func (gm *GeneratorManager) run() {
-	//if any generator adds, runs fast, then done - allCrCheckersWaitGroup will be zero before second generator even started
-	allCrCheckersWaitGroup.Add(1)
+	var generatorsWaitGroup sync.WaitGroup
+	generatorsWaitGroup.Add(len(gm.generators))
 	for name, generator := range gm.generators {
-		log.Info().Str("type", "generator").Str("name", name).Msgf("Register new waiter")
-		generator.Generate()
+		go func() {
+			defer generatorsWaitGroup.Done()
+			log.Info().Str("type", "generator").Str("name", name).Msgf("Register new waiter")
+			generator.Generate()
+		}()
 	}
-	allCrCheckersWaitGroup.Done()
+	generatorsWaitGroup.Wait()
 }
 
-func prepare() {
+func prepare(ctx context.Context, postDeploy bool, timeoutSec int) {
 	config, err := rest.InClusterConfig()
 	if err != nil {
 		log.Fatal().Stack().Err(err).Msg("InCluster config can't be initialized")
@@ -93,7 +96,7 @@ func prepare() {
 	if err != nil {
 		log.Fatal().Stack().Err(err).Msg("ClientSet can't be initialized")
 	}
-	runtimeReceiver := setEventReceiver(clientSet)
+	runtimeReceiver := setEventReceiver(ctx, clientSet)
 	eventBroadcaster := NewBroadcaster()
 	eventBroadcaster.StartLogging(klog.Infof)
 	eventBroadcaster.StartRecordingToSink(
@@ -101,72 +104,14 @@ func prepare() {
 			Interface: clientSet.CoreV1().Events(namespace)})
 	recorder := eventBroadcaster.NewLabeledRecorder(
 		scheme.Scheme,
-		v1Core.EventSource{Component: coreDeclarativeEventsGenerator, Host: component_instance})
+		v1Core.EventSource{Component: coreDeclarativeEventsGenerator, Host: componentInstance})
 	client, err := dynamic.NewForConfig(config)
 	if err != nil {
 		log.Fatal().Stack().Err(err).Msg("Dynamic Client can't be initialized")
 	}
-	NewDeclarativeGenerator(client, recorder, clientSet, scheme.Scheme, runtimeReceiver).Run()
+	NewDeploymentGenerator(ctx, client, recorder, clientSet, scheme.Scheme, runtimeReceiver, postDeploy, timeoutSec).Run()
 
 	log.Info().Str("type", "init").Msgf("generator finished")
-}
-
-type DeploymentGenerator struct {
-	client          *dynamic.DynamicClient
-	recorder        EventRecorder
-	clientset       *ncapi.Clientset
-	scheme          *runtime.Scheme
-	runtimeReceiver runtime.Object
-}
-
-func NewDeclarativeGenerator(client *dynamic.DynamicClient, recorder EventRecorder, clientset *ncapi.Clientset, scheme *runtime.Scheme, runtimeReceiver runtime.Object) *DeploymentGenerator {
-	return &DeploymentGenerator{
-		client:          client,
-		recorder:        recorder,
-		clientset:       clientset,
-		scheme:          scheme,
-		runtimeReceiver: runtimeReceiver,
-	}
-}
-
-func (ng *DeploymentGenerator) Run() {
-	ng.initialize()
-	WaitForAllCrCheckers()
-}
-
-func WaitForAllCrCheckers() {
-	allCrCheckersWaitGroup.Wait()
-}
-
-func (ng *DeploymentGenerator) createGenericGeneratorManager() *GeneratorManager {
-	generatorManager = &GeneratorManager{
-		generators: make(map[string]Generator),
-	}
-	generatorManager.register(NewGenericRunnerGenerator(ng.client, ng.recorder, ng.clientset, ng.scheme, ng.runtimeReceiver))
-	return generatorManager
-}
-
-func (ng *DeploymentGenerator) createKnownGeneratorManager(dcl map[string][]unstructured.Unstructured) *GeneratorManager {
-	generatorManager = &GeneratorManager{
-		generators: make(map[string]Generator),
-	}
-	generatorManager.register(NewMaaSesRunnerGenerator(dcl[MaaSKind], ng.client, ng.recorder, ng.clientset, ng.scheme, ng.runtimeReceiver))
-	generatorManager.register(NewDBaaSesRunnerGenerator(dcl[DBaaSKind], ng.client, ng.recorder, ng.clientset, ng.scheme, ng.runtimeReceiver))
-	return generatorManager
-}
-
-func (ng *DeploymentGenerator) initialize() {
-	var generatorManager *GeneratorManager
-	rptm, _ = strconv.Atoi(os.Getenv("RESOURCE_POLLING_TIMEOUT"))
-	if !postdeploy {
-		log.Info().Str("mode", "synchronizer").Msgf("Synchronizer hook started")
-		installedDeclaratives := prepareDataFromFiles()
-		generatorManager = ng.createKnownGeneratorManager(installedDeclaratives)
-	} else {
-		log.Info().Str("mode", "finalyzer").Msgf("Finalizer hook started")
-		generatorManager = ng.createGenericGeneratorManager()
-	}
-	generatorManager.run()
 }
 
 func prepareDataFromFiles() map[string][]unstructured.Unstructured {
