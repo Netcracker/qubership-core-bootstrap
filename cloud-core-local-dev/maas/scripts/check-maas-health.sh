@@ -6,8 +6,8 @@ MAAS_NAMESPACE=${MAAS_NAMESPACE:-maas}
 SERVICE=maas-service
 LOCAL_PORT=8080
 REMOTE_PORT=8080
-TIMEOUT=180  # 3 минуты
-INTERVAL=5  # секунд между попытками
+TIMEOUT=180
+INTERVAL=5
 
 echo "--- Start port-forward ${SERVICE} for port ${LOCAL_PORT}:${REMOTE_PORT}..."
 kubectl port-forward svc/${SERVICE} ${LOCAL_PORT}:${REMOTE_PORT} -n "${MAAS_NAMESPACE}" > /dev/null 2>&1 &
