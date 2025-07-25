@@ -449,7 +449,7 @@ uninstall-patroni-core:
 
 # Main uninstall target
 .PHONY: uninstall
-uninstall: show-config uninstall-patroni-services uninstall-dbaas-aggregator uninstall-patroni-core manual-cleanup
+uninstall: show-config uninstall-patroni-services uninstall-dbaas-aggregator uninstall-patroni-core manual-cleanup cleanup-crds cleanup-namespaces
 	@echo "$(GREEN)=== ALL COMPONENTS UNINSTALLED SUCCESSFULLY ===$(NC)"
 
 # Clean repositories
@@ -472,3 +472,29 @@ manual-cleanup:
 	@kubectl delete service -n $(PG_NAMESPACE) --all || echo "Service not found or already deleted"
 	@echo "$(GREEN)--- Manual cleanup completed$(NC)"
 	@echo ""
+
+.PHONY: cleanup-crds
+cleanup-crds:
+	@echo "$(CYAN)--- Cleaning up CRDs...$(NC)"
+	@if [ "$(SKIP_CRDS)" = "false" ]; then \
+		echo " CRDs..."; \
+		kubectl delete crd patronicores.qubership.org --ignore-not-found=true; \
+		kubectl delete crd patroniservices.qubership.org --ignore-not-found=true; \
+		echo ""; \
+	else \
+		echo "$(GREEN)--- Skipping CRD cleanup (SKIP_CRDS=true)...$(NC)"; \
+		echo ""; \
+	fi
+
+.PHONY: cleanup-namespaces
+cleanup-namespaces:
+	@echo "$(CYAN)--- Cleaning up namespaces...$(NC)"
+	@if [ "$(CREATE_NAMESPACE)" = "true" ]; then \
+		echo "Removing namespaces..."; \
+		kubectl delete namespace $(DBAAS_NAMESPACE) --ignore-not-found=true; \
+		kubectl delete namespace $(PG_NAMESPACE) --ignore-not-found=true; \
+		echo ""; \
+	else \
+		echo "$(GREEN)--- Skipping namespace cleanup (CREATE_NAMESPACE=false)...$(NC)"; \
+		echo ""; \
+	fi
