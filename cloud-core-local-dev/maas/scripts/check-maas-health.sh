@@ -62,7 +62,7 @@ while true; do
     CURRENT_TIME=$(date +%s)
     ELAPSED=$((CURRENT_TIME - START_TIME))
     if [ $ELAPSED -ge $TIMEOUT ]; then
-        echo "❌ MaaS health check failed! Таймаут ${TIMEOUT} секунд."
+        echo "❌ MaaS health check failed! Timeout ${TIMEOUT} seconds."
         echo "RESPONSE = $RESPONSE"
         exit 1
     fi

@@ -379,7 +379,7 @@ deploy-ingress-gateway: clone-repos prepare-core-bootstrap
 		-f ./general-core-values.yaml \
 		--set CLOUD_PUBLIC_HOST=svc.cluster.local \
 		--set CLOUD_PRIVATE_HOST=svc.cluster.local \
-		--set TAG=main-20250325151826-6 \
+		--set TAG=main-20250714080419-48 \
 		$(HELM_DEBUG_FLAGS)
 	@echo ""
 
@@ -417,7 +417,7 @@ deploy-control-plane: clone-repos prepare-core-bootstrap
 		-f ./repos/qubership-core-control-plane/helm-templates/control-plane/resource-profiles/dev.yaml \
 		-f ./general-cluster-values.yaml \
 		-f ./general-core-values.yaml \
-		--set TAG=fix-dockerfile-snapshot \
+		--set TAG=latest \
 		$(HELM_DEBUG_FLAGS)
 	@echo ""
 
