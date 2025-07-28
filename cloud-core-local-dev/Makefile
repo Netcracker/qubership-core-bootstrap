@@ -482,6 +482,16 @@ build-and-load-config-server-docker-image:
 
 build-and-load-missed-images: build-and-load-core-operator-docker-image build-and-load-config-server-docker-image
 
+# ----------------------------------- MAAS -----------------------------
+
+.PHONY: install-maas
+install-maas:
+	@echo "$(GREEN)=== Starting MaaS installation...$(NC)"
+	@echo ""
+	make -C ./maas install CONFIG_FILE=local.mk
+	@echo "$(GREEN)=== MaaS installation completed$(NC)"
+	@echo ""
+
 # ------------------------------------------------------------------------------
 
 define clone_or_update_repo
@@ -497,3 +507,16 @@ define clone_or_update_repo
 		fi; \
 	fi
 endef
+
+clean-namespace-%:
+	$(eval namespace := $*)
+	@echo "$(YELLOW)--- Clean $(namespace) namespace...$(NC)"
+	-@kubectl delete all --all -n $(namespace)
+	-@kubectl delete pvc --all -n $(namespace)
+	-@kubectl delete configmap --all -n $(namespace)
+	-@kubectl delete secret --all -n $(namespace)
+	-@kubectl delete ingress --all -n $(namespace)
+	-@kubectl delete hpa --all -n $(namespace)
+	-@kubectl delete serviceaccount --all -n $(namespace)
+	-@kubectl delete namespace $(namespace)
+	@echo ""
