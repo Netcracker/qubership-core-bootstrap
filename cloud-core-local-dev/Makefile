@@ -323,17 +323,17 @@ check-consul-connectivity:
 		echo "$(YELLOW)--- Checking Consul connectivity...$(NC)"; \
 		echo "Checking Consul service availability..."; \
 		if kubectl get svc -n $(CONSUL_NAMESPACE) $(CONSUL_SERVICE_NAME) >/dev/null 2>&1; then \
-			echo "$(GREEN)✓ Consul service found$(NC)"; \
+			echo "$(GREEN)? Consul service found$(NC)"; \
 		else \
-			echo "$(RED)✗ Consul service not found$(NC)"; \
+			echo "$(RED)? Consul service not found$(NC)"; \
 			exit 1; \
 		fi; \
 		echo "Checking Consul pod status..."; \
 		CONSUL_PODS=$$(kubectl get pods -n $(CONSUL_NAMESPACE) --selector=app=consul -o jsonpath='{.items[*].status.phase}'); \
 		if echo "$$CONSUL_PODS" | grep -q "Running"; then \
-			echo "$(GREEN)✓ Consul pods are running$(NC)"; \
+			echo "$(GREEN)? Consul pods are running$(NC)"; \
 		else \
-			echo "$(RED)✗ Consul pods are not running: $$CONSUL_PODS$(NC)"; \
+			echo "$(RED)? Consul pods are not running: $$CONSUL_PODS$(NC)"; \
 			exit 1; \
 		fi; \
 		echo "Creating temporary pod for Consul connectivity check..."; \
@@ -351,22 +351,22 @@ check-consul-connectivity:
 				fi && \
 				echo \"Attempt \$$((ELAPSED_TIME / 10 + 1)) - Checking Consul connectivity... (\$$((TIMEOUT - ELAPSED_TIME))s remaining)\" && \
 				if curl -s -f http://$(CONSUL_SERVICE_NAME).$(CONSUL_NAMESPACE).${INGRESS_GATEWAY_CLOUD_PRIVATE_HOST}:8500/v1/status/leader >/dev/null 2>&1; then \
-					echo '✓ Consul API is responding' && \
+					echo '? Consul API is responding' && \
 					if curl -s -f http://$(CONSUL_SERVICE_NAME).$(CONSUL_NAMESPACE).${INGRESS_GATEWAY_CLOUD_PRIVATE_HOST}:8500/v1/status/peers >/dev/null 2>&1; then \
-						echo '✓ Consul cluster is healthy' && \
-						echo '✓ Consul connectivity check successful!' && \
+						echo '? Consul cluster is healthy' && \
+						echo '? Consul connectivity check successful!' && \
 						exit 0; \
 					else \
-						echo '✗ Consul cluster health check failed' && \
+						echo '? Consul cluster health check failed' && \
 						echo 'Retrying in 10 seconds...' && \
 						sleep 10; \
 					fi; \
 				else \
-					echo '✗ Consul API is not responding' && \
+					echo '? Consul API is not responding' && \
 					echo 'Retrying in 10 seconds...' && \
 					sleep 10; \
 				fi; \
-			done" || (echo "$(RED)✗ Consul connectivity check failed$(NC)" && exit 1); \
+			done" || (echo "$(RED)? Consul connectivity check failed$(NC)" && exit 1); \
 		echo "$(GREEN)=== Consul connectivity check completed successfully$(NC)"; \
 		echo ""; \
 	else \
@@ -810,26 +810,26 @@ run-mesh-test-curl:
 			fi && \
 			echo \"Attempt \$$((ELAPSED_TIME / 5 + 1)) - Testing mesh service... (\$$((TIMEOUT - ELAPSED_TIME))s remaining)\" && \
 			if curl -s -f -m 10 http://mesh-test-service:8080/health >/dev/null 2>&1; then \
-				echo '✓ Mesh service is responding internally' && \
+				echo '? Mesh service is responding internally' && \
 				curl -s -m 10 http://public-gateway-service:8080/mesh-test/health && \
 				if curl -f -m 10 http://public-gateway-service:8080/mesh-test/health >/dev/null 2>&1; then \
-					echo '✓ Mesh service is accessible through public gateway' && \
-					echo '✓ Mesh smoke test successful!' && \
+					echo '? Mesh service is accessible through public gateway' && \
+					echo '? Mesh smoke test successful!' && \
 					echo 'Response from public gateway:' && \
 					curl -s -m 10 http://public-gateway-service:8080/mesh-test/health && \
 					echo '' && \
 					exit 0; \
 				else \
-					echo '✗ Mesh service not accessible through public gateway' && \
+					echo '? Mesh service not accessible through public gateway' && \
 					echo 'Retrying in 5 seconds...' && \
 					sleep 5; \
 				fi; \
 			else \
-				echo '✗ Mesh service not responding internally' && \
+				echo '? Mesh service not responding internally' && \
 				echo 'Retrying in 5 seconds...' && \
 				sleep 5; \
 			fi; \
-		done" || (echo "$(RED)✗ Mesh smoke test failed$(NC)" && exit 1)
+		done" || (echo "$(RED)? Mesh smoke test failed$(NC)" && exit 1)
 	@echo "$(GREEN)=== Mesh smoke test completed successfully$(NC)"
 	@echo ""
 
