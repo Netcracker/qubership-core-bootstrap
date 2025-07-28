@@ -133,8 +133,8 @@ The script uses a .mk configuration file to define all installation and helm pac
 | `DBAAS_CLUSTER_DBA_CREDENTIALS_PASSWORD` | `password`                           | DBaaS cluster DBA password (to register MaaS database) |
 | **Installation Options**                 |
 | `CREATE_NAMESPACE`                       | `true`                               | Automatically create namespaces if they don't exist    |
-| `KAFKA_INSTANCES`                        | `kafka-1 kafka-2`                    | List of Kafka instance names to install                |
-| `RABBIT_INSTANCES`                       | `rabbitmq-1 rabbitmq-2`              | List of RabbitMQ instance names to install             |
+| `KAFKA_INSTANCES`                        | `kafka-1 kafka-2`                    | List of Kafka instance names to install. If omitted or emtpy value provided - script will skip kafka installation                |
+| `RABBIT_INSTANCES`                       | `rabbitmq-1 rabbitmq-2`              | List of RabbitMQ instance names to install. If omitted or empty value provided- script will skip rabbit installation             |
 
 ### Values Files
 

@@ -38,6 +38,7 @@ DBAAS_SERVICE_NAME ?= dbaas-aggregator
 
 # MaaS configuration
 KAFKA_INSTANCES ?= kafka-1
+# empty value - skip rabbit installation
 RABBIT_INSTANCES ?= 
 
 # Core bootstrap configuration

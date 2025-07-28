@@ -38,7 +38,8 @@ DBAAS_SERVICE_NAME ?= dbaas-aggregator
 
 # MaaS configuration
 KAFKA_INSTANCES ?= kafka-1
-RABBIT_INSTANCES ?= rabbit-1
+# empty value - skip rabbit installation
+RABBIT_INSTANCES ?= 
 
 # Core bootstrap configuration
 CORE_BOOTSTRAP_IMAGE ?= ghcr.io/netcracker/core-bootstrap:latest 

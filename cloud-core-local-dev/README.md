@@ -175,6 +175,14 @@ The script uses several values files:
 
 The script uses `envsubst` to substitute environment variables in the values file templates.
 
+### MaaS configuration
+
+Specify list of instance names in parameters `KAFKA_INSTANCES`, `RABBIT_INSTANCES` to adjust message brokers clusters
+
+e.g. 
+`KAFKA_INSTANCES ?= kafka-1 kafka-2` means deploy 2 instances of Kafka
+`RABBIT_INSTANCES ?=` means do not deploy RabbitMQ at all
+
 ## Installation Process
 
 The installation script performs the following stages:
