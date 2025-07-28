@@ -449,7 +449,7 @@ uninstall-patroni-core:
 
 # Main uninstall target
 .PHONY: uninstall
-uninstall: show-config uninstall-patroni-services uninstall-dbaas-aggregator uninstall-patroni-core manual-cleanup cleanup-crds cleanup-namespaces
+uninstall: show-config uninstall-patroni-services uninstall-dbaas-aggregator uninstall-patroni-core manual-cleanup cleanup-crds cleanup-namespaces cleanup-dbaas-node-label
 	@echo "$(GREEN)=== ALL COMPONENTS UNINSTALLED SUCCESSFULLY ===$(NC)"
 
 # Clean repositories
@@ -458,6 +458,27 @@ clean:
 	@echo "$(CYAN)--- Cleaning up repositories...$(NC)"
 	@rm -rf repos/pgskipper-operator repos/qubership-dbaas
 	@echo "$(GREEN)--- Repositories cleaned$(NC)"
+
+# remove DBaaS label from nodes
+.PHONY: cleanup-dbaas-node-label
+cleanup-dbaas-node-label:
+	@if [ "$(ADD_DBAAS_NODE_LABEL)" = "true" ]; then \
+		echo "$(CYAN)--- Finding nodes with label '$(NODE_SELECTOR_DBAAS_KEY)'...$(NC)"; \
+		echo "$(CYAN)--- Searching for nodes with label '$(NODE_SELECTOR_DBAAS_KEY)=$(REGION_DBAAS)'...$(NC)"; \
+		NODES_WITH_LABEL=$$(kubectl get nodes -l $(NODE_SELECTOR_DBAAS_KEY)=$(REGION_DBAAS) --no-headers 2>/dev/null); \
+		if [ -n "$$NODES_WITH_LABEL" ]; then \
+			echo "$(GREEN)--- Found nodes with label '$(NODE_SELECTOR_DBAAS_KEY)=$(REGION_DBAAS)':$(NC)"; \
+			echo "$$NODES_WITH_LABEL"; \
+			echo "$(CYAN)--- Removing label '$(NODE_SELECTOR_DBAAS_KEY)' from nodes...$(NC)"; \
+			kubectl label nodes -l $(NODE_SELECTOR_DBAAS_KEY)=$(REGION_DBAAS) $(NODE_SELECTOR_DBAAS_KEY)-; \
+			echo "$(GREEN)--- Label removed successfully$(NC)"; \
+		else \
+			echo "$(YELLOW)--- No nodes found with label '$(NODE_SELECTOR_DBAAS_KEY)=$(REGION_DBAAS)'$(NC)"; \
+		fi; \
+	else \
+		echo "$(YELLOW)--- Skipping DBaaS node label cleanup (ADD_DBAAS_NODE_LABEL=false)...$(NC)"; \
+	fi
+	@echo ""
 
 # Manual cleanup target for additional resources
 .PHONY: manual-cleanup
@@ -498,3 +519,5 @@ cleanup-namespaces:
 		echo "$(GREEN)--- Skipping namespace cleanup (CREATE_NAMESPACE=false)...$(NC)"; \
 		echo ""; \
 	fi
+
+	
