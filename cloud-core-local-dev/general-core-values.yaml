@@ -1,3 +1,0 @@
-CR_SYNCHRONIZER_IMAGE: "ghcr.io/netcracker/cr-synchronizer:latest"
-NAMESPACE: "cloud-core"
-APPLICATION_NAME: "Cloud-Core"
