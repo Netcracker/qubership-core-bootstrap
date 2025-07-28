@@ -9,7 +9,11 @@ INSTALL_METRICS_SERVER ?= true
 INSTALL_MONITORING ?= false
 INSTALL_CONSUL ?= true
 INSTALL_DBAAS ?= true
+# config file for dbaas installation - relative path will be resolved upon ./dbaas folder
 DBAAS_CONFIG_FILE ?= local.mk
+INSTALL_MAAS ?= true
+# config file for maas installation - relative path will be resolved upon ./maas folder
+MAAS_CONFIG_FILE ?= local.mk
 
 # Namespace configuration
 CORE_NAMESPACE ?= core
@@ -18,6 +22,10 @@ MONITORING_NAMESPACE ?= monitoring
 # pg & dbaas namespaces are propagated to dbaas-install
 PG_NAMESPACE ?= postgres
 DBAAS_NAMESPACE ?= dbaas
+# below namespaces are propagated to maas-install
+MAAS_NAMESPACE ?= maas
+RABBIT_NAMESPACE ?= rabbit
+KAFKA_NAMESPACE ?= kafka
 
 # General values
 DEPLOYMENT_SESSION_ID ?= cloud-core-local-dev
@@ -26,8 +34,11 @@ CONSUL_SERVICE_NAME ?= consul-consul-server
 CONSUL_ENABLED ?= true
 
 # DBaaS configuration
-# propagated to dbaas-install
 DBAAS_SERVICE_NAME ?= dbaas-aggregator
+
+# MaaS configuration
+KAFKA_INSTANCES ?= kafka-1
+RABBIT_INSTANCES ?= rabbit-1
 
 # Core bootstrap configuration
 CORE_BOOTSTRAP_IMAGE ?= ghcr.io/netcracker/core-bootstrap:latest 

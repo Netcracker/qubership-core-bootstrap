@@ -11,6 +11,7 @@
 	deploy-consul deploy-consul-old deploy-consul-print-start install-consul wait-for-consul check-consul-connectivity \
 	deploy-monitoring deploy-metrics-server \
 	deploy-dbaas \
+	deploy-maas \
 	prepare-core-bootstrap prepare-core-bootstrap-print-start deploy-cloud-core-configuration \
 	deploy-cloud-core-components deploy-cloud-core-print-start \
 	apply-facade-operator-crds deploy-facade-operator \
@@ -27,6 +28,7 @@
 	uninstall-cloud-core-components uninstall-cloud-core-configuration \
 	uninstall-consul uninstall-monitoring uninstall-metrics-server \
 	uninstall-dbaas \
+	uninstall-maas \
 	uninstall-control-plane-db-credentials \
 	uninstall-facade-operator uninstall-ingress-gateway uninstall-site-management \
 	uninstall-paas-mediation uninstall-control-plane uninstall-dbaas-agent \
@@ -90,6 +92,7 @@ help:
 	@echo "  deploy-monitoring       # Deploy monitoring operator (if INSTALL_MONITORING=true)"
 	@echo "  deploy-metrics-server   # Deploy metrics server (if INSTALL_METRICS_SERVER=true)"
 	@echo "  deploy-dbaas            # Deploy DBaaS (if INSTALL_DBAAS=true)"
+	@echo "  deploy-maas             # Deploy MaaS (if INSTALL_MAAS=true)"
 	@echo ""
 	@echo "$(CYAN)VALIDATION TARGETS:$(NC)"
 	@echo "  validate                # Validate CLI tools and CRDs"
@@ -108,6 +111,7 @@ help:
 	@echo "  uninstall-monitoring    # Uninstall monitoring (if INSTALL_MONITORING=true)"
 	@echo "  uninstall-metrics-server # Uninstall metrics server (if INSTALL_METRICS_SERVER=true)"
 	@echo "  uninstall-dbaas         # Uninstall DBaaS (if INSTALL_DBAAS=true)"
+	@echo "  uninstall-maas          # Uninstall MaaS (if INSTALL_MAAS=true)"
 	@echo "  cleanup-crds            # Remove all CRDs (if INSTALL_CRDS=true)"
 	@echo "  cleanup-namespaces      # Remove all namespaces (if CREATE_NAMESPACE=true)"
 	@echo ""
@@ -127,7 +131,7 @@ help:
 # INSTALLATION
 # =============================================================================
 
-install: validate clone-repos template-values-files deploy mesh-smoke-test
+install: validate clone-repos template-values-files deploy mesh-smoke-test deploy-maas
 
 deploy: deploy-dependencies deploy-core
 
@@ -409,52 +413,6 @@ deploy-metrics-server:
 		echo ""; \
 	fi
 
-# --------------------- dbaas install/uninstall ----------------------------
-
-deploy-dbaas:
-	@if [ "$(INSTALL_DBAAS)" = "true" ]; then \
-		echo "$(GREEN)=== Starting DBaaS Installation...$(NC)"; \
-		echo ""; \
-		if [ -d "dbaas" ]; then \
-			echo "$(YELLOW)--- Running DBaaS installation from dbaas directory...$(NC)"; \
-			$(call run_dbaas_operation,install); \
-			echo ""; \
-		else \
-			echo "$(RED)Error: dbaas directory not found$(NC)"; \
-			echo "$(CYAN)Please ensure the dbaas directory exists in the current location$(NC)"; \
-			exit 1; \
-		fi; \
-	else \
-		echo "$(YELLOW)--- Skipping DBaaS installation (INSTALL_DBAAS=false)...$(NC)"; \
-		echo "$(GREEN)=== Running DBaaS smoke test on existing installation...$(NC)"; \
-		echo ""; \
-		if [ -d "dbaas" ]; then \
-			echo "$(YELLOW)--- Running DBaaS smoke test from dbaas directory...$(NC)"; \
-			$(call run_dbaas_operation,smoke-test); \
-		else \
-			echo "$(RED)Error: dbaas directory not found$(NC)"; \
-			echo "$(CYAN)Please ensure the dbaas directory exists in the current location$(NC)"; \
-			exit 1; \
-		fi; \
-	fi
-
-uninstall-dbaas:
-	@if [ "$(INSTALL_DBAAS)" = "true" ]; then \
-		echo "$(YELLOW)--- Uninstalling DBaaS components...$(NC)"; \
-		if [ -d "dbaas" ]; then \
-			echo "$(YELLOW)--- Running DBaaS uninstallation from dbaas directory...$(NC)"; \
-			$(call run_dbaas_operation,uninstall); \
-			echo ""; \
-		else \
-			echo "$(RED)Error: dbaas directory not found$(NC)"; \
-			echo "$(CYAN)Please ensure the dbaas directory exists in the current location$(NC)"; \
-			exit 1; \
-		fi; \
-	else \
-		echo "$(YELLOW)--- Skipping DBaaS uninstallation (INSTALL_DBAAS=false)...$(NC)"; \
-		echo ""; \
-	fi
-
 # --------------------- bootstrap --------------------
 
 prepare-core-bootstrap: prepare-core-bootstrap-print-start deploy-cloud-core-configuration
@@ -609,7 +567,7 @@ deploy-config-server:
 # UNINSTALL
 # =============================================================================
 
-uninstall: uninstall-core uninstall-dependencies cleanup-mesh-test cleanup-crds cleanup-namespaces
+uninstall: uninstall-maas uninstall-core uninstall-dependencies cleanup-mesh-test cleanup-crds cleanup-namespaces
 	@echo "$(GREEN)=== Complete cleanup finished$(NC)"
 	@echo ""
 
@@ -843,6 +801,80 @@ cleanup-mesh-test:
 	@echo ""
 
 # =============================================================================
+# DBAAS
+# =============================================================================
+
+deploy-dbaas:
+	@if [ "$(INSTALL_DBAAS)" = "true" ]; then \
+		echo "$(GREEN)=== Starting DBaaS Installation...$(NC)"; \
+		echo ""; \
+		if [ -d "dbaas" ]; then \
+			echo "$(CYAN)--- Running DBaaS installation from dbaas directory...$(NC)"; \
+			$(call run_dbaas_operation,install); \
+			echo ""; \
+		else \
+			echo "$(RED)Error: dbaas directory not found$(NC)"; \
+			echo "$(CYAN)Please ensure the dbaas directory exists in the current location$(NC)"; \
+			exit 1; \
+		fi; \
+	else \
+		echo "$(CYAN)--- Skipping DBaaS installation (INSTALL_DBAAS=false)...$(NC)"; \
+		echo "$(GREEN)=== Running DBaaS smoke test on existing installation...$(NC)"; \
+		echo ""; \
+		if [ -d "dbaas" ]; then \
+			echo "$(CYAN)--- Running DBaaS smoke test from dbaas directory...$(NC)"; \
+			$(call run_dbaas_operation,smoke-test); \
+		else \
+			echo "$(RED)Error: dbaas directory not found$(NC)"; \
+			echo "$(CYAN)Please ensure the dbaas directory exists in the current location$(NC)"; \
+			exit 1; \
+		fi; \
+	fi
+
+uninstall-dbaas:
+	@if [ "$(INSTALL_DBAAS)" = "true" ]; then \
+		echo "$(YELLOW)--- Uninstalling DBaaS components...$(NC)"; \
+		if [ -d "dbaas" ]; then \
+			echo "$(YELLOW)--- Running DBaaS uninstallation from dbaas directory...$(NC)"; \
+			$(call run_dbaas_operation,uninstall); \
+			echo ""; \
+		else \
+			echo "$(RED)Error: dbaas directory not found$(NC)"; \
+			echo "$(CYAN)Please ensure the dbaas directory exists in the current location$(NC)"; \
+			exit 1; \
+		fi; \
+	else \
+		echo "$(YELLOW)--- Skipping DBaaS uninstallation (INSTALL_DBAAS=false)...$(NC)"; \
+		echo ""; \
+	fi
+
+# =============================================================================
+# MAAS
+# =============================================================================
+
+deploy-maas:
+	@echo "$(GREEN)=== Starting MaaS installation...$(NC)"
+	@echo ""
+	@if [ "$(INSTALL_MAAS)" = "true" ]; then \
+		$(call run_maas_operation,install); \
+	else \
+		echo "$(CYAN)--- Skipping MaaS installation (INSTALL_MAAS=false)...$(NC)"; \
+		echo ""; \
+	fi
+	@echo ""
+
+uninstall-maas:
+	@echo "$(GREEN)=== Starting MaaS uninstallation...$(NC)"
+	@echo ""
+	@if [ "$(INSTALL_MAAS)" = "true" ]; then \
+		$(call run_maas_operation,uninstall); \
+	else \
+		echo "$(CYAN)--- Skipping MaaS uninstallation (INSTALL_MAAS=false)...$(NC)"; \
+		echo ""; \
+	fi
+	@echo ""
+
+# =============================================================================
 # HELPER FUNCTIONS
 # =============================================================================
 
@@ -928,6 +960,25 @@ define run_dbaas_operation
 		echo "$(GREEN)=== DBaaS $(1) completed successfully$(NC)"; \
 	else \
 		echo "$(RED)Error: DBaaS $(1) failed$(NC)"; \
+		exit 1; \
+	fi
+endef
+
+# Helper function to run MAAS operations
+define run_maas_operation
+	set -e; \
+	echo "$(CYAN)--- Using config file: $(MAAS_CONFIG_FILE)$(NC)"; \
+	echo "$(CYAN)--- Using MAAS namespace: $(MAAS_NAMESPACE)$(NC)"; \
+	echo "$(CYAN)--- Using RabbitMQ namespace: $(RABBIT_NAMESPACE)$(NC)"; \
+	echo "$(CYAN)--- Using Kafka namespace: $(KAFKA_NAMESPACE)$(NC)"; \
+	echo "$(CYAN)--- Using Kafka instances: $(KAFKA_INSTANCES)$(NC)"; \
+	echo "$(CYAN)--- Using RabbitMQ instances: $(RABBIT_INSTANCES)$(NC)"; \
+	echo "$(CYAN)--- Using DBAAS namespace: $(DBAAS_NAMESPACE)$(NC)"; \
+	echo "$(CYAN)--- Using DBAAS service name: $(DBAAS_SERVICE_NAME)$(NC)"; \
+	if (cd maas && '$(MAKE)' $(1) CONFIG_FILE=$(MAAS_CONFIG_FILE) MAAS_NAMESPACE=$(MAAS_NAMESPACE) RABBIT_NAMESPACE=$(RABBIT_NAMESPACE) KAFKA_NAMESPACE=$(KAFKA_NAMESPACE) KAFKA_INSTANCES=$(KAFKA_INSTANCES) RABBIT_INSTANCES=$(RABBIT_INSTANCES) CREATE_NAMESPACE=$(CREATE_NAMESPACE) DBAAS_NAMESPACE=$(DBAAS_NAMESPACE) DBAAS_SERVICE_NAME=$(DBAAS_SERVICE_NAME)); then \
+		echo "$(GREEN)=== MAAS $(1) completed successfully$(NC)"; \
+	else \
+		echo "$(RED)Error: MAAS $(1) failed$(NC)"; \
 		exit 1; \
 	fi
 endef

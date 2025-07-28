@@ -1,4 +1,4 @@
-# Cloud Core Local Development Installation Script
+# Cloud Core Installation Script
 
 This repository contains a comprehensive installation script for deploying Cloud Core components using Helm and Kubernetes. The script manages the installation and uninstallation of Cloud Core dependencies and services.
 
@@ -20,6 +20,7 @@ This repository contains a comprehensive installation script for deploying Cloud
 - **DBaaS Agent**
 - **Core Operator**
 - **Config Server**
+- **MaaS** [Optional]
 
 ## Quick Start
 
@@ -99,6 +100,9 @@ The script manages several namespaces:
 - `MONITORING_NAMESPACE` - Namespace for monitoring stack
 - `DBAAS_NAMESPACE` - Namespace for DBaaS components
 - `PG_NAMESPACE` - Namespace for PostgreSQL components
+- `MAAS_NAMESPACE` - Namespace for MAAS components
+- `RABBIT_NAMESPACE` - Namespace for RabbitMQ components
+- `KAFKA_NAMESPACE` - Namespace for Kafka components
 
 Set `CREATE_NAMESPACE=true` to automatically create namespaces during installation, or `CREATE_NAMESPACE=false` if you have pre-created namespaces.
 
@@ -157,7 +161,9 @@ The script uses a `.mk` configuration file to define all installation parameters
 | `INSTALL_MONITORING` | `true`/`false` | Install monitoring operator |
 | `INSTALL_CONSUL` | `true`/`false` | Install Consul |
 | `INSTALL_DBAAS` | `true`/`false` | Install DBaaS components |
-| `DBAAS_CONFIG_FILE` | `local.mk` | DBaaS configuration file path (relative path will be resolved upon ./dbaas-install folder, where sub-Makefile is placed)|
+| `DBAAS_CONFIG_FILE` | `local.mk` | DBaaS configuration file path (relative path will be resolved upon ./dbaas folder, where sub-Makefile is placed)|
+| `INSTALL_MAAS` | `true`/`false` | Install MAAS components |
+| `MAAS_CONFIG_FILE` | `local.mk` | MAAS configuration file path (relative path will be resolved upon ./maas folder, where sub-Makefile is placed)|
 
 ### Values Files
 
@@ -240,6 +246,9 @@ The installation script performs the following stages:
 - **Config Server**
   - Updates Helm dependencies
   - Installs Config Server
+- **MAAS** (if `INSTALL_MAAS=true`)
+  - Calls MAAS installation sub-Makefile
+  - Installs MAAS components with RabbitMQ and Kafka
 
 ### Stage 7: Mesh Smoke Test
 - Deploys mesh test resources (`mesh-test.yaml`)
@@ -263,6 +272,7 @@ The uninstallation script performs the following stages in reverse order:
 - Uninstalls cloud-core-configuration
 
 ### Stage 2: Uninstall Dependencies
+- Uninstalls MAAS components (if `INSTALL_MAAS=true`)
 - Uninstalls DBaaS components
 - Uninstalls Consul (if `INSTALL_CONSUL=true`)
 - Uninstalls monitoring (if `INSTALL_MONITORING=true`)
@@ -317,6 +327,7 @@ cloud-core-local-dev/
 ├── core-bootstrap-helm-repo.yaml # Helm repository config
 ├── mesh-test.yaml              # Mesh smoke test resources
 ├── dbaas/                      # DBaaS installation subdirectory
+├── maas/                       # MAAS installation subdirectory
 ├── repos/                      # [Created by script] Cloned repositories
 └── minikube/                   # Script for minikube cluster preparation
 ```
