@@ -11,7 +11,7 @@ INSTALL_CONSUL ?= false
 INSTALL_DBAAS ?= true
 # config file for dbaas installation - relative path will be resolved upon ./dbaas folder
 DBAAS_CONFIG_FILE ?= aws.mk
-INSTALL_MAAS ?= false
+INSTALL_MAAS ?= true
 # config file for maas installation - relative path will be resolved upon ./maas folder
 MAAS_CONFIG_FILE ?= local.mk
 
@@ -23,9 +23,9 @@ MONITORING_NAMESPACE ?= monitoring
 PG_NAMESPACE ?= core-1-postgres
 DBAAS_NAMESPACE ?= core-1-dbaas
 # below namespaces are propagated to maas-install
-MAAS_NAMESPACE ?= maas
-RABBIT_NAMESPACE ?= rabbit
-KAFKA_NAMESPACE ?= kafka
+MAAS_NAMESPACE ?= core-1-maas
+RABBIT_NAMESPACE ?= core-1-maas
+KAFKA_NAMESPACE ?= core-1-maas
 
 # General values
 DEPLOYMENT_SESSION_ID ?= cloud-core-aws-dev
@@ -37,9 +37,9 @@ CONSUL_ENABLED ?= true
 DBAAS_SERVICE_NAME ?= dbaas-aggregator
 
 # MaaS configuration
-KAFKA_INSTANCES ?= kafka-1
+KAFKA_INSTANCES ?= kafka-1 kafka-2
 # empty value - skip rabbit installation
-RABBIT_INSTANCES ?= 
+RABBIT_INSTANCES ?= rabbit-1
 
 # Core bootstrap configuration
 CORE_BOOTSTRAP_IMAGE ?= ghcr.io/netcracker/core-bootstrap:latest 
