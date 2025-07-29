@@ -11,13 +11,13 @@ KAFKA_INSTANCE="$1"
 
 MAAS_ACCOUNT_MANAGER_USERNAME=${MAAS_ACCOUNT_MANAGER_USERNAME:-manager}
 MAAS_ACCOUNT_MANAGER_PASSWORD=${MAAS_ACCOUNT_MANAGER_PASSWORD:-manager}
-NAMESPACE=${NAMESPACE:-maas}
+MAAS_NAMESPACE=${MAAS_NAMESPACE:-maas}
 SERVICE=maas-service
 LOCAL_PORT=8080
 REMOTE_PORT=8080
 
 echo "--- Start port-forward ${SERVICE} for port ${LOCAL_PORT}:${REMOTE_PORT}..."
-kubectl port-forward svc/${SERVICE} ${LOCAL_PORT}:${REMOTE_PORT} -n ${NAMESPACE} > /dev/null 2>&1 &
+kubectl port-forward svc/${SERVICE} ${LOCAL_PORT}:${REMOTE_PORT} -n ${MAAS_NAMESPACE} > /dev/null 2>&1 &
 PF_PID=$!
 
 cleanup() {
@@ -36,7 +36,7 @@ echo "--- Prepare body for POST-request..."
 JSON_BODY=$(cat <<EOF
 {
   "id": "${KAFKA_INSTANCE}",
-  "addresses": { "PLAINTEXT": ["${KAFKA_INSTANCE}.kafka.svc.cluster.local:9092"] },
+  "addresses": { "PLAINTEXT": ["${KAFKA_INSTANCE}.${KAFKA_NAMESPACE}.svc.cluster.local:9092"] },
   "maasProtocol": "PLAINTEXT"
 }
 EOF
