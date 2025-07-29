@@ -125,7 +125,7 @@ wait-for-maas-service-started:
 	@echo "$(CYAN)--- Stage 3 BEGIN: Waiting for MaaS service started (timeout: 5 minutes)...$(NC)"
 	@bash scripts/wait-for-service.sh \
 		"MaaS service" \
-		'kubectl logs -n $(MAAS_NAMESPACE) -l name=maas-service --tail=100 | grep -q "Starting server on"'
+		'kubectl logs -n $(MAAS_NAMESPACE) -l name=maas-service --tail=1000 | grep -q "Starting server on"'
 	@echo "$(GREEN)--- Stage 3 END: MaaS service is ready$(NC)"
 	@echo ""
 
@@ -139,7 +139,7 @@ install-rabbitmq:
 			kubectl get namespace $(RABBIT_NAMESPACE) || kubectl create namespace $(RABBIT_NAMESPACE); \
 		fi; \
 		for i in $(RABBIT_INSTANCES); do \
-			helm upgrade --install $$i charts/rabbitmq -n $(RABBIT_NAMESPACE) --set name=$$i; \
+			helm upgrade --install $$i charts/rabbitmq -n $(RABBIT_NAMESPACE); \
 		done; \
 		echo "$(GREEN)--- Stage 4 END: RabbitMQ installation completed$(NC)"; \
 		echo ""; \
@@ -175,7 +175,7 @@ install-kafka:
 			kubectl get namespace $(KAFKA_NAMESPACE) || kubectl create namespace $(KAFKA_NAMESPACE); \
 		fi; \
 		for i in $(KAFKA_INSTANCES); do \
-			helm upgrade --install $$i charts/kafka -n $(KAFKA_NAMESPACE) --set name=$$i; \
+			helm upgrade --install $$i charts/kafka -n $(KAFKA_NAMESPACE); \
 		done; \
 		echo "$(GREEN)--- Stage 6 END: Kafka installation completed$(NC)"; \
 		echo ""; \

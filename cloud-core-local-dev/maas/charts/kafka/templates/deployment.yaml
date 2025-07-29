@@ -1,16 +1,16 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ .Values.name }}
+  name: {{ .Release.Name }}
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: {{ .Values.name }}
+      app: {{ .Release.Name }}
   template:
     metadata:
       labels:
-        app: {{ .Values.name }}
+        app: {{ .Release.Name }}
     spec:
       containers:
         - name: kafka
@@ -25,11 +25,11 @@ spec:
             - name: KAFKA_CFG_PROCESS_ROLES
               value: "controller,broker"
             - name: KAFKA_CFG_CONTROLLER_QUORUM_VOTERS
-              value: "0@{{ .Values.name }}:9093"
+              value: "0@{{ .Release.Name }}:9093"
             - name: KAFKA_CFG_LISTENERS
               value: "PLAINTEXT://0.0.0.0:9092,CONTROLLER://:9093,EXTERNAL://:9094"
             - name: KAFKA_CFG_ADVERTISED_LISTENERS
-              value: "PLAINTEXT://{{ .Values.name }}.kafka.svc.cluster.local:9092,EXTERNAL://localhost:9094"
+              value: "PLAINTEXT://{{ .Release.Name }}.{{ .Release.Namespace }}.svc.cluster.local:9092,EXTERNAL://localhost:9094"
             - name: KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP
               value: "CONTROLLER:PLAINTEXT,EXTERNAL:PLAINTEXT,PLAINTEXT:PLAINTEXT"
             - name: KAFKA_CFG_CONTROLLER_LISTENER_NAMES
