@@ -322,61 +322,8 @@ wait-for-consul: install-consul
 		echo ""; \
 	fi
 
-check-consul-connectivity:
-	@if [ "$(INSTALL_CONSUL)" = "true" ]; then \
-		echo "$(YELLOW)--- Checking Consul connectivity...$(NC)"; \
-		echo "Checking Consul service availability..."; \
-		if kubectl get svc -n $(CONSUL_NAMESPACE) $(CONSUL_SERVICE_NAME) >/dev/null 2>&1; then \
-			echo "$(GREEN)? Consul service found$(NC)"; \
-		else \
-			echo "$(RED)? Consul service not found$(NC)"; \
-			exit 1; \
-		fi; \
-		echo "Checking Consul pod status..."; \
-		CONSUL_PODS=$$(kubectl get pods -n $(CONSUL_NAMESPACE) --selector=app=consul -o jsonpath='{.items[*].status.phase}'); \
-		if echo "$$CONSUL_PODS" | grep -q "Running"; then \
-			echo "$(GREEN)? Consul pods are running$(NC)"; \
-		else \
-			echo "$(RED)? Consul pods are not running: $$CONSUL_PODS$(NC)"; \
-			exit 1; \
-		fi; \
-		echo "Creating temporary pod for Consul connectivity check..."; \
-		echo "$(YELLOW)--- Retrying Consul connectivity check for up to 5 minutes...$(NC)"; \
-		kubectl run consul-check-$$(date +%s) --image=curlimages/curl:latest -n $(CORE_NAMESPACE) --rm -i --restart=Never -- \
-			sh -c "echo 'Starting Consul connectivity check with retry loop...' && \
-			TIMEOUT=300 && \
-			START_TIME=\$$(date +%s) && \
-			while true; do \
-				CURRENT_TIME=\$$(date +%s) && \
-				ELAPSED_TIME=\$$((CURRENT_TIME - START_TIME)) && \
-				if [ \$$ELAPSED_TIME -ge \$$TIMEOUT ]; then \
-					echo 'Timeout reached after 5 minutes. Consul connectivity check failed.' && \
-					exit 1; \
-				fi && \
-				echo \"Attempt \$$((ELAPSED_TIME / 10 + 1)) - Checking Consul connectivity... (\$$((TIMEOUT - ELAPSED_TIME))s remaining)\" && \
-				if curl -s -f http://$(CONSUL_SERVICE_NAME).$(CONSUL_NAMESPACE).${INGRESS_GATEWAY_CLOUD_PRIVATE_HOST}:8500/v1/status/leader >/dev/null 2>&1; then \
-					echo '? Consul API is responding' && \
-					if curl -s -f http://$(CONSUL_SERVICE_NAME).$(CONSUL_NAMESPACE).${INGRESS_GATEWAY_CLOUD_PRIVATE_HOST}:8500/v1/status/peers >/dev/null 2>&1; then \
-						echo '? Consul cluster is healthy' && \
-						echo '? Consul connectivity check successful!' && \
-						exit 0; \
-					else \
-						echo '? Consul cluster health check failed' && \
-						echo 'Retrying in 10 seconds...' && \
-						sleep 10; \
-					fi; \
-				else \
-					echo '? Consul API is not responding' && \
-					echo 'Retrying in 10 seconds...' && \
-					sleep 10; \
-				fi; \
-			done" || (echo "$(RED)? Consul connectivity check failed$(NC)" && exit 1); \
-		echo "$(GREEN)=== Consul connectivity check completed successfully$(NC)"; \
-		echo ""; \
-	else \
-		echo "$(YELLOW)--- Skipping Consul connectivity check (INSTALL_CONSUL=false)...$(NC)"; \
-		echo ""; \
-	fi
+# Include Consul targets
+include test/consul-connection-test.mk
 
 # ----------------- monitoring --------------------------
 
@@ -706,99 +653,8 @@ cleanup-namespaces:
 # MESH SMOKE TEST
 # =============================================================================
 
-mesh-smoke-test: mesh-smoke-test-print-start deploy-mesh-test wait-for-mesh-test-pod run-mesh-test-curl cleanup-mesh-test
-	@echo "$(GREEN)=== Cloud Core Mesh Smoke Test completed$(NC)"
-	@echo ""
-
-mesh-smoke-test-print-start:
-	@echo "$(GREEN)=== Starting Cloud Core Mesh Smoke Test...$(NC)"
-	@echo ""
-
-deploy-mesh-test:
-	@echo "$(YELLOW)--- Deploying mesh test resources...$(NC)"
-	@if [ -f "mesh-test.yaml" ]; then \
-		kubectl apply -f mesh-test.yaml -n $(CORE_NAMESPACE); \
-		echo "$(GREEN)--- Mesh test resources deployed successfully$(NC)"; \
-	else \
-		echo "$(RED)Error: mesh-test.yaml not found$(NC)"; \
-		echo "$(CYAN)Please create mesh-test.yaml file with your test resources$(NC)"; \
-		exit 1; \
-	fi
-	@echo ""
-
-wait-for-mesh-test-pod:
-	@echo "$(YELLOW)--- Waiting for mesh test pod to be ready (timeout: 3 minutes)...$(NC)"
-	@TIMEOUT=180; \
-	START_TIME=$$(date +%s); \
-	while true; do \
-		CURRENT_TIME=$$(date +%s); \
-		ELAPSED_TIME=$$((CURRENT_TIME - START_TIME)); \
-		if [ $$ELAPSED_TIME -ge $$TIMEOUT ]; then \
-			echo "$(RED)Timeout reached after 3 minutes. Mesh test pod is not ready.$(NC)"; \
-			echo "$(CYAN)Checking pod status:$(NC)"; \
-			kubectl get pods -n $(CORE_NAMESPACE) --selector=app=mesh-test -o wide; \
-			echo "$(CYAN)Pod logs:$(NC)"; \
-			kubectl logs -n $(CORE_NAMESPACE) --selector=app=mesh-test --tail=50; \
-			exit 1; \
-		fi; \
-		READY_PODS=$$(kubectl get pods -n $(CORE_NAMESPACE) --selector=app=mesh-test --field-selector=status.phase=Running -o jsonpath='{.items[?(@.status.containerStatuses[0].ready==true)].metadata.name}' | wc -w); \
-		if [ "$$READY_PODS" -ge 1 ]; then \
-			echo "$(GREEN)Mesh test pod is ready! ($$READY_PODS ready pods)$(NC)"; \
-			break; \
-		fi; \
-		echo "Waiting for mesh test pod to be ready... ($$READY_PODS ready) - $$((TIMEOUT - ELAPSED_TIME))s remaining"; \
-		sleep 5; \
-	done
-	@echo ""
-
-run-mesh-test-curl:
-	@echo "$(YELLOW)--- Running mesh test through public gateway...$(NC)"
-	@echo "$(CYAN)--- Creating temporary curl pod for testing...$(NC)"
-	@kubectl run mesh-test-curl-$$(date +%s) --image=curlimages/curl:latest -n $(CORE_NAMESPACE) --rm -i --restart=Never -- \
-		sh -c "echo 'Testing mesh service through public gateway...' && \
-		echo 'Attempting to call mesh test service...' && \
-		TIMEOUT=60 && \
-		START_TIME=\$$(date +%s) && \
-		while true; do \
-			CURRENT_TIME=\$$(date +%s) && \
-			ELAPSED_TIME=\$$((CURRENT_TIME - START_TIME)) && \
-			if [ \$$ELAPSED_TIME -ge \$$TIMEOUT ]; then \
-				echo 'Timeout reached after 60 seconds. Mesh test failed.' && \
-				exit 1; \
-			fi && \
-			echo \"Attempt \$$((ELAPSED_TIME / 5 + 1)) - Testing mesh service... (\$$((TIMEOUT - ELAPSED_TIME))s remaining)\" && \
-			if curl -s -f -m 10 http://mesh-test-service:8080/health >/dev/null 2>&1; then \
-				echo '? Mesh service is responding internally' && \
-				curl -s -m 10 http://public-gateway-service:8080/mesh-test/health && \
-				if curl -f -m 10 http://public-gateway-service:8080/mesh-test/health >/dev/null 2>&1; then \
-					echo '? Mesh service is accessible through public gateway' && \
-					echo '? Mesh smoke test successful!' && \
-					echo 'Response from public gateway:' && \
-					curl -s -m 10 http://public-gateway-service:8080/mesh-test/health && \
-					echo '' && \
-					exit 0; \
-				else \
-					echo '? Mesh service not accessible through public gateway' && \
-					echo 'Retrying in 5 seconds...' && \
-					sleep 5; \
-				fi; \
-			else \
-				echo '? Mesh service not responding internally' && \
-				echo 'Retrying in 5 seconds...' && \
-				sleep 5; \
-			fi; \
-		done" || (echo "$(RED)? Mesh smoke test failed$(NC)" && exit 1)
-	@echo "$(GREEN)=== Mesh smoke test completed successfully$(NC)"
-	@echo ""
-
-cleanup-mesh-test:
-	@echo "$(YELLOW)--- Cleaning up mesh test resources...$(NC)"
-	@if [ -f "mesh-test.yaml" ]; then \
-		echo "$(CYAN)--- Deleting mesh test resources from $(CORE_NAMESPACE) namespace...$(NC)"; \
-		kubectl delete -f mesh-test.yaml -n $(CORE_NAMESPACE) --ignore-not-found=true || true; \
-		echo "$(GREEN)--- Mesh test resources cleaned up successfully$(NC)"; \
-	fi
-	@echo ""
+# Include mesh testing targets
+include test/mesh-test/mesh-test.mk
 
 # =============================================================================
 # DBAAS

@@ -331,9 +331,9 @@ cloud-core-local-dev/
 ├── local.mk                    # Local deployment configuration
 ├── aws.mk                      # AWS deployment configuration
 ├── core-values.envsubst        # Core values template
-├── core-values.yaml            # [Created by script] core values
 ├── core-bootstrap-helm-repo.yaml # Helm repository config
-├── mesh-test.yaml              # Mesh smoke test resources
+├── test/                       # Test resources
+├── test/mesh/                  # Mesh smoke test resources
 ├── dbaas/                      # DBaaS installation subdirectory
 ├── maas/                       # MAAS installation subdirectory
 ├── repos/                      # [Created by script] Cloned repositories
