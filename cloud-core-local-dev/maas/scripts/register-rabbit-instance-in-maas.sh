@@ -11,13 +11,13 @@ RABBIT_INSTANCE="$1"
 
 MAAS_ACCOUNT_MANAGER_USERNAME=${MAAS_ACCOUNT_MANAGER_USERNAME:-manager}
 MAAS_ACCOUNT_MANAGER_PASSWORD=${MAAS_ACCOUNT_MANAGER_PASSWORD:-manager}
-NAMESPACE=${NAMESPACE:-maas}
+MAAS_NAMESPACE=${MAAS_NAMESPACE:-maas}
 SERVICE=maas-service
 LOCAL_PORT=8080
 REMOTE_PORT=8080
 
 echo "--- Start port-forward ${SERVICE} for port ${LOCAL_PORT}:${REMOTE_PORT}..."
-kubectl port-forward svc/${SERVICE} ${LOCAL_PORT}:${REMOTE_PORT} -n ${NAMESPACE} > /dev/null 2>&1 &
+kubectl port-forward svc/${SERVICE} ${LOCAL_PORT}:${REMOTE_PORT} -n ${MAAS_NAMESPACE} > /dev/null 2>&1 &
 PF_PID=$!
 
 cleanup() {
@@ -36,8 +36,8 @@ echo "--- Prepare body for POST-request..."
 JSON_BODY=$(cat <<EOF
 {
   "id": "${RABBIT_INSTANCE}",
-  "apiUrl": "http://${RABBIT_INSTANCE}.rabbit:15672/api",
-  "amqpUrl": "amqp://${RABBIT_INSTANCE}.rabbit:5672",
+  "apiUrl": "http://${RABBIT_INSTANCE}.${RABBIT_NAMESPACE}:15672/api",
+  "amqpUrl": "amqp://${RABBIT_INSTANCE}.${RABBIT_NAMESPACE}:5672",
   "user": "admin",
   "password": "admin"
 }

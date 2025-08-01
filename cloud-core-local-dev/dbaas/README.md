@@ -198,8 +198,12 @@ The uninstallation script performs the following stages in reverse order:
 ### Stage 3: Uninstall Patroni Core
 - Removes Patroni Core Helm release
 
-### Stage 4: Clean up patrony resources
+### Stage 4: Clean up 
 
-Patroni creates programmatically config maps, pvc's, services that are not cleaned by helm
-They are deleted in this stage
+Removes artifacts
 
+- patrony resources
+  (Patroni creates programmatically config maps, pvc's, services that are not cleaned by helm)
+- patroni CRDs (if `SKIP_CRDS = false`)
+- DbaaS node label (if `ADD_DBAAS_NODE_LABEL = true`)
+- namespaces (if `CREATE_NAMESPACE = true`)

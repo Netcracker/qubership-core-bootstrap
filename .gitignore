@@ -3,3 +3,4 @@
 /cloud-core-local-dev/repos/**
 /cloud-core-local-dev/maas/repos/**
 /cloud-core-local-dev/dbaas/repos/**
+/cloud-core-local-dev/core-values.yaml

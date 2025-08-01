@@ -10,7 +10,8 @@ DBAAS_NAMESPACE ?= dbaas
 
 # maas parameters
 TAG ?= latest
-DBAAS_AGGREGATOR_ADDRESS ?= http://dbaas-aggregator.${DBAAS_NAMESPACE}.svc.cluster.local:8080
+DBAAS_SERVICE_NAME ?= dbaas-aggregator
+DBAAS_AGGREGATOR_ADDRESS ?= http://${DBAAS_SERVICE_NAME}.${DBAAS_NAMESPACE}.svc.cluster.local:8080
 
 # credentials
 MAAS_ACCOUNT_MANAGER_USERNAME ?= manager

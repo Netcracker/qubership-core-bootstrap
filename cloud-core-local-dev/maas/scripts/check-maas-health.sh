@@ -45,11 +45,11 @@ while true; do
         echo "❌ Postgres status is not UP: postgres.status=$POSTGRES_STATUS"
         ERROR=1
     fi
-    if [ "$KAFKA_STATUS" != "UP" ]; then
+    if [ "$KAFKA_STATUS" != "UP" ] && [ -n "$KAFKA_INSTANCES" ]; then
         echo "❌ Kafka status is not UP: kafka.status=$KAFKA_STATUS"
         ERROR=1
     fi
-    if [ "$RABBIT_STATUS" != "UP" ]; then
+    if [ "$RABBIT_STATUS" != "UP" ] && [ -n "$RABBIT_INSTANCES" ]; then
         echo "❌ Rabbit status is not UP: rabbit.status=$RABBIT_STATUS"
         ERROR=1
     fi
