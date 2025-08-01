@@ -323,7 +323,7 @@ wait-for-consul: install-consul
 	fi
 
 # Include Consul targets
-include test/consul-connection-test.mk
+include test/consul-connectivity-test/consul-connectivity-test.mk
 
 # ----------------- monitoring --------------------------
 

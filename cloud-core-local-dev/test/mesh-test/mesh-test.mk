@@ -6,6 +6,8 @@
 .PHONY: mesh-smoke-test mesh-smoke-test-print-start deploy-mesh-test wait-for-mesh-test-pod run-mesh-test-curl cleanup-mesh-test
 
 MESH_TEST_YAML_FILE ?= test/mesh-test/mesh-test.yaml
+MESH_TEST_SCRIPT_FILE ?= test/mesh-test/mesh-test.sh
+MESH_TEST_SCRIPT := $(shell cat $(MESH_TEST_SCRIPT_FILE))
 
 # Main mesh smoke test target
 mesh-smoke-test: mesh-smoke-test-print-start deploy-mesh-test wait-for-mesh-test-pod run-mesh-test-curl cleanup-mesh-test
@@ -61,39 +63,7 @@ run-mesh-test-curl:
 	@echo "$(YELLOW)--- Running mesh test through public gateway...$(NC)"
 	@echo "$(CYAN)--- Creating temporary curl pod for testing...$(NC)"
 	@kubectl run mesh-test-curl-$$(date +%s) --image=curlimages/curl:latest -n $(CORE_NAMESPACE) --rm -i --restart=Never -- \
-		sh -c "echo 'Testing mesh service through public gateway...' && \
-		echo 'Attempting to call mesh test service...' && \
-		TIMEOUT=60 && \
-		START_TIME=\$$(date +%s) && \
-		while true; do \
-			CURRENT_TIME=\$$(date +%s) && \
-			ELAPSED_TIME=\$$((CURRENT_TIME - START_TIME)) && \
-			if [ \$$ELAPSED_TIME -ge \$$TIMEOUT ]; then \
-				echo 'Timeout reached after 60 seconds. Mesh test failed.' && \
-				exit 1; \
-			fi && \
-			echo \"Attempt \$$((ELAPSED_TIME / 5 + 1)) - Testing mesh service... (\$$((TIMEOUT - ELAPSED_TIME))s remaining)\" && \
-			if curl -s -f -m 10 http://mesh-test-service:8080/health >/dev/null 2>&1; then \
-				echo '? Mesh service is responding internally' && \
-				curl -s -m 10 http://public-gateway-service:8080/mesh-test/health && \
-				if curl -f -m 10 http://public-gateway-service:8080/mesh-test/health >/dev/null 2>&1; then \
-					echo '? Mesh service is accessible through public gateway' && \
-					echo '? Mesh smoke test successful!' && \
-					echo 'Response from public gateway:' && \
-					curl -s -m 10 http://public-gateway-service:8080/mesh-test/health && \
-					echo '' && \
-					exit 0; \
-				else \
-					echo '? Mesh service not accessible through public gateway' && \
-					echo 'Retrying in 5 seconds...' && \
-					sleep 5; \
-				fi; \
-			else \
-				echo '? Mesh service not responding internally' && \
-				echo 'Retrying in 5 seconds...' && \
-				sleep 5; \
-			fi; \
-		done" || (echo "$(RED)? Mesh smoke test failed$(NC)" && exit 1)
+		sh -c "$(MESH_TEST_SCRIPT)" || (echo "$(RED)✗ Mesh smoke test failed$(NC)" && exit 1)
 	@echo "$(GREEN)=== Mesh smoke test completed successfully$(NC)"
 	@echo ""
 

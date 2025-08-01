@@ -327,15 +327,16 @@ kubectl logs -n core -l app=facade-operator
 
 ```
 cloud-core-local-dev/
-├── Makefile                    # Main installation script
-├── local.mk                    # Local deployment configuration
-├── aws.mk                      # AWS deployment configuration
-├── core-values.envsubst        # Core values template
-├── core-bootstrap-helm-repo.yaml # Helm repository config
-├── test/                       # Test resources
-├── test/mesh/                  # Mesh smoke test resources
-├── dbaas/                      # DBaaS installation subdirectory
-├── maas/                       # MAAS installation subdirectory
-├── repos/                      # [Created by script] Cloned repositories
-└── minikube/                   # Script for minikube cluster preparation
+├── Makefile                        # Main installation script
+├── local.mk                        # Local deployment configuration
+├── aws.mk                          # AWS deployment configuration
+├── core-values.envsubst            # Core values template
+├── core-bootstrap-helm-repo.yaml   # Helm repository config
+├── test/                           # Test resources
+├──── mesh-test/                    # Mesh smoke test resources
+├──── consul-conectivity-test/      # Consul conectivity test resources
+├── dbaas/                          # DBaaS installation subdirectory
+├── maas/                           # MAAS installation subdirectory
+├── repos/                          # [Created by script] Cloned repositories
+└── minikube/                       # Script for minikube cluster preparation
 ```
