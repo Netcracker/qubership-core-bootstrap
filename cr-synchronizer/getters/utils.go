@@ -3,13 +3,12 @@ package getters
 import (
 	"context"
 	"github.com/rs/zerolog/diode"
-	v1 "github.com/netcracker/cr-synchronizer/api/types/v1"
 	"os"
 	"strings"
 
 	ncapi "github.com/netcracker/cr-synchronizer/clientset"
 	"github.com/rs/zerolog"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	k8sv1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/client-go/kubernetes/scheme"
