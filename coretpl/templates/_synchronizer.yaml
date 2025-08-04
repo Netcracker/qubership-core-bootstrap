@@ -27,7 +27,7 @@ spec:
       containers:
       - name: {{ template "finalyzer.postinstall.job" . }}
         image: "{{ .Values.CR_SYNCHRONIZER_IMAGE }}"
-        command: ['/app/cr-synchronizer']
+        command: ['/app/cr-checker']
         args: ['-post']
         imagePullPolicy: IfNotPresent
         resources:
