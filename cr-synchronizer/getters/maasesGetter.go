@@ -18,10 +18,17 @@ type MaaSesRunner struct {
 }
 
 func (ng *MaaSesRunner) Generate() {
-	GoCrChecker(func() { ng.initialize() })
+	log.Info().Str("type", "creator").Str("kind", "maas").Msgf("starting declarationCreator")
+	schemeRes, listRes := ng.declarationCreator(ng.resources, maasPlural)
+	log.Info().Str("type", "creator").Str("kind", "maas").Msgf("finished declarationCreator")
+	for _, declarativeName := range listRes {
+		log.Info().Str("type", "waiter").Str("kind", "maas").Str("name", declarativeName).Msgf("starting declarationWaiter")
+		ng.declarationWaiter(schemeRes, declarativeName)
+		log.Info().Str("type", "waiter").Str("kind", "maas").Str("name", declarativeName).Msgf("finished declarationWaiter")
+	}
 }
 
-func NewMaaSesRunnerGenerator(resources []unstructured.Unstructured, client *dynamic.DynamicClient, recorder EventRecorder, clientset *ncapi.Clientset, scheme *runtime.Scheme, runtimeReceiver runtime.Object) *MaaSesRunner {
+func NewMaaSesRunnerGenerator(resources []unstructured.Unstructured, client dynamic.Interface, recorder EventRecorder, clientset ncapi.Interface, scheme *runtime.Scheme, runtimeReceiver runtime.Object, timeoutSeconds int) *MaaSesRunner {
 	return &MaaSesRunner{
 		resources: resources,
 		DeploymentGenerator: DeploymentGenerator{
@@ -30,23 +37,11 @@ func NewMaaSesRunnerGenerator(resources []unstructured.Unstructured, client *dyn
 			recorder:        recorder,
 			scheme:          scheme,
 			runtimeReceiver: runtimeReceiver,
+			timeoutSeconds:  timeoutSeconds,
 		},
 	}
 }
 
 func (ng *MaaSesRunner) Name() string {
 	return maasesRunner
-}
-
-func (ng *MaaSesRunner) initialize() {
-	log.Info().Str("type", "creator").Str("kind", "maas").Msgf("starting declarationCreator")
-	schemeRes, listRes := ng.declarationCreator(ng.resources, maasPlural)
-	log.Info().Str("type", "creator").Str("kind", "maas").Msgf("finished declarationCreator")
-	if len(listRes) > 0 {
-		for _, declarativeName := range listRes {
-			log.Info().Str("type", "waiter").Str("kind", "maas").Str("name", declarativeName).Msgf("starting declarationWaiter")
-			ng.declarationWaiter(schemeRes, declarativeName)
-			log.Info().Str("type", "waiter").Str("kind", "maas").Str("name", declarativeName).Msgf("finished declarationWaiter")
-		}
-	}
 }
