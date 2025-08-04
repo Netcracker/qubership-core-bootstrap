@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net/http"
 
-	ncv1 "github.com/netcracker/cr-synchronizer/clientset/v1"
 	appsv1 "k8s.io/client-go/kubernetes/typed/apps/v1"
 	batchv1 "k8s.io/client-go/kubernetes/typed/batch/v1"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
@@ -13,21 +12,15 @@ import (
 )
 
 type Interface interface {
-	NetcrackerV1() ncv1.V1Alpha1ClientInterface
 	CoreV1() corev1.CoreV1Interface
 	AppsV1() appsv1.AppsV1Interface
 	BatchV1() batchv1.BatchV1Interface
 }
 
 type Clientset struct {
-	ncV1    *ncv1.V1Alpha1ClientClient
 	coreV1  *corev1.CoreV1Client
 	appsV1  *appsv1.AppsV1Client
 	batchV1 *batchv1.BatchV1Client
-}
-
-func (c *Clientset) NetcrackerV1() ncv1.V1Alpha1ClientInterface {
-	return c.ncV1
 }
 
 func (c *Clientset) CoreV1() corev1.CoreV1Interface {
@@ -65,10 +58,6 @@ func NewForConfigAndClient(c *rest.Config, httpClient *http.Client) (*Clientset,
 	var cs Clientset
 	var err error
 	cs.coreV1, err = corev1.NewForConfigAndClient(&configShallowCopy, httpClient)
-	if err != nil {
-		return nil, err
-	}
-	cs.ncV1, err = ncv1.NewForConfigAndClient(&configShallowCopy, httpClient)
 	if err != nil {
 		return nil, err
 	}
