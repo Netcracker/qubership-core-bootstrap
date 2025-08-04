@@ -19,12 +19,14 @@ type DBaaSesRunner struct {
 
 func (ng *DBaaSesRunner) Generate() {
 	log.Info().Str("type", "creator").Str("kind", "dbaas").Msgf("starting declarationCreator")
-	schemeRes, listRes := ng.declarationCreator(ng.resources, dbaasPlural)
+	schemeRes := ng.declarationCreator(ng.resources, dbaasPlural)
 	log.Info().Str("type", "creator").Str("kind", "dbaas").Msgf("finished declarationCreator")
-	for _, declarativeName := range listRes {
-		log.Info().Str("type", "waiter").Str("kind", "dbaas").Str("name", declarativeName).Msgf("starting declarationWaiter")
-		ng.declarationWaiter(schemeRes, declarativeName)
-		log.Info().Str("type", "waiter").Str("kind", "dbaas").Str("name", declarativeName).Msgf("finished declarationWaiter")
+	for resource, names := range schemeRes {
+		for _, declarativeName := range names {
+			log.Info().Str("type", "waiter").Str("kind", "dbaas").Str("name", declarativeName).Msgf("starting declarationWaiter")
+			ng.declarationWaiter(resource, declarativeName)
+			log.Info().Str("type", "waiter").Str("kind", "dbaas").Str("name", declarativeName).Msgf("finished declarationWaiter")
+		}
 	}
 }
 
