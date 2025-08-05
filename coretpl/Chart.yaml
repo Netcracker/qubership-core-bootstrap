@@ -3,4 +3,4 @@ appVersion: "0.1"
 description: Cloud-Core Uniform Library
 name: coretpl
 type: library
-version: 0.2.2
+version: 0.2.3
