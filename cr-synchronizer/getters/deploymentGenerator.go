@@ -163,8 +163,8 @@ func (ng *DeploymentGenerator) createKnownGeneratorManager(dcl map[string][]unst
 	generatorManager = &GeneratorManager{
 		generators: make(map[string]Generator),
 	}
-	generatorManager.register(NewMaaSesRunnerGenerator(dcl[MaaSKind], ng.client, ng.recorder, ng.clientset, ng.scheme, ng.runtimeReceiver, ng.timeoutSeconds))
-	generatorManager.register(NewDBaaSesRunnerGenerator(dcl[DBaaSKind], ng.client, ng.recorder, ng.clientset, ng.scheme, ng.runtimeReceiver, ng.timeoutSeconds))
+	generatorManager.register(NewMaaSesRunnerGenerator(ng.ctx, dcl[MaaSKind], ng.client, ng.recorder, ng.clientset, ng.scheme, ng.runtimeReceiver, ng.timeoutSeconds))
+	generatorManager.register(NewDBaaSesRunnerGenerator(ng.ctx, dcl[DBaaSKind], ng.client, ng.recorder, ng.clientset, ng.scheme, ng.runtimeReceiver, ng.timeoutSeconds))
 	return generatorManager
 }
 
@@ -234,9 +234,9 @@ func (ng *DeploymentGenerator) declarationCreator(resourceList []unstructured.Un
 			customLabels["app.kubernetes.io/managed-by"] = manager
 			declarative.SetLabels(customLabels)
 			deploymentResources[deploymentRes] = append(deploymentResources[deploymentRes], declarative.GetName())
-			priorDeclarative, err := ng.client.Resource(deploymentRes).Namespace(namespace).Get(context.TODO(), declarative.GetName(), k8sv1.GetOptions{})
+			priorDeclarative, err := ng.client.Resource(deploymentRes).Namespace(namespace).Get(ng.ctx, declarative.GetName(), k8sv1.GetOptions{})
 			if err != nil {
-				resp, err := ng.client.Resource(deploymentRes).Namespace(namespace).Create(context.TODO(), &declarative, k8sv1.CreateOptions{FieldManager: "pre-hook"})
+				resp, err := ng.client.Resource(deploymentRes).Namespace(namespace).Create(ng.ctx, &declarative, k8sv1.CreateOptions{FieldManager: "pre-hook"})
 				if err != nil {
 					log.Fatal().Stack().Str("name", declarative.GetName()).Err(err).Msg("Failed to create resource")
 				}
@@ -246,7 +246,7 @@ func (ng *DeploymentGenerator) declarationCreator(resourceList []unstructured.Un
 				log.Info().Str("type", "updater").Str("resourceVersion-new", declarative.GetResourceVersion()).Str("resourceVersion-old", priorDeclarative.GetResourceVersion())
 
 				declarative.SetResourceVersion(priorDeclarative.GetResourceVersion())
-				result, err := ng.client.Resource(deploymentRes).Namespace(namespace).Update(context.TODO(), &declarative, k8sv1.UpdateOptions{FieldManager: "pre-hook"})
+				result, err := ng.client.Resource(deploymentRes).Namespace(namespace).Update(ng.ctx, &declarative, k8sv1.UpdateOptions{FieldManager: "pre-hook"})
 				if err != nil {
 					log.Fatal().Stack().Str("name", declarative.GetName()).Err(err).Msg("Failed to apply resource")
 				}

@@ -1,6 +1,7 @@
 package getters
 
 import (
+	"context"
 	ncapi "github.com/netcracker/cr-synchronizer/clientset"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -30,10 +31,11 @@ func (ng *MaaSesRunner) Generate() {
 	}
 }
 
-func NewMaaSesRunnerGenerator(resources []unstructured.Unstructured, client dynamic.Interface, recorder EventRecorder, clientset ncapi.Interface, scheme *runtime.Scheme, runtimeReceiver runtime.Object, timeoutSeconds int) *MaaSesRunner {
+func NewMaaSesRunnerGenerator(ctx context.Context, resources []unstructured.Unstructured, client dynamic.Interface, recorder EventRecorder, clientset ncapi.Interface, scheme *runtime.Scheme, runtimeReceiver runtime.Object, timeoutSeconds int) *MaaSesRunner {
 	return &MaaSesRunner{
 		resources: resources,
 		DeploymentGenerator: DeploymentGenerator{
+			ctx:             ctx,
 			client:          client,
 			clientset:       clientset,
 			recorder:        recorder,
