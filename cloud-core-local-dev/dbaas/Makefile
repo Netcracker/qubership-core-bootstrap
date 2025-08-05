@@ -489,6 +489,11 @@ manual-cleanup:
 	@kubectl delete configmap -n $(PG_NAMESPACE) -l app=patroni || echo "Config map not found or already deleted"
 	@echo "$(CYAN)--- kubectl delete pvc -n $(PG_NAMESPACE) --all$(NC)"
 	@kubectl delete pvc -n $(PG_NAMESPACE) --all || echo "PVCs not found or already deleted"
+	@echo "$(CYAN)--- kubectl delete pv with claim from namespace $(PG_NAMESPACE)$(NC)"
+	@kubectl get pv -o custom-columns=name:metadata.name --no-headers 2>/dev/null | \
+		xargs -I {} sh -c 'kubectl get pv {} -o jsonpath="{.spec.claimRef.namespace}" | \
+		grep -q "^$(PG_NAMESPACE)$$" && echo {}' | \
+		xargs -r kubectl delete pv || echo "PVs not found or already deleted"	
 	@echo "$(CYAN)--- kubectl delete service -n $(PG_NAMESPACE) --all$(NC)"
 	@kubectl delete service -n $(PG_NAMESPACE) --all || echo "Service not found or already deleted"
 	@echo "$(GREEN)--- Manual cleanup completed$(NC)"
