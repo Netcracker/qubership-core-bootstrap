@@ -68,9 +68,6 @@ make uninstall CONFIG_FILE=local.mk
 # Run mesh smoke test only
 make mesh-smoke-test CONFIG_FILE=local.mk
 
-# Complete cleanup
-make cleanup-all CONFIG_FILE=local.mk
-
 # Validate prerequisites
 make validate CONFIG_FILE=local.mk
 ```
