@@ -49,27 +49,43 @@ make install CONFIG_FILE=aws.mk
 
 **Usage:** `make <target> [CONFIG_FILE=local.mk]`
 
+Run `make` without target to print list of all targets
+
 ### Main Targets
 
-- **`install`** - Install all Cloud Core components and run mesh smoke test
-- **`uninstall`** - Complete uninstall, CRDs and namespaces cleanup
 - **`validate`** - Validate configuration and prerequisites
+- **`template-values-files`** - Generate core-values.yaml from core-values.envsubst
+- **`install`** - Install all Cloud Core components and run mesh smoke test
 - **`mesh-smoke-test`** - Run mesh connectivity smoke test
+- **`uninstall`** - Complete uninstall, CRDs and namespaces cleanup
+
 
 ### Examples
 
 ```bash
 # Full installation
 make install CONFIG_FILE=local.mk
+make install
+
+make install CONFIG_FILE=aws.mk
 
 # Uninstall everything
 make uninstall CONFIG_FILE=local.mk
+make uninstall
+
+make uninstall CONFIG_FILE=aws.mk
 
 # Run mesh smoke test only
 make mesh-smoke-test CONFIG_FILE=local.mk
+make mesh-smoke-test
+
+make mesh-smoke-test CONFIG_FILE=aws.mk
 
 # Validate prerequisites
 make validate CONFIG_FILE=local.mk
+make validate
+
+make validate CONFIG_FILE=aws.mk
 ```
 
 ## Prerequisites
