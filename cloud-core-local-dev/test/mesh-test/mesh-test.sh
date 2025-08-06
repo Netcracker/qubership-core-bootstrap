@@ -18,9 +18,8 @@ while true; do
 
     if curl -s -f -m 10 http://mesh-test-service:8080/health >/dev/null 2>&1; then
         echo '✓ Mesh service is responding internally';
-        curl -s -m 10 http://public-gateway-service:8080/mesh-test/health;
 
-        if curl -f -m 10 http://public-gateway-service:8080/mesh-test/health >/dev/null 2>&1; then
+        if curl -s -f -m 10 http://public-gateway-service:8080/mesh-test/health >/dev/null 2>&1; then
             echo '✓ Mesh service is accessible through public gateway';
             echo '✓ Mesh smoke test successful!';
             echo 'Response from public gateway:';
