@@ -65,4 +65,4 @@ CONFIG_SERVER_TAG ?= feature-docker-image-build-snapshot
 CONFIG_SERVER_IMAGE_REPOSITORY ?= ghcr.io/netcracker/qubership-core-config-server
 CONFIG_SERVER_CONSUL_ENABLED ?= false
 
-SITE_MANAGEMENT_TAG ?= feature-local-deployment-snapshot
+SITE_MANAGEMENT_TAG ?= latest
