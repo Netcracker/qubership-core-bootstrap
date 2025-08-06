@@ -49,6 +49,9 @@
 CONFIG_FILE ?= local.mk
 include $(CONFIG_FILE)
 
+# Repository directory
+REPOS_DIR ?= ./.tmp
+
 # Color definitions
 YELLOW := \033[1;33m
 GREEN := \033[1;32m
@@ -167,14 +170,14 @@ validate-crd:
 	@echo "$(BLUE)=== CRD PREREQUISITE CHECKS ===$(NC)"
 	@if [ "$(INSTALL_CRDS)" = "false" ]; then \
 		echo "$(CYAN)--- Checking Facade Operator CRDs (INSTALL_CRDS=false)...$(NC)"; \
-		$(call check_crd_existence,facadeservices.qubership.org,facadeservices,kubectl apply -f ./repos/qubership-core-facade-operator/helm-templates/facade-operator/new-crd/facade-service-crd-v1.yaml); \
-		$(call check_crd_existence,gateways.core.qubership.org,gateways,kubectl apply -f ./repos/qubership-core-facade-operator/helm-templates/facade-operator/new-crd/gateway-crd-v1.yaml); \
+		$(call check_crd_existence,facadeservices.qubership.org,facadeservices,kubectl apply -f $(REPOS_DIR)/qubership-core-facade-operator/helm-templates/facade-operator/new-crd/facade-service-crd-v1.yaml); \
+		$(call check_crd_existence,gateways.core.qubership.org,gateways,kubectl apply -f $(REPOS_DIR)/qubership-core-facade-operator/helm-templates/facade-operator/new-crd/gateway-crd-v1.yaml); \
 		echo "$(CYAN)--- Checking Core Operator CRDs (INSTALL_CRDS=false)...$(NC)"; \
-		$(call check_crd_existence,securities.core.qubership.org,securities,kubectl apply -f ./repos/qubership-core-core-operator/helm-templates/core-operator/new-crd/security.yaml); \
-		$(call check_crd_existence,meshes.core.qubership.org,meshes,kubectl apply -f ./repos/qubership-core-core-operator/helm-templates/core-operator/new-crd/mesh.yaml); \
-		$(call check_crd_existence,dbaases.core.qubership.org,dbaases,kubectl apply -f ./repos/qubership-core-core-operator/helm-templates/core-operator/new-crd/dbaas.yaml); \
-		$(call check_crd_existence,maases.core.qubership.org,maases,kubectl apply -f ./repos/qubership-core-core-operator/helm-templates/core-operator/new-crd/maas.yaml); \
-		$(call check_crd_existence,composites.core.qubership.org,composites,kubectl apply -f ./repos/qubership-core-core-operator/helm-templates/core-operator/new-crd/composite.yaml); \
+		$(call check_crd_existence,securities.core.qubership.org,securities,kubectl apply -f $(REPOS_DIR)/qubership-core-core-operator/helm-templates/core-operator/new-crd/security.yaml); \
+		$(call check_crd_existence,meshes.core.qubership.org,meshes,kubectl apply -f $(REPOS_DIR)/qubership-core-core-operator/helm-templates/core-operator/new-crd/mesh.yaml); \
+		$(call check_crd_existence,dbaases.core.qubership.org,dbaases,kubectl apply -f $(REPOS_DIR)/qubership-core-core-operator/helm-templates/core-operator/new-crd/dbaas.yaml); \
+		$(call check_crd_existence,maases.core.qubership.org,maases,kubectl apply -f $(REPOS_DIR)/qubership-core-core-operator/helm-templates/core-operator/new-crd/maas.yaml); \
+		$(call check_crd_existence,composites.core.qubership.org,composites,kubectl apply -f $(REPOS_DIR)/qubership-core-core-operator/helm-templates/core-operator/new-crd/composite.yaml); \
 	else \
 		echo "$(CYAN)--- Skipping additional CRD checks (INSTALL_CRDS=true, CRDs will be installed automatically)...$(NC)"; \
 	fi
@@ -202,7 +205,7 @@ ensure-core-namespace:
 
 clone-repos:
 	@echo "$(YELLOW)--- Cloning required repositories...$(NC)"
-	mkdir -p repos
+	mkdir -p $(REPOS_DIR)
 	@$(call clone_or_update_repo,qubership-monitoring-operator,https://github.com/Netcracker/qubership-monitoring-operator.git,main)
 	@$(call clone_or_update_repo,qubership-core-paas-mediation,https://github.com/Netcracker/qubership-core-paas-mediation.git,main)
 	@$(call clone_or_update_repo,qubership-core-control-plane,https://github.com/Netcracker/qubership-core-control-plane.git,main)
@@ -258,24 +261,24 @@ clone-consul-repo:
 change-consul-values:
 	@if [ "$(INSTALL_CONSUL)" = "true" ]; then \
 		echo "$(YELLOW)--- Updating Consul Helm chart security context...$(NC)"; \
-		if [ -f ./repos/consul-k8s/charts/consul/templates/_helpers.tpl ]; then \
+		if [ -f $(REPOS_DIR)/consul-k8s/charts/consul/templates/_helpers.tpl ]; then \
 			if command -v sed >/dev/null 2>&1; then \
 				if sed --version 2>/dev/null | grep -q "GNU sed"; then \
-					sed -i 's/runAsNonRoot: true/runAsNonRoot: false/g' ./repos/consul-k8s/charts/consul/templates/_helpers.tpl; \
-					sed -i 's/runAsUser: 100/runAsUser: 0/g' ./repos/consul-k8s/charts/consul/templates/_helpers.tpl; \
+					sed -i 's/runAsNonRoot: true/runAsNonRoot: false/g' $(REPOS_DIR)/consul-k8s/charts/consul/templates/_helpers.tpl; \
+					sed -i 's/runAsUser: 100/runAsUser: 0/g' $(REPOS_DIR)/consul-k8s/charts/consul/templates/_helpers.tpl; \
 				else \
-					sed -i '' 's/runAsNonRoot: true/runAsNonRoot: false/g' ./repos/consul-k8s/charts/consul/templates/_helpers.tpl; \
-					sed -i '' 's/runAsUser: 100/runAsUser: 0/g' ./repos/consul-k8s/charts/consul/templates/_helpers.tpl; \
+					sed -i '' 's/runAsNonRoot: true/runAsNonRoot: false/g' $(REPOS_DIR)/consul-k8s/charts/consul/templates/_helpers.tpl; \
+					sed -i '' 's/runAsUser: 100/runAsUser: 0/g' $(REPOS_DIR)/consul-k8s/charts/consul/templates/_helpers.tpl; \
 				fi; \
 			else \
 				echo "Warning: sed not found, using alternative method"; \
-				cp ./repos/consul-k8s/charts/consul/templates/_helpers.tpl ./repos/consul-k8s/charts/consul/templates/_helpers.tpl.bak; \
-				cat ./repos/consul-k8s/charts/consul/templates/_helpers.tpl.bak | sed 's/runAsNonRoot: true/runAsNonRoot: false/g' | sed 's/runAsUser: 100/runAsUser: 0/g' > ./repos/consul-k8s/charts/consul/templates/_helpers.tpl; \
+				cp $(REPOS_DIR)/consul-k8s/charts/consul/templates/_helpers.tpl $(REPOS_DIR)/consul-k8s/charts/consul/templates/_helpers.tpl.bak; \
+				cat $(REPOS_DIR)/consul-k8s/charts/consul/templates/_helpers.tpl.bak | sed 's/runAsNonRoot: true/runAsNonRoot: false/g' | sed 's/runAsUser: 100/runAsUser: 0/g' > $(REPOS_DIR)/consul-k8s/charts/consul/templates/_helpers.tpl; \
 			fi; \
-			echo "Security context updated in _helpers.tpl"; \
-		else \
-			echo "Error: _helpers.tpl not found"; \
-			exit 1; \
+		echo "Security context updated in _helpers.tpl"; \
+	else \
+		echo "Error: _helpers.tpl not found"; \
+		exit 1; \
 		fi; \
 	else \
 		echo "$(YELLOW)--- Skipping Consul values update (INSTALL_CONSUL=false)...$(NC)"; \
@@ -286,11 +289,12 @@ install-consul:
 	@if [ "$(INSTALL_CONSUL)" = "true" ]; then \
 		echo "$(YELLOW)--- Installing consul...$(NC)"; \
 		helm upgrade --install --namespace $(CONSUL_NAMESPACE) $(CREATE_NAMESPACE_OPTION) \
-			consul ./repos/consul-k8s/charts/consul/ \
-			-f ./repos/consul-k8s/charts/consul/values.yaml \
-			--set server.securityContext.runAsNonRoot=false \
+			consul $(REPOS_DIR)/consul-k8s/charts/consul/ \
+			-f $(REPOS_DIR)/consul-k8s/charts/consul/values.yaml \
+ 		--set server.securityContext.runAsNonRoot=false \
 			--set server.securityContext.runAsUser=0 \
-			--set connectInject.enabled=false; \
+			--set connectInject.enabled=false \
+			--set server.storage=1Gi; \
 	else \
 		echo "$(YELLOW)--- Skipping Consul installation (INSTALL_CONSUL=false)...$(NC)"; \
 		echo ""; \
@@ -336,8 +340,8 @@ deploy-monitoring:
 			echo ""; \
 		fi; \
 		helm upgrade --install --namespace $(MONITORING_NAMESPACE) $(CREATE_NAMESPACE_OPTION) \
-			monitoring-operator ./repos/qubership-monitoring-operator/charts/qubership-monitoring-operator \
-			-f ./repos/qubership-monitoring-operator/charts/qubership-monitoring-operator/values.yaml; \
+			monitoring-operator $(REPOS_DIR)/qubership-monitoring-operator/charts/qubership-monitoring-operator \
+			-f $(REPOS_DIR)/qubership-monitoring-operator/charts/qubership-monitoring-operator/values.yaml; \
 		echo "$(GREEN)=== Monitoring is deployed$(NC)"; \
 		echo ""; \
 	else \
@@ -396,13 +400,13 @@ apply-facade-operator-crds:
 		echo "$(YELLOW)--- Create Facade Operator CRDs...$(NC)"; \
 		if ! kubectl get crd facadeservices.qubership.org >/dev/null 2>&1; then \
 			echo "Creating facadeservices.qubership.org CRD..."; \
-			kubectl apply -f ./repos/qubership-core-facade-operator/helm-templates/facade-operator/new-crd/facade-service-crd-v1.yaml; \
+			kubectl apply -f $(REPOS_DIR)/qubership-core-facade-operator/helm-templates/facade-operator/new-crd/facade-service-crd-v1.yaml; \
 		else \
 			echo "facadeservices.qubership.org CRD already exists"; \
 		fi; \
 		if ! kubectl get crd gateways.core.qubership.org >/dev/null 2>&1; then \
 			echo "Creating gateways.core.qubership.org CRD..."; \
-			kubectl apply -f ./repos/qubership-core-facade-operator/helm-templates/facade-operator/new-crd/gateway-crd-v1.yaml; \
+			kubectl apply -f $(REPOS_DIR)/qubership-core-facade-operator/helm-templates/facade-operator/new-crd/gateway-crd-v1.yaml; \
 		else \
 			echo "gateways.core.qubership.org CRD already exists"; \
 		fi; \
@@ -414,9 +418,9 @@ apply-facade-operator-crds:
 
 deploy-facade-operator: apply-facade-operator-crds
 	@echo "$(YELLOW)--- Setting up Facade Operator...$(NC)"
-	@$(call update_helm_dependencies,repos/qubership-core-facade-operator/helm-templates/facade-operator,)
-	helm upgrade --install facade-operator ./repos/qubership-core-facade-operator/helm-templates/facade-operator -n $(CORE_NAMESPACE) \
-		-f ./repos/qubership-core-facade-operator/helm-templates/facade-operator/resource-profiles/dev.yaml \
+	@$(call update_helm_dependencies,$(REPOS_DIR)/qubership-core-facade-operator/helm-templates/facade-operator,)
+	helm upgrade --install facade-operator $(REPOS_DIR)/qubership-core-facade-operator/helm-templates/facade-operator -n $(CORE_NAMESPACE) \
+		-f $(REPOS_DIR)/qubership-core-facade-operator/helm-templates/facade-operator/resource-profiles/dev.yaml \
 		-f ./core-values.yaml \
 		--set TAG=$(FACADE_OPERATOR_TAG) \
 		$(HELM_DEBUG_FLAGS)
@@ -424,9 +428,9 @@ deploy-facade-operator: apply-facade-operator-crds
 
 deploy-ingress-gateway: 
 	@echo "$(YELLOW)--- Setting up Ingress Gateway...$(NC)"
-	@$(call update_helm_dependencies,repos/qubership-core-ingress-gateway/helm-templates/frontend-gateway,)
-	helm upgrade --install ingress-gateway ./repos/qubership-core-ingress-gateway/helm-templates/frontend-gateway -n $(CORE_NAMESPACE) \
-		-f ./repos/qubership-core-ingress-gateway/helm-templates/frontend-gateway/resource-profiles/dev.yaml \
+	@$(call update_helm_dependencies,$(REPOS_DIR)/qubership-core-ingress-gateway/helm-templates/frontend-gateway,)
+	helm upgrade --install ingress-gateway $(REPOS_DIR)/qubership-core-ingress-gateway/helm-templates/frontend-gateway -n $(CORE_NAMESPACE) \
+		-f $(REPOS_DIR)/qubership-core-ingress-gateway/helm-templates/frontend-gateway/resource-profiles/dev.yaml \
 		-f ./core-values.yaml \
 		--set CLOUD_PUBLIC_HOST=$(INGRESS_GATEWAY_CLOUD_PUBLIC_HOST) \
 		--set CLOUD_PRIVATE_HOST=$(INGRESS_GATEWAY_CLOUD_PRIVATE_HOST) \
@@ -436,9 +440,9 @@ deploy-ingress-gateway:
 
 deploy-site-management: 
 	@echo "$(YELLOW)--- Setting up Site Management...$(NC)"
-	@$(call update_helm_dependencies,repos/qubership-core-site-management/helm-templates/site-management,)
-	helm upgrade --install site-management ./repos/qubership-core-site-management/helm-templates/site-management -n $(CORE_NAMESPACE) \
-		-f ./repos/qubership-core-site-management/helm-templates/site-management/resource-profiles/dev.yaml \
+	@$(call update_helm_dependencies,$(REPOS_DIR)/qubership-core-site-management/helm-templates/site-management,)
+	helm upgrade --install site-management $(REPOS_DIR)/qubership-core-site-management/helm-templates/site-management -n $(CORE_NAMESPACE) \
+		-f $(REPOS_DIR)/qubership-core-site-management/helm-templates/site-management/resource-profiles/dev.yaml \
 		-f ./core-values.yaml \
 		--set TAG=$(SITE_MANAGEMENT_TAG) \
 		$(HELM_DEBUG_FLAGS)
@@ -446,10 +450,10 @@ deploy-site-management:
 
 deploy-paas-mediation: 
 	@echo "$(YELLOW)--- Setting up PaaS Mediation...$(NC)"
-	@$(call update_helm_dependencies,repos/qubership-core-paas-mediation/helm-templates/paas-mediation,)
+	@$(call update_helm_dependencies,$(REPOS_DIR)/qubership-core-paas-mediation/helm-templates/paas-mediation,)
 	helm upgrade --install -n $(CORE_NAMESPACE) $(CREATE_NAMESPACE_OPTION) \
-		paas-mediation ./repos/qubership-core-paas-mediation/helm-templates/paas-mediation \
-		-f ./repos/qubership-core-paas-mediation/helm-templates/paas-mediation/resource-profiles/dev.yaml \
+		paas-mediation $(REPOS_DIR)/qubership-core-paas-mediation/helm-templates/paas-mediation \
+		-f $(REPOS_DIR)/qubership-core-paas-mediation/helm-templates/paas-mediation/resource-profiles/dev.yaml \
 		-f ./core-values.yaml \
 		--set TAG=$(PAAS_MEDIATION_TAG) \
 		--set CONSUL_ENABLED=false \
@@ -458,10 +462,10 @@ deploy-paas-mediation:
 
 deploy-control-plane: 
 	@echo "$(YELLOW)--- Setting up Control Plane...$(NC)"
-	@$(call update_helm_dependencies,repos/qubership-core-control-plane/helm-templates/control-plane,)
+	@$(call update_helm_dependencies,$(REPOS_DIR)/qubership-core-control-plane/helm-templates/control-plane,)
 	helm upgrade --install -n $(CORE_NAMESPACE) $(CREATE_NAMESPACE_OPTION) \
-		control-plane ./repos/qubership-core-control-plane/helm-templates/control-plane \
-		-f ./repos/qubership-core-control-plane/helm-templates/control-plane/resource-profiles/dev.yaml \
+		control-plane $(REPOS_DIR)/qubership-core-control-plane/helm-templates/control-plane \
+		-f $(REPOS_DIR)/qubership-core-control-plane/helm-templates/control-plane/resource-profiles/dev.yaml \
 		-f ./core-values.yaml \
 		--set TAG=$(CONTROL_PLANE_TAG) \
 		$(HELM_DEBUG_FLAGS)
@@ -469,9 +473,9 @@ deploy-control-plane:
 
 deploy-dbaas-agent:
 	@echo "$(YELLOW)--- Setting up DBaaS agent...$(NC)"
-	@$(call update_helm_dependencies,repos/qubership-core-dbaas-agent/helm-templates/dbaas-agent,)
-	helm upgrade --install dbaas-agent ./repos/qubership-core-dbaas-agent/helm-templates/dbaas-agent -n $(CORE_NAMESPACE) \
-		-f ./repos/qubership-core-dbaas-agent/helm-templates/dbaas-agent/resource-profiles/dev.yaml \
+	@$(call update_helm_dependencies,$(REPOS_DIR)/qubership-core-dbaas-agent/helm-templates/dbaas-agent,)
+	helm upgrade --install dbaas-agent $(REPOS_DIR)/qubership-core-dbaas-agent/helm-templates/dbaas-agent -n $(CORE_NAMESPACE) \
+		-f $(REPOS_DIR)/qubership-core-dbaas-agent/helm-templates/dbaas-agent/resource-profiles/dev.yaml \
 		-f ./core-values.yaml \
 		--set TAG=$(DBAAS_AGENT_TAG) \
 		$(HELM_DEBUG_FLAGS)
@@ -480,7 +484,7 @@ deploy-dbaas-agent:
 apply-core-operator-crds:
 	@if [ "$(INSTALL_CRDS)" = "true" ]; then \
 		echo "$(YELLOW)--- Applying Core Operator CRDs...$(NC)"; \
-		kubectl apply -f ./repos/qubership-core-core-operator/helm-templates/core-operator/new-crd; \
+		kubectl apply -f $(REPOS_DIR)/qubership-core-core-operator/helm-templates/core-operator/new-crd; \
 		echo ""; \
 	else \
 		echo "$(YELLOW)--- Skipping Core Operator CRDs installation (INSTALL_CRDS=false)...$(NC)"; \
@@ -489,9 +493,9 @@ apply-core-operator-crds:
 
 deploy-core-operator: apply-core-operator-crds
 	@echo "$(YELLOW)--- Setting up Core Operator...$(NC)"
-	@$(call update_helm_dependencies,repos/qubership-core-core-operator/helm-templates/core-operator,)
-	helm upgrade --install core-operator ./repos/qubership-core-core-operator/helm-templates/core-operator -n $(CORE_NAMESPACE) \
-		-f ./repos/qubership-core-core-operator/helm-templates/core-operator/resource-profiles/dev.yaml \
+	@$(call update_helm_dependencies,$(REPOS_DIR)/qubership-core-core-operator/helm-templates/core-operator,)
+	helm upgrade --install core-operator $(REPOS_DIR)/qubership-core-core-operator/helm-templates/core-operator -n $(CORE_NAMESPACE) \
+		-f $(REPOS_DIR)/qubership-core-core-operator/helm-templates/core-operator/resource-profiles/dev.yaml \
 		-f ./core-values.yaml \
 		--set IMAGE_REPOSITORY=$(CORE_OPERATOR_IMAGE_REPOSITORY) \
 		--set TAG=$(CORE_OPERATOR_TAG) \
@@ -500,9 +504,9 @@ deploy-core-operator: apply-core-operator-crds
 
 deploy-config-server: 
 	@echo "$(YELLOW)--- Setting up Config Server...$(NC)"
-	@$(call update_helm_dependencies,repos/qubership-core-config-server/helm-templates/config-server,)
-	helm upgrade --install config-server ./repos/qubership-core-config-server/helm-templates/config-server -n $(CORE_NAMESPACE) \
-		-f ./repos/qubership-core-config-server/helm-templates/config-server/resource-profiles/dev.yaml \
+	@$(call update_helm_dependencies,$(REPOS_DIR)/qubership-core-config-server/helm-templates/config-server,)
+	helm upgrade --install config-server $(REPOS_DIR)/qubership-core-config-server/helm-templates/config-server -n $(CORE_NAMESPACE) \
+		-f $(REPOS_DIR)/qubership-core-config-server/helm-templates/config-server/resource-profiles/dev.yaml \
 		-f ./core-values.yaml \
 		--set IMAGE_REPOSITORY=$(CONFIG_SERVER_IMAGE_REPOSITORY) \
 		--set TAG=$(CONFIG_SERVER_TAG) \
@@ -588,6 +592,7 @@ uninstall-consul:
 	@if [ "$(INSTALL_CONSUL)" = "true" ]; then \
 		echo "$(YELLOW)--- Uninstalling consul...$(NC)"; \
 		helm uninstall consul -n $(CONSUL_NAMESPACE) --ignore-not-found=true || true; \
+		kubectl delete pvc -n $(CONSUL_NAMESPACE) --all --ignore-not-found=true || true; \
 		echo ""; \
 	else \
 		echo "$(YELLOW)--- Skipping Consul uninstallation (INSTALL_CONSUL=false)...$(NC)"; \
@@ -735,15 +740,15 @@ uninstall-maas:
 # =============================================================================
 
 define clone_or_update_repo
-	if [ -d "repos/$(1)" ]; then \
+	if [ -d "$(REPOS_DIR)/$(1)" ]; then \
 		echo "Updating $(1)..."; \
-		(cd repos/$(1) && git pull); \
+		(cd $(REPOS_DIR)/$(1) && git pull); \
 	else \
 		echo "Cloning $(1)..."; \
 		if [ -n "$(3)" ]; then \
-			git clone --depth 1 -b $(3) $(2) repos/$(1); \
+			git clone --depth 1 -b $(3) $(2) $(REPOS_DIR)/$(1); \
 		else \
-			git clone --depth 1 $(2) repos/$(1); \
+			git clone --depth 1 $(2) $(REPOS_DIR)/$(1); \
 		fi; \
 	fi
 endef

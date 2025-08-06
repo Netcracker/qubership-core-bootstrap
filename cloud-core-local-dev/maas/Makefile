@@ -4,6 +4,9 @@
 CONFIG_FILE ?= local.mk
 include $(CONFIG_FILE)
 
+# Repository directory
+REPOS_DIR ?= ./.tmp
+
 # Define colors for output
 CYAN := \033[0;36m
 GREEN := \033[0;32m
@@ -100,8 +103,8 @@ endif
 setup-repos:
 	@echo "$(BLUE)=== STAGE 1: Repository Setup ===$(NC)"
 	@echo "$(CYAN)--- Stage 1 BEGIN: Cloning repositories...$(NC)"
-	@mkdir -p repos
-	@git clone --depth 1 https://github.com/Netcracker/qubership-maas.git repos/qubership-maas 2>/dev/null || echo "Directory already exists"
+	@mkdir -p $(REPOS_DIR)
+	@git clone --depth 1 https://github.com/Netcracker/qubership-maas.git $(REPOS_DIR)/qubership-maas 2>/dev/null || echo "Directory already exists"
 	@echo "$(GREEN)--- Stage 1 END: Repositories ready$(NC)"
 	@echo ""
 
@@ -111,7 +114,7 @@ install-maas-service:
 	@echo "$(BLUE)=== STAGE 2: MaaS Service Installation ===$(NC)"
 	@echo "$(CYAN)--- Stage 2 BEGIN: Installing MaaS Service...$(NC)"
 	@envsubst < $(MAAS_VALUES_FILE) | helm upgrade --install -n $(MAAS_NAMESPACE) $(CREATE_NAMESPACE_OPTION) \
-		maas-service ./repos/qubership-maas/helm-templates/maas-service \
+		maas-service $(REPOS_DIR)/qubership-maas/helm-templates/maas-service \
 		-f - \
 		-f $(MAAS_PROFILE_FILE) || \
 		(echo "$(RED)Error: MaaS Service installation failed$(NC)" && echo "$(CYAN)Please check the helm output above for details$(NC)" && exit 1)
@@ -308,7 +311,7 @@ uninstall: show-config uninstall-maas-service delete-maas-database uninstall-rab
 .PHONY: clean
 clean:
 	@echo "$(CYAN)--- Cleaning up repositories...$(NC)"
-	@rm -rf repos/qubership-maas
+	@rm -rf $(REPOS_DIR)/qubership-maas
 	@echo "$(GREEN)--- Repositories cleaned$(NC)"
 
 .PHONY: cleanup-namespaces

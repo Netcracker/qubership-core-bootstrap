@@ -1,6 +1,6 @@
 # values files for helm packages
 MAAS_VALUES_FILE ?= ./maas-values.yaml
-MAAS_PROFILE_FILE ?= ./repos/qubership-maas/helm-templates/maas-service/resource-profiles/dev.yaml
+MAAS_PROFILE_FILE ?= $(REPOS_DIR)/qubership-maas/helm-templates/maas-service/resource-profiles/dev.yaml
 
 # namespace parameters
 MAAS_NAMESPACE ?= maas
