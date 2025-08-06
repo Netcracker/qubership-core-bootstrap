@@ -13,7 +13,7 @@ INSTALL_DBAAS ?= true
 DBAAS_CONFIG_FILE ?= aws.mk
 INSTALL_MAAS ?= true
 # config file for maas installation - relative path will be resolved upon ./maas folder
-MAAS_CONFIG_FILE ?= local.mk
+MAAS_CONFIG_FILE ?= aws.mk
 
 # Namespace configuration
 CORE_NAMESPACE ?= core-1-core
@@ -65,4 +65,4 @@ CONFIG_SERVER_TAG ?= feature-docker-image-build-snapshot
 CONFIG_SERVER_IMAGE_REPOSITORY ?= ghcr.io/netcracker/qubership-core-config-server
 CONFIG_SERVER_CONSUL_ENABLED ?= false
 
-SITE_MANAGEMENT_TAG ?= feature-local-deployment-snapshot
+SITE_MANAGEMENT_TAG ?= latest
