@@ -1,3 +1,6 @@
+# ============== Deployment parameters ============================
+NAMESPACE: ${MAAS_NAMESPACE}
+
 # ============== Credentials ============================
 MAAS_ACCOUNT_MANAGER_USERNAME: ${MAAS_ACCOUNT_MANAGER_USERNAME}
 MAAS_ACCOUNT_MANAGER_PASSWORD: ${MAAS_ACCOUNT_MANAGER_PASSWORD}

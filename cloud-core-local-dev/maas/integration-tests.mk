@@ -1,6 +1,6 @@
 # values files for helm packages
 MAAS_VALUES_FILE ?= ./maas-values.yaml
-MAAS_PROFILE_FILE ?= ./repos/qubership-maas/helm-templates/maas-service/resource-profiles/dev.yaml
+MAAS_PROFILE_FILE ?= $(REPOS_DIR)/qubership-maas/helm-templates/maas-service/resource-profiles/dev.yaml
 
 # namespace parameters
 MAAS_NAMESPACE ?= maas
@@ -10,7 +10,8 @@ DBAAS_NAMESPACE ?= dbaas
 
 # maas parameters
 TAG ?= latest
-DBAAS_AGGREGATOR_ADDRESS ?= http://dbaas-aggregator.${DBAAS_NAMESPACE}.svc.cluster.local:8080
+DBAAS_SERVICE_NAME ?= dbaas-aggregator
+DBAAS_AGGREGATOR_ADDRESS ?= http://${DBAAS_SERVICE_NAME}.${DBAAS_NAMESPACE}.svc.cluster.local:8080
 
 # credentials
 MAAS_ACCOUNT_MANAGER_USERNAME ?= manager

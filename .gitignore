@@ -1,5 +1,6 @@
 /.idea/**
 /cloud-core-local-dev/consul-chart-3/**
-/cloud-core-local-dev/repos/**
-/cloud-core-local-dev/maas/repos/**
-/cloud-core-local-dev/dbaas/repos/**
+/cloud-core-local-dev/.tmp/**
+/cloud-core-local-dev/maas/.tmp/**
+/cloud-core-local-dev/dbaas/.tmp/**
+/cloud-core-local-dev/core-values.yaml

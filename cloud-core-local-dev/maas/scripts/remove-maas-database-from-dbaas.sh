@@ -10,6 +10,19 @@ SERVICE=dbaas-aggregator
 LOCAL_PORT=8080
 REMOTE_PORT=8080
 
+
+echo "--- Check service availability..."
+if ! kubectl get svc/${SERVICE} -n ${DBAAS_NAMESPACE} >/dev/null 2>&1; then
+    echo "Service ${SERVICE} not found in namespace ${DBAAS_NAMESPACE} - skip maas database removal"
+    exit 0
+fi
+
+echo "--- Check if service has endpoints..."
+if ! kubectl get endpoints/${SERVICE} -n ${DBAAS_NAMESPACE} -o jsonpath='{.subsets[*].addresses}' | grep -q .; then
+    echo "Service ${SERVICE} in namespace ${DBAAS_NAMESPACE} has no endpoints - skip maas database removal"
+    exit 0
+fi
+
 echo "--- Start port-forward ${SERVICE} for port ${LOCAL_PORT}:${REMOTE_PORT}..."
 kubectl port-forward svc/${SERVICE} ${LOCAL_PORT}:${REMOTE_PORT} -n ${DBAAS_NAMESPACE} > /dev/null 2>&1 &
 PF_PID=$!

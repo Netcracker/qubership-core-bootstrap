@@ -4,6 +4,9 @@
 CONFIG_FILE ?= local.mk
 include $(CONFIG_FILE)
 
+# Repository directory
+REPOS_DIR ?= ./.tmp
+
 # Define colors for output
 CYAN := \033[0;36m
 GREEN := \033[0;32m
@@ -125,9 +128,9 @@ endif
 setup-repos:
 	@echo "$(BLUE)=== STAGE 1: Repository Setup ===$(NC)"
 	@echo "$(CYAN)--- Stage 1 BEGIN: Cloning repositories...$(NC)"
-	@mkdir -p repos
-	@git clone --depth 1 https://github.com/Netcracker/pgskipper-operator.git repos/pgskipper-operator 2>/dev/null || echo "Directory already exists"
-	@git clone --depth 1 https://github.com/Netcracker/qubership-dbaas.git repos/qubership-dbaas 2>/dev/null || echo "Directory already exists"
+	@mkdir -p $(REPOS_DIR)
+	@git clone --depth 1 https://github.com/Netcracker/pgskipper-operator.git $(REPOS_DIR)/pgskipper-operator 2>/dev/null || echo "Directory already exists"
+	@git clone --depth 1 https://github.com/Netcracker/qubership-dbaas.git $(REPOS_DIR)/qubership-dbaas 2>/dev/null || echo "Directory already exists"
 	@echo "$(GREEN)--- Stage 1 END: Repositories ready$(NC)"
 	@echo ""
 
@@ -159,7 +162,7 @@ install-patroni-core:
 	echo "$(GREEN)--- Final STORAGE_CLASS value: $$STORAGE_CLASS$(NC)"; \
 	echo ""; \
 	envsubst < $(PATRONI_CORE_VALUES_FILE) | helm upgrade --install --namespace=$(PG_NAMESPACE) $(CREATE_NAMESPACE_OPTION) $(SKIP_CRDS_OPTION) \
-		patroni-core ./repos/pgskipper-operator/charts/patroni-core -f - || \
+		patroni-core $(REPOS_DIR)/pgskipper-operator/charts/patroni-core -f - || \
 		(echo "$(RED)Error: Patroni Core installation failed$(NC)" && echo "$(CYAN)Please check the helm output above for details$(NC)" && exit 1)
 	@echo "$(GREEN)--- Stage 2 END: Patroni Core installation completed$(NC)"
 	@echo ""
@@ -195,7 +198,7 @@ install-dbaas-aggregator:
 	@echo "$(BLUE)=== STAGE 4: DBaaS Aggregator Installation ===$(NC)"
 	@echo "$(CYAN)--- Stage 4 BEGIN: Installing DBaaS Aggregator...$(NC)"
 	@envsubst < $(DBAAS_VALUES_FILE) | helm upgrade --install -n $(DBAAS_NAMESPACE) $(CREATE_NAMESPACE_OPTION) \
-		dbaas-aggregator ./repos/qubership-dbaas/helm-templates/dbaas-aggregator -f - || \
+		dbaas-aggregator $(REPOS_DIR)/qubership-dbaas/helm-templates/dbaas-aggregator -f - || \
 		(echo "$(RED)Error: DBaaS Aggregator installation failed$(NC)" && echo "$(CYAN)Please check the helm output above for details$(NC)" && exit 1)
 	@echo "$(GREEN)--- Stage 4 END: DBaaS Aggregator installation completed$(NC)"
 	@echo ""
@@ -255,7 +258,7 @@ install-patroni-services:
 	echo "$(GREEN)--- Final STORAGE_CLASS value: $$STORAGE_CLASS$(NC)"; \
 	echo ""; \
 	envsubst < $(PATRONI_SERVICES_VALUES_FILE) | helm upgrade --install --namespace=$(PG_NAMESPACE) $(CREATE_NAMESPACE_OPTION) $(SKIP_CRDS_OPTION) \
-		patroni-services ./repos/pgskipper-operator/charts/patroni-services -f - || \
+		patroni-services $(REPOS_DIR)/pgskipper-operator/charts/patroni-services -f - || \
 		(echo "$(RED)Error: Patroni Services installation failed$(NC)" && echo "$(CYAN)Please check the helm output above for details$(NC)" && exit 1)
 	@echo "$(GREEN)--- Stage 6 END: Patroni Services installation completed$(NC)"
 	@echo ""
@@ -456,7 +459,7 @@ uninstall: show-config uninstall-patroni-services uninstall-dbaas-aggregator uni
 .PHONY: clean
 clean:
 	@echo "$(CYAN)--- Cleaning up repositories...$(NC)"
-	@rm -rf repos/pgskipper-operator repos/qubership-dbaas
+	@rm -rf $(REPOS_DIR)/pgskipper-operator $(REPOS_DIR)/qubership-dbaas
 	@echo "$(GREEN)--- Repositories cleaned$(NC)"
 
 # remove DBaaS label from nodes
@@ -489,6 +492,11 @@ manual-cleanup:
 	@kubectl delete configmap -n $(PG_NAMESPACE) -l app=patroni || echo "Config map not found or already deleted"
 	@echo "$(CYAN)--- kubectl delete pvc -n $(PG_NAMESPACE) --all$(NC)"
 	@kubectl delete pvc -n $(PG_NAMESPACE) --all || echo "PVCs not found or already deleted"
+	@echo "$(CYAN)--- kubectl delete pv with claim from namespace $(PG_NAMESPACE)$(NC)"
+	@kubectl get pv -o custom-columns=name:metadata.name --no-headers 2>/dev/null | \
+		xargs -I {} sh -c 'kubectl get pv {} -o jsonpath="{.spec.claimRef.namespace}" | \
+		grep -q "^$(PG_NAMESPACE)$$" && echo {}' | \
+		xargs -r kubectl delete pv || echo "PVs not found or already deleted"	
 	@echo "$(CYAN)--- kubectl delete service -n $(PG_NAMESPACE) --all$(NC)"
 	@kubectl delete service -n $(PG_NAMESPACE) --all || echo "Service not found or already deleted"
 	@echo "$(GREEN)--- Manual cleanup completed$(NC)"
