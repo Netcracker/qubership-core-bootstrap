@@ -2,6 +2,7 @@ package getters
 
 import (
 	"context"
+
 	ncapi "github.com/netcracker/cr-synchronizer/clientset"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -25,7 +26,7 @@ func (ng *MaaSesRunner) Generate() {
 	for resource, names := range schemeRes {
 		for _, declarativeName := range names {
 			log.Info().Str("type", "waiter").Str("kind", "maas").Str("name", declarativeName).Msgf("starting declarationWaiter")
-			ng.declarationWaiter(resource, declarativeName)
+			go ng.declarationWaiter(resource, declarativeName)
 			log.Info().Str("type", "waiter").Str("kind", "maas").Str("name", declarativeName).Msgf("finished declarationWaiter")
 		}
 	}
