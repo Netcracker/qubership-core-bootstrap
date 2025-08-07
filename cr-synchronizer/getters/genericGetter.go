@@ -3,13 +3,14 @@ package getters
 import (
 	"context"
 	"fmt"
+	"os"
+	"strings"
+	"time"
+
 	v1 "github.com/netcracker/cr-synchronizer/api/types/v1"
 	v12 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/dynamic"
-	"os"
-	"strings"
-	"time"
 
 	ncapi "github.com/netcracker/cr-synchronizer/clientset"
 
@@ -44,6 +45,7 @@ func (ng *GenericRunner) Name() string {
 }
 
 func (ng *GenericRunner) Generate() {
+	deploymentSessionId := os.Getenv("DEPLOYMENT_SESSION_ID")
 	objPlurals := []string{"configurationpackages", "smartplugplugins", "meshes", "securities", "composites", "maases", "dbaases", "gateways"}
 	definedPl, found := os.LookupEnv("DECLARATIONS_PLURALS")
 	if found && len(definedPl) > 0 {
@@ -62,10 +64,10 @@ func (ng *GenericRunner) Generate() {
 			}
 		}
 		for _, schemeRes := range schemeResources {
-			log.Info().Str("type", "genericWaiter").Str("resource", schemeRes.Resource).Str("version", schemeRes.Version).Str("group", schemeRes.Group).Str("app.kubernetes.io/name", serviceName).Str("sessionId", os.Getenv("DEPLOYMENT_SESSION_ID")).Msgf("checking resource in kubernetes to wait for")
-			listRes, err := ng.client.Resource(schemeRes).Namespace(namespace).List(ng.ctx, k8sv1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s, %s=%s", "deployment.qubership.org/sessionId", os.Getenv("DEPLOYMENT_SESSION_ID"), "app.kubernetes.io/name", serviceName)})
+			log.Info().Str("type", "genericWaiter").Str("resource", schemeRes.Resource).Str("version", schemeRes.Version).Str("group", schemeRes.Group).Str("app.kubernetes.io/name", serviceName).Str("sessionId", deploymentSessionId).Msgf("checking resource in kubernetes to wait for")
+			listRes, err := ng.client.Resource(schemeRes).Namespace(namespace).List(ng.ctx, k8sv1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s, %s=%s", "deployment.qubership.org/sessionId", deploymentSessionId, "app.kubernetes.io/name", serviceName)})
 			if err != nil {
-				log.Warn().Stack().Str("plurals", objPlural).Str("sessionID", os.Getenv("DEPLOYMENT_SESSION_ID")).Err(err).Msg("Failed to find plurals in current session")
+				log.Warn().Stack().Str("plurals", objPlural).Str("sessionID", deploymentSessionId).Err(err).Msg("Failed to find plurals in current session")
 			}
 			if listRes != nil {
 				for _, declarative := range listRes.Items {
@@ -74,10 +76,10 @@ func (ng *GenericRunner) Generate() {
 					log.Info().Str("plural", objPlural).Msgf("Declaratives updated")
 				}
 			}
-			log.Info().Str("type", "genericWaiter").Str("resource", schemeRes.Resource).Str("version", schemeRes.Version).Str("group", schemeRes.Group).Str("app.kubernetes.io/instance", serviceName).Str("sessionId", os.Getenv("DEPLOYMENT_SESSION_ID")).Msgf("checking resource in kubernetes to wait for")
-			listRes, err = ng.client.Resource(schemeRes).Namespace(namespace).List(ng.ctx, k8sv1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s, %s=%s", "deployment.qubership.org/sessionId", os.Getenv("DEPLOYMENT_SESSION_ID"), "app.kubernetes.io/instance", serviceName)})
+			log.Info().Str("type", "genericWaiter").Str("resource", schemeRes.Resource).Str("version", schemeRes.Version).Str("group", schemeRes.Group).Str("app.kubernetes.io/instance", serviceName).Str("sessionId", deploymentSessionId).Msgf("checking resource in kubernetes to wait for")
+			listRes, err = ng.client.Resource(schemeRes).Namespace(namespace).List(ng.ctx, k8sv1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s, %s=%s", "deployment.qubership.org/sessionId", deploymentSessionId, "app.kubernetes.io/instance", serviceName)})
 			if err != nil {
-				log.Warn().Stack().Str("plurals", objPlural).Str("sessionID", os.Getenv("DEPLOYMENT_SESSION_ID")).Err(err).Msg("Failed to find plurals in current session")
+				log.Warn().Stack().Str("plurals", objPlural).Str("sessionID", deploymentSessionId).Err(err).Msg("Failed to find plurals in current session")
 			}
 			if listRes != nil {
 				for _, declarative := range listRes.Items {
