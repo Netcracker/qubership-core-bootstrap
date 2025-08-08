@@ -44,6 +44,21 @@ func (ng *GenericRunner) Name() string {
 	return genericRunner
 }
 
+func (ng *GenericRunner) processResourcesForLabel(schemeRes schema.GroupVersionResource, objPlural, deploymentSessionId, labelKey string) {
+	log.Info().Str("type", "genericWaiter").Str("resource", schemeRes.Resource).Str("version", schemeRes.Version).Str("group", schemeRes.Group).Str(labelKey, serviceName).Str("sessionId", deploymentSessionId).Msgf("checking resource in kubernetes to wait for")
+	listRes, err := ng.client.Resource(schemeRes).Namespace(namespace).List(ng.ctx, k8sv1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s, %s=%s", "deployment.qubership.org/sessionId", deploymentSessionId, labelKey, serviceName)})
+	if err != nil {
+		log.Warn().Stack().Str("plurals", objPlural).Str("sessionID", deploymentSessionId).Err(err).Msg("Failed to find plurals in current session")
+	}
+	if listRes != nil {
+		for _, declarative := range listRes.Items {
+			log.Info().Str("type", "genericWaiter").Str("declarativeName", declarative.GetName()).Str("group", schemeRes.Group).Msgf("starting waiter for declarative")
+			ng.GenericWaiter(schemeRes, declarative)
+			log.Info().Str("plural", objPlural).Msgf("Declaratives updated")
+		}
+	}
+}
+
 func (ng *GenericRunner) Generate() {
 	deploymentSessionId := os.Getenv("DEPLOYMENT_SESSION_ID")
 	objPlurals := []string{"configurationpackages", "smartplugplugins", "meshes", "securities", "composites", "maases", "dbaases", "gateways"}
@@ -64,30 +79,8 @@ func (ng *GenericRunner) Generate() {
 			}
 		}
 		for _, schemeRes := range schemeResources {
-			log.Info().Str("type", "genericWaiter").Str("resource", schemeRes.Resource).Str("version", schemeRes.Version).Str("group", schemeRes.Group).Str("app.kubernetes.io/name", serviceName).Str("sessionId", deploymentSessionId).Msgf("checking resource in kubernetes to wait for")
-			listRes, err := ng.client.Resource(schemeRes).Namespace(namespace).List(ng.ctx, k8sv1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s, %s=%s", "deployment.qubership.org/sessionId", deploymentSessionId, "app.kubernetes.io/name", serviceName)})
-			if err != nil {
-				log.Warn().Stack().Str("plurals", objPlural).Str("sessionID", deploymentSessionId).Err(err).Msg("Failed to find plurals in current session")
-			}
-			if listRes != nil {
-				for _, declarative := range listRes.Items {
-					log.Info().Str("type", "genericWaiter").Str("declarativeName", declarative.GetName()).Str("group", schemeRes.Group).Msgf("starting waiter for declarative")
-					ng.GenericWaiter(schemeRes, declarative)
-					log.Info().Str("plural", objPlural).Msgf("Declaratives updated")
-				}
-			}
-			log.Info().Str("type", "genericWaiter").Str("resource", schemeRes.Resource).Str("version", schemeRes.Version).Str("group", schemeRes.Group).Str("app.kubernetes.io/instance", serviceName).Str("sessionId", deploymentSessionId).Msgf("checking resource in kubernetes to wait for")
-			listRes, err = ng.client.Resource(schemeRes).Namespace(namespace).List(ng.ctx, k8sv1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s, %s=%s", "deployment.qubership.org/sessionId", deploymentSessionId, "app.kubernetes.io/instance", serviceName)})
-			if err != nil {
-				log.Warn().Stack().Str("plurals", objPlural).Str("sessionID", deploymentSessionId).Err(err).Msg("Failed to find plurals in current session")
-			}
-			if listRes != nil {
-				for _, declarative := range listRes.Items {
-					log.Info().Str("type", "genericWaiter").Str("declarativeName", declarative.GetName()).Msgf("starting waiter for declarative")
-					ng.GenericWaiter(schemeRes, declarative)
-					log.Info().Str("plural", objPlural).Msgf("Declaratives updated")
-				}
-			}
+			ng.processResourcesForLabel(schemeRes, objPlural, deploymentSessionId, "app.kubernetes.io/name")
+			ng.processResourcesForLabel(schemeRes, objPlural, deploymentSessionId, "app.kubernetes.io/instance")
 		}
 	}
 
@@ -191,7 +184,7 @@ func (ng *GenericRunner) v1DeploymentAndHpaMigration() {
 }
 
 func CheckDeploymentStatus(ctx context.Context, clientset ncapi.Interface, namespace, deploymentName string) bool {
-	waitCtx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	waitCtx, cancel := context.WithTimeout(ctx, 5*time.Minute)
 	defer cancel()
 
 	interval := 10 * time.Second
@@ -201,7 +194,7 @@ func CheckDeploymentStatus(ctx context.Context, clientset ncapi.Interface, names
 		case <-waitCtx.Done():
 			return false
 		default:
-			v1Depl, err := clientset.AppsV1().Deployments(namespace).Get(ctx, deploymentName, k8sv1.GetOptions{})
+			v1Depl, err := clientset.AppsV1().Deployments(namespace).Get(waitCtx, deploymentName, k8sv1.GetOptions{})
 			if err != nil {
 				log.Fatal().Str("type", "migration").Stack().Err(err).Msgf("error fetching deployment")
 			}
