@@ -21,12 +21,13 @@ local.mk applied by default
 Usage: `make <target> [CONFIG_FILE=local.mk]`
 
 Targets:
-- install     - Install all MaaS components
-- uninstall   - Uninstall all MaaS components
-- validate    - Validate configuration and prerequisites
-- show-config - Show current configuration
-- clean       - Clean up repositories
-- help        - Show this help message
+- install            - Install all MaaS components
+- uninstall          - Uninstall all MaaS components
+- validate           - Validate configuration and prerequisites
+- show-config        - Show current configuration
+- cleanup-namespaces - Cleanup namespaces
+- clean              - Clean up repositories
+- help               - Show this help message
 
 Examples:
 - `make install CONFIG_FILE=local.mk`
@@ -121,6 +122,7 @@ The script uses a .mk configuration file to define all installation and helm pac
 | `DBAAS_NAMESPACE`                        | dbaas                                | Kubernetes namespace for DBaaS                         |
 | **MaaS Configuration**                   |
 | `TAG`                                    | `latest`                             | Docker image tag for MaaS                              |
+| `DBAAS_SERVICE_NAME`                     | `dbaas-aggregator`                   | DBaaS service name                                     |
 | `DBAAS_AGGREGATOR_ADDRESS`               | `http://dbaas-aggregator.dbaas:8080` | DBaaS aggregator URL in cluster                        |
 | **Credentials**                          |
 | `MAAS_ACCOUNT_MANAGER_USERNAME`          | `manager`                            | MaaS account manager username to set                   |
@@ -131,8 +133,8 @@ The script uses a .mk configuration file to define all installation and helm pac
 | `DBAAS_CLUSTER_DBA_CREDENTIALS_PASSWORD` | `password`                           | DBaaS cluster DBA password (to register MaaS database) |
 | **Installation Options**                 |
 | `CREATE_NAMESPACE`                       | `true`                               | Automatically create namespaces if they don't exist    |
-| `KAFKA_INSTANCES`                        | `kafka-1 kafka-2`                    | List of Kafka instance names to install                |
-| `RABBIT_INSTANCES`                       | `rabbitmq-1 rabbitmq-2`              | List of RabbitMQ instance names to install             |
+| `KAFKA_INSTANCES`                        | `kafka-1 kafka-2`                    | List of Kafka instance names to install. If omitted or emtpy value provided - script will skip kafka installation                |
+| `RABBIT_INSTANCES`                       | `rabbitmq-1 rabbitmq-2`              | List of RabbitMQ instance names to install. If omitted or empty value provided- script will skip rabbit installation             |
 
 ### Values Files
 
@@ -197,3 +199,6 @@ The uninstallation script performs the following stages:
 
 ### Stage 4: Uninstall Kafka
 - Removes all Kafka Helm releases from `KAFKA_INSTANCES`
+
+### Stage 5: Cleanup namespaces
+- Deletes namespaces `MAAS_NAMESPACE`, `RABBIT_NAMESPACE`, `KAFKA_NAMESPACE` if `CREATE_NAMESPACE=true`
