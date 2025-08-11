@@ -2,6 +2,10 @@ package getters
 
 import (
 	"context"
+	"sync"
+	"testing"
+	"time"
+
 	ncv1 "github.com/netcracker/cr-synchronizer/clientset/v1"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/apps/v1"
@@ -17,8 +21,6 @@ import (
 	batchv1 "k8s.io/client-go/kubernetes/typed/batch/v1"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	k8sTesting "k8s.io/client-go/testing"
-	"testing"
-	"time"
 )
 
 type testRecorder struct{}
@@ -91,10 +93,11 @@ func TestDeclarationWaiter_UpdatedPhase(t *testing.T) {
 	fclient.PrependWatchReactor("tests", func(action k8sTesting.Action) (handled bool, ret watch.Interface, err error) {
 		return true, w, nil
 	})
-
+	var wg sync.WaitGroup
+	wg.Add(1)
 	done := make(chan struct{})
 	go func() {
-		ng.declarationWaiter(resource, "test-resource")
+		ng.declarationWaiter(&wg, resource, "test-resource")
 		done <- struct{}{}
 	}()
 	w.Add(obj)
