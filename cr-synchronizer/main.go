@@ -4,11 +4,12 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"github.com/netcracker/cr-synchronizer/getters"
 	"os"
 	"os/signal"
 	"strconv"
 	"syscall"
+
+	"github.com/netcracker/cr-synchronizer/getters"
 )
 
 func main() {
