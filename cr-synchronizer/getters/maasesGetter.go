@@ -25,13 +25,14 @@ func (ng *MaaSesRunner) Generate() {
 	schemeRes := ng.declarationCreator(ng.resources, maasPlural)
 	log.Info().Str("type", "creator").Str("kind", "maas").Msgf("finished declarationCreator")
 	var wg sync.WaitGroup
-	for _, names := range schemeRes {
-		wg.Add(len(names))
-	}
 	for resource, names := range schemeRes {
+		wg.Add(len(names))
 		for _, declarativeName := range names {
 			log.Info().Str("type", "waiter").Str("kind", "maas").Str("name", declarativeName).Msgf("starting declarationWaiter")
-			go ng.declarationWaiter(&wg, resource, declarativeName)
+			go func() {
+				ng.declarationWaiter(resource, declarativeName)
+				wg.Done()
+			}()
 			log.Info().Str("type", "waiter").Str("kind", "maas").Str("name", declarativeName).Msgf("finished declarationWaiter")
 		}
 	}

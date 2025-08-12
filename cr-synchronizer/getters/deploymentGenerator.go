@@ -359,8 +359,7 @@ func (ng *DeploymentGenerator) handlePhaseChange(resourceType schema.GroupVersio
 	}
 }
 
-func (ng *DeploymentGenerator) declarationWaiter(wg *sync.WaitGroup, resourceType schema.GroupVersionResource, resourceName string) {
-	defer wg.Done()
+func (ng *DeploymentGenerator) declarationWaiter(resourceType schema.GroupVersionResource, resourceName string) {
 	log.Info().Str("type", "waiter").Str("name", resourceName).Str("resourceGroup", resourceType.Group).Msgf("starting waiter for resource")
 
 	w := getOrCreateResourceTypeWatcher(ng.ctx, ng.client, resourceType, ng.timeoutSeconds)

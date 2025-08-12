@@ -2,7 +2,6 @@ package getters
 
 import (
 	"context"
-	"sync"
 	"testing"
 	"time"
 
@@ -93,11 +92,9 @@ func TestDeclarationWaiter_UpdatedPhase(t *testing.T) {
 	fclient.PrependWatchReactor("tests", func(action k8sTesting.Action) (handled bool, ret watch.Interface, err error) {
 		return true, w, nil
 	})
-	var wg sync.WaitGroup
-	wg.Add(1)
 	done := make(chan struct{})
 	go func() {
-		ng.declarationWaiter(&wg, resource, "test-resource")
+		ng.declarationWaiter(resource, "test-resource")
 		done <- struct{}{}
 	}()
 	w.Add(obj)
