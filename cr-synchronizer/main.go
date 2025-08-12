@@ -4,18 +4,19 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"github.com/netcracker/cr-synchronizer/getters"
 	"os"
 	"os/signal"
 	"strconv"
 	"syscall"
+
+	"github.com/netcracker/cr-synchronizer/getters"
 )
 
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
-	defer stop()
 
 	go func() {
+		defer stop()
 		var isPostDeployPhase bool
 		flag.BoolVar(&isPostDeployPhase, "post", false, "use cr-synchronizer as post-deploy waiter")
 		flag.Parse()

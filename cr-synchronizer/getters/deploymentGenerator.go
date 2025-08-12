@@ -4,12 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	v1 "github.com/netcracker/cr-synchronizer/api/types/v1"
-	"k8s.io/apimachinery/pkg/watch"
-	"k8s.io/client-go/dynamic"
 	"os"
 	"sync"
 	"time"
+
+	v1 "github.com/netcracker/cr-synchronizer/api/types/v1"
+	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/client-go/dynamic"
 
 	ncapi "github.com/netcracker/cr-synchronizer/clientset"
 	v1Core "k8s.io/api/core/v1"
