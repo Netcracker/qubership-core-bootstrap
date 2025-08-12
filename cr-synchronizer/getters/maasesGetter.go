@@ -26,9 +26,9 @@ func (ng *MaaSesRunner) Generate() {
 	log.Info().Str("type", "creator").Str("kind", "maas").Msgf("finished declarationCreator")
 	var wg sync.WaitGroup
 	for resource, names := range schemeRes {
-		wg.Add(len(names))
 		for _, declarativeName := range names {
 			log.Info().Str("type", "waiter").Str("kind", "maas").Str("name", declarativeName).Msgf("starting declarationWaiter")
+			wg.Add(1)
 			go func() {
 				ng.declarationWaiter(resource, declarativeName)
 				wg.Done()
