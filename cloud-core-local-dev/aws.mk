@@ -48,7 +48,7 @@ CORE_CONFIG_CONSUL_ENABLED ?= false
 # Components values
 FACADE_OPERATOR_TAG ?= latest
 
-INGRESS_GATEWAY_TAG ?= main-snapshot
+INGRESS_GATEWAY_TAG ?= latest
 INGRESS_GATEWAY_CLOUD_PUBLIC_HOST ?= svc.cluster.local
 INGRESS_GATEWAY_CLOUD_PRIVATE_HOST ?= svc.cluster.local
 
@@ -58,10 +58,10 @@ PAAS_MEDIATION_TAG ?= latest
 
 DBAAS_AGENT_TAG ?= latest
 
-CORE_OPERATOR_TAG ?= feature-docker-image-build-snapshot
+CORE_OPERATOR_TAG ?= latest
 CORE_OPERATOR_IMAGE_REPOSITORY ?= ghcr.io/netcracker/qubership-core-core-operator
 
-CONFIG_SERVER_TAG ?= feature-docker-image-build-snapshot
+CONFIG_SERVER_TAG ?= latest
 CONFIG_SERVER_IMAGE_REPOSITORY ?= ghcr.io/netcracker/qubership-core-config-server
 CONFIG_SERVER_CONSUL_ENABLED ?= false
 
