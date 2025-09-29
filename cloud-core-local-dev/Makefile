@@ -398,18 +398,8 @@ deploy-cloud-core-print-start:
 apply-facade-operator-crds:
 	@if [ "$(INSTALL_CRDS)" = "true" ]; then \
 		echo "$(YELLOW)--- Create Facade Operator CRDs...$(NC)"; \
-		if ! kubectl get crd facadeservices.qubership.org >/dev/null 2>&1; then \
-			echo "Creating facadeservices.qubership.org CRD..."; \
-			kubectl apply -f $(REPOS_DIR)/qubership-core-facade-operator/helm-templates/facade-operator/new-crd/facade-service-crd-v1.yaml; \
-		else \
-			echo "facadeservices.qubership.org CRD already exists"; \
-		fi; \
-		if ! kubectl get crd gateways.core.qubership.org >/dev/null 2>&1; then \
-			echo "Creating gateways.core.qubership.org CRD..."; \
-			kubectl apply -f $(REPOS_DIR)/qubership-core-facade-operator/helm-templates/facade-operator/new-crd/gateway-crd-v1.yaml; \
-		else \
-			echo "gateways.core.qubership.org CRD already exists"; \
-		fi; \
+		echo "Creating facadeservices.qubership.org, gateways.core.qubership.org CRDs..."; \
+		kubectl apply -f $(REPOS_DIR)/qubership-core-facade-operator/helm-templates/facade-operator/new-crd; \
 		echo ""; \
 	else \
 		echo "$(YELLOW)--- Skipping Facade Operator CRDs installation (INSTALL_CRDS=false)...$(NC)"; \
