@@ -46,7 +46,7 @@ func (ng *GenericRunner) Name() string {
 
 func (ng *GenericRunner) processResourcesForLabel(schemeRes schema.GroupVersionResource, objPlural, deploymentSessionId, labelKey string) {
 	log.Info().Str("type", "genericWaiter").Str("resource", schemeRes.Resource).Str("version", schemeRes.Version).Str("group", schemeRes.Group).Str(labelKey, serviceName).Str("sessionId", deploymentSessionId).Msgf("checking resource in kubernetes to wait for")
-	listRes, err := ng.client.Resource(schemeRes).Namespace(namespace).List(ng.ctx, k8sv1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s, %s=%s", "deployment.qubership.org/sessionId", deploymentSessionId, labelKey, serviceName)})
+	listRes, err := ng.client.Resource(schemeRes).Namespace(namespace).List(ng.ctx, k8sv1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s, %s=%s", "deployment.netcracker.com/sessionId", deploymentSessionId, labelKey, serviceName)})
 	if err != nil {
 		log.Warn().Stack().Str("plurals", objPlural).Str("sessionID", deploymentSessionId).Err(err).Msg("Failed to find plurals in current session")
 	}

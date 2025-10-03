@@ -22,13 +22,13 @@ var (
 )
 
 func init() {
-	coreApiGroupNames := "core.qubership.org"
+	coreApiGroupNames := "core.netcracker.com"
 	if coreApiGroupNamesEnv, present := os.LookupEnv("K8S_CORE_API_GROUP_NAMES"); present {
 		coreApiGroupNames = coreApiGroupNamesEnv
 	}
 	CoreApiGroupNames = strings.Split(coreApiGroupNames, ",")
 
-	cdnApiGroupNames := "cdn.qubership.org"
+	cdnApiGroupNames := "cdn.netcracker.com"
 	if cdnApiGroupNamesEnv, present := os.LookupEnv("K8S_CDN_API_GROUP_NAMES"); present {
 		cdnApiGroupNames = cdnApiGroupNamesEnv
 	}

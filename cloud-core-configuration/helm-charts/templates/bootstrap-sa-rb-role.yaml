@@ -10,7 +10,7 @@ metadata:
     helm.sh/hook-delete-policy: "before-hook-creation"
   labels:
     app.kubernetes.io/instance: {{ .Values.SERVICE_NAME }}
-    deployment.qubership.org/sessionId: '{{ .Values.DEPLOYMENT_SESSION_ID }}'
+    deployment.netcracker.com/sessionId: '{{ .Values.DEPLOYMENT_SESSION_ID }}'
     app.kubernetes.io/part-of: {{ .Values.SERVICE_NAME | default "platform-bootstrap" }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -26,7 +26,7 @@ metadata:
     app.kubernetes.io/part-of: 'Cloud-Core'
     app.kubernetes.io/managed-by: 'saasDeployer'
 rules:
-  - apiGroups: ["core.qubership.org"]
+  - apiGroups: ["core.netcracker.com"]
     resources: ["*"]
     verbs: ["get","list","watch", "create", "update", "patch", "delete"]
   - apiGroups: [""]
@@ -72,7 +72,7 @@ metadata:
     helm.sh/hook-delete-policy: "before-hook-creation"
   labels:
     app.kubernetes.io/instance: {{ .Values.SERVICE_NAME }}
-    deployment.qubership.org/sessionId: '{{ .Values.DEPLOYMENT_SESSION_ID }}'
+    deployment.netcracker.com/sessionId: '{{ .Values.DEPLOYMENT_SESSION_ID }}'
     app.kubernetes.io/part-of: {{ .Values.SERVICE_NAME | default "platform-bootstrap" }}
 ---
 kind: RoleBinding
@@ -110,7 +110,7 @@ metadata:
     app.kubernetes.io/part-of: 'Cloud-Core'
     app.kubernetes.io/managed-by: 'saasDeployer'
 rules:
-  - apiGroups: ["cdn.qubership.org", "core.qubership.org"]
+  - apiGroups: ["cdn.netcracker.com", "core.netcracker.com"]
     resources: ["*"]
     verbs: ["get","list","watch", "create", "update", "patch", "delete"]
   - apiGroups: [""]

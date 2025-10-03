@@ -27,7 +27,7 @@ var log zerolog.Logger
 var wr diode.Writer
 
 var labels = map[string]string{
-	"deployment.qubership.org/sessionId":      os.Getenv("DEPLOYMENT_SESSION_ID"),
+	"deployment.netcracker.com/sessionId":     os.Getenv("DEPLOYMENT_SESSION_ID"),
 	"app.kubernetes.io/name":                  serviceName,
 	"app.kubernetes.io/managed-by":            manager,
 	"app.kubernetes.io/part-of":               os.Getenv("APPLICATION_NAME"),
