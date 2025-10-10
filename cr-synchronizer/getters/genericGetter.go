@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	v1 "github.com/netcracker/cr-synchronizer/api/types/v1"
 	v12 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/dynamic"
@@ -67,21 +66,15 @@ func (ng *GenericRunner) Generate() {
 		objPlurals = strings.Split(definedPl, ",")
 	}
 	for _, objPlural := range objPlurals {
-
-		schemeResources := make([]schema.GroupVersionResource, 0)
+		var schemeResources schema.GroupVersionResource
 		if strings.EqualFold(objPlural, "cdns") {
-			for _, cdnGroupName := range v1.CdnApiGroupNames {
-				schemeResources = append(schemeResources, schema.GroupVersionResource{Group: cdnGroupName, Version: v1.CdnGroupVersion, Resource: objPlural})
-			}
+			schemeResources = schema.GroupVersionResource{Group: CdnGroupName, Version: CdnGroupVersion, Resource: objPlural}
 		} else {
-			for _, baseGroupName := range v1.CoreApiGroupNames {
-				schemeResources = append(schemeResources, schema.GroupVersionResource{Group: baseGroupName, Version: v1.GroupVersion, Resource: objPlural})
-			}
+			schemeResources = schema.GroupVersionResource{Group: GroupName, Version: GroupVersion, Resource: objPlural}
 		}
-		for _, schemeRes := range schemeResources {
-			ng.processResourcesForLabel(schemeRes, objPlural, deploymentSessionId, "app.kubernetes.io/name")
-			ng.processResourcesForLabel(schemeRes, objPlural, deploymentSessionId, "app.kubernetes.io/instance")
-		}
+
+		ng.processResourcesForLabel(schemeResources, objPlural, deploymentSessionId, "app.kubernetes.io/name")
+		ng.processResourcesForLabel(schemeResources, objPlural, deploymentSessionId, "app.kubernetes.io/instance")
 	}
 
 	ng.v1DeploymentAndHpaMigration()

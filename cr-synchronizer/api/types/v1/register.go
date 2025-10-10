@@ -4,68 +4,46 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"os"
-	"strings"
 )
 
 const (
+	GroupName       = "core.netcracker.com"
 	GroupVersion    = "v1"
+	CdnGroupName    = "cdn.netcracker.com"
 	CdnGroupVersion = "v1"
 )
 
-var CoreApiGroupNames []string
-var CdnApiGroupNames []string
-
 var (
-	SchemeBuilder = runtime.NewSchemeBuilder(addKnownTypes)
-	AddToScheme   = SchemeBuilder.AddToScheme
+	SchemeGroupVersion    = schema.GroupVersion{Group: GroupName, Version: GroupVersion}
+	CdnSchemeGroupVersion = schema.GroupVersion{Group: CdnGroupName, Version: CdnGroupVersion}
+	SchemeBuilder         = runtime.NewSchemeBuilder(addKnownTypes)
+	AddToScheme           = SchemeBuilder.AddToScheme
 )
 
-func init() {
-	coreApiGroupNames := "core.netcracker.com"
-	if coreApiGroupNamesEnv, present := os.LookupEnv("K8S_CORE_API_GROUP_NAMES"); present {
-		coreApiGroupNames = coreApiGroupNamesEnv
-	}
-	CoreApiGroupNames = strings.Split(coreApiGroupNames, ",")
-
-	cdnApiGroupNames := "cdn.netcracker.com"
-	if cdnApiGroupNamesEnv, present := os.LookupEnv("K8S_CDN_API_GROUP_NAMES"); present {
-		cdnApiGroupNames = cdnApiGroupNamesEnv
-	}
-	CdnApiGroupNames = strings.Split(cdnApiGroupNames, ",")
-}
-
 func addKnownTypes(scheme *runtime.Scheme) error {
-	for _, baseGroupName := range CoreApiGroupNames {
-		baseSchemeGroupVersion := schema.GroupVersion{Group: baseGroupName, Version: GroupVersion}
-		scheme.AddKnownTypes(baseSchemeGroupVersion,
-			&Mesh{},
-			&MeshList{},
-			&MaaS{},
-			&MaaSList{},
-			&DBaaS{},
-			&DBaaSList{},
-			&Composite{},
-			&CompositeList{},
-			&Security{},
-			&SecurityList{},
-			&ConfigurationPackage{},
-			&ConfigurationPackageList{},
-			&SmartplugPlugin{},
-			&SmartplugPluginList{},
-			&Gateway{},
-			&GatewayList{},
-		)
-		metav1.AddToGroupVersion(scheme, baseSchemeGroupVersion)
-	}
-
-	for _, cdnApiGroupName := range CdnApiGroupNames {
-		cdnSchemeGroupVersion := schema.GroupVersion{Group: cdnApiGroupName, Version: CdnGroupVersion}
-		scheme.AddKnownTypes(cdnSchemeGroupVersion,
-			&CDN{},
-		)
-		metav1.AddToGroupVersion(scheme, cdnSchemeGroupVersion)
-	}
+	scheme.AddKnownTypes(SchemeGroupVersion,
+		&Mesh{},
+		&MeshList{},
+		&MaaS{},
+		&MaaSList{},
+		&DBaaS{},
+		&DBaaSList{},
+		&Composite{},
+		&CompositeList{},
+		&Security{},
+		&SecurityList{},
+		&ConfigurationPackage{},
+		&ConfigurationPackageList{},
+		&SmartplugPlugin{},
+		&SmartplugPluginList{},
+		&Gateway{},
+		&GatewayList{},
+	)
+	scheme.AddKnownTypes(CdnSchemeGroupVersion,
+		&CDN{},
+	)
+	metav1.AddToGroupVersion(scheme, SchemeGroupVersion)
+	metav1.AddToGroupVersion(scheme, CdnSchemeGroupVersion)
 
 	return nil
 }

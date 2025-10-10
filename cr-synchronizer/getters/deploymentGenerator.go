@@ -8,7 +8,6 @@ import (
 	"sync"
 	"time"
 
-	v1 "github.com/netcracker/cr-synchronizer/api/types/v1"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/dynamic"
 
@@ -221,42 +220,38 @@ func (ng *DeploymentGenerator) sendEvent(iReason, iMessage, declarativeName, kin
 	time.Sleep(2 * time.Second)
 }
 
-func (ng *DeploymentGenerator) declarationCreator(resourceList []unstructured.Unstructured, objPlural string) map[schema.GroupVersionResource][]string {
-	deploymentResources := make(map[schema.GroupVersionResource][]string)
-	for _, groupName := range v1.CoreApiGroupNames {
-		deploymentRes := schema.GroupVersionResource{Group: groupName, Version: v1.GroupVersion, Resource: objPlural}
-		log.Info().Str("type", "creator").Str("group", deploymentRes.Group).Str("resource", deploymentRes.Resource).Str("version", deploymentRes.Version).Msgf("Starting to process resources")
-		deploymentResources[deploymentRes] = make([]string, 0)
-		for _, declarative := range resourceList {
-			jsonData, err := json.Marshal(declarative.Object)
-			log.Info().Str("type", "creator").Str("name", declarative.GetName()).Str("declarative", string(jsonData)).Msgf("Starting to process single resource")
+func (ng *DeploymentGenerator) declarationCreator(resourceList []unstructured.Unstructured, objPlural string) (schema.GroupVersionResource, []string) {
+	deploymentRes := schema.GroupVersionResource{Group: GroupName, Version: GroupVersion, Resource: objPlural}
+	log.Info().Str("type", "creator").Str("group", deploymentRes.Group).Str("resource", deploymentRes.Resource).Str("version", deploymentRes.Version).Msgf("Starting to process resources")
+	var resourceNames []string
+	for _, declarative := range resourceList {
+		jsonData, err := json.Marshal(declarative.Object)
+		log.Info().Str("type", "creator").Str("name", declarative.GetName()).Str("declarative", string(jsonData)).Msgf("Starting to process single resource")
 
-			customLabels := declarative.GetLabels()
-			customLabels["app.kubernetes.io/managed-by"] = manager
-			declarative.SetLabels(customLabels)
-			deploymentResources[deploymentRes] = append(deploymentResources[deploymentRes], declarative.GetName())
-			priorDeclarative, err := ng.client.Resource(deploymentRes).Namespace(namespace).Get(ng.ctx, declarative.GetName(), k8sv1.GetOptions{})
+		customLabels := declarative.GetLabels()
+		customLabels["app.kubernetes.io/managed-by"] = manager
+		declarative.SetLabels(customLabels)
+		resourceNames = append(resourceNames, declarative.GetName())
+		priorDeclarative, err := ng.client.Resource(deploymentRes).Namespace(namespace).Get(ng.ctx, declarative.GetName(), k8sv1.GetOptions{})
+		if err != nil {
+			resp, err := ng.client.Resource(deploymentRes).Namespace(namespace).Create(ng.ctx, &declarative, k8sv1.CreateOptions{FieldManager: "pre-hook"})
 			if err != nil {
-				resp, err := ng.client.Resource(deploymentRes).Namespace(namespace).Create(ng.ctx, &declarative, k8sv1.CreateOptions{FieldManager: "pre-hook"})
-				if err != nil {
-					log.Fatal().Stack().Str("name", declarative.GetName()).Err(err).Msg("Failed to create resource")
-				}
-				log.Info().Str("type", "creator").Str("name", resp.GetName()).Msgf("Resource had been created")
-			} else {
-				log.Info().Str("type", "updater").Str("name", priorDeclarative.GetName()).Msgf("priorDeclarative: %+v", priorDeclarative)
-				log.Info().Str("type", "updater").Str("resourceVersion-new", declarative.GetResourceVersion()).Str("resourceVersion-old", priorDeclarative.GetResourceVersion())
-
-				declarative.SetResourceVersion(priorDeclarative.GetResourceVersion())
-				result, err := ng.client.Resource(deploymentRes).Namespace(namespace).Update(ng.ctx, &declarative, k8sv1.UpdateOptions{FieldManager: "pre-hook"})
-				if err != nil {
-					log.Fatal().Stack().Str("name", declarative.GetName()).Err(err).Msg("Failed to apply resource")
-				}
-				log.Info().Str("type", "updater").Str("name", result.GetName()).Msgf("Resource had been applied")
+				log.Fatal().Stack().Str("name", declarative.GetName()).Err(err).Msg("Failed to create resource")
 			}
+			log.Info().Str("type", "creator").Str("name", resp.GetName()).Msgf("Resource had been created")
+		} else {
+			log.Info().Str("type", "updater").Str("name", priorDeclarative.GetName()).Msgf("priorDeclarative: %+v", priorDeclarative)
+			log.Info().Str("type", "updater").Str("resourceVersion-new", declarative.GetResourceVersion()).Str("resourceVersion-old", priorDeclarative.GetResourceVersion())
+
+			declarative.SetResourceVersion(priorDeclarative.GetResourceVersion())
+			result, err := ng.client.Resource(deploymentRes).Namespace(namespace).Update(ng.ctx, &declarative, k8sv1.UpdateOptions{FieldManager: "pre-hook"})
+			if err != nil {
+				log.Fatal().Stack().Str("name", declarative.GetName()).Err(err).Msg("Failed to apply resource")
+			}
+			log.Info().Str("type", "updater").Str("name", result.GetName()).Msgf("Resource had been applied")
 		}
 	}
-
-	return deploymentResources
+	return deploymentRes, resourceNames
 }
 
 func (ng *DeploymentGenerator) setOwnerRef(resourceType schema.GroupVersionResource, resourceName string) {
