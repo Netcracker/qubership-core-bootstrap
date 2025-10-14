@@ -19,9 +19,9 @@ const (
 	componentName                  = "core-operator"
 	componentInstance              = "declaration-waiter"
 	coreDeclarativeEventsGenerator = "nc-operator"
-	GroupName                      = "core.qubership.org"
+	GroupName                      = "core.netcracker.com"
 	GroupVersion                   = "v1"
-	CdnGroupName                   = "cdn.qubership.org"
+	CdnGroupName                   = "cdn.netcracker.com"
 	CdnGroupVersion                = "v1"
 	manager                        = "cr-synchronizer"
 )
