@@ -252,7 +252,7 @@ validate-consul-namespace:
 clone-consul-repo:
 	@if [ "$(INSTALL_CONSUL)" = "true" ]; then \
 		echo "$(YELLOW)--- Cloning consul repository...$(NC)"; \
-		$(call clone_or_update_repo,consul-k8s,https://github.com/hashicorp/consul-k8s,main); \
+		$(call clone_or_update_repo,consul-k8s,https://github.com/hashicorp/consul-k8s,release/1.8.3); \
 	else \
 		echo "$(YELLOW)--- Skipping Consul repository cloning (INSTALL_CONSUL=false)...$(NC)"; \
 		echo ""; \
