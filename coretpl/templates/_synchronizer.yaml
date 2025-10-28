@@ -14,7 +14,7 @@ metadata:
     helm.sh/hook-delete-policy: "before-hook-creation, hook-succeeded"
   labels:
     app.kubernetes.io/instance: {{ .Values.SERVICE_NAME }}
-    deployment.qubership.org/sessionId: '{{ .Values.DEPLOYMENT_SESSION_ID }}'
+    deployment.netcracker.com/sessionId: '{{ .Values.DEPLOYMENT_SESSION_ID }}'
     app.kubernetes.io/part-of: {{ .Values.SERVICE_NAME | default "platform-post-deploy" }}
 spec:
   backoffLimit: 0
@@ -86,7 +86,7 @@ metadata:
     helm.sh/hook-weight: "-55"
   labels:
     app.kubernetes.io/instance: {{ .Values.SERVICE_NAME }}
-    deployment.qubership.org/sessionId: '{{ .Values.DEPLOYMENT_SESSION_ID }}'
+    deployment.netcracker.com/sessionId: '{{ .Values.DEPLOYMENT_SESSION_ID }}'
     app.kubernetes.io/part-of: {{ .Values.APPLICATION_NAME }}
 data:
 {{- range $path, $file := .Files.Glob "declarations/*" }}
@@ -104,7 +104,7 @@ metadata:
     helm.sh/hook-delete-policy: "before-hook-creation, hook-succeeded"
   labels:
     app.kubernetes.io/instance: {{ .Values.SERVICE_NAME }}
-    deployment.qubership.org/sessionId: '{{ .Values.DEPLOYMENT_SESSION_ID }}'
+    deployment.netcracker.com/sessionId: '{{ .Values.DEPLOYMENT_SESSION_ID }}'
     app.kubernetes.io/part-of: {{ .Values.APPLICATION_NAME }}
 spec:
   backoffLimit: 0

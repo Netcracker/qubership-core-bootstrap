@@ -170,14 +170,14 @@ validate-crd:
 	@echo "$(BLUE)=== CRD PREREQUISITE CHECKS ===$(NC)"
 	@if [ "$(INSTALL_CRDS)" = "false" ]; then \
 		echo "$(CYAN)--- Checking Facade Operator CRDs (INSTALL_CRDS=false)...$(NC)"; \
-		$(call check_crd_existence,facadeservices.qubership.org,facadeservices,kubectl apply -f $(REPOS_DIR)/qubership-core-facade-operator/helm-templates/facade-operator/new-crd/facade-service-crd-v1.yaml); \
-		$(call check_crd_existence,gateways.core.qubership.org,gateways,kubectl apply -f $(REPOS_DIR)/qubership-core-facade-operator/helm-templates/facade-operator/new-crd/gateway-crd-v1.yaml); \
+		$(call check_crd_existence,facadeservices.netcracker.com,facadeservices,kubectl apply -f $(REPOS_DIR)/qubership-core-facade-operator/helm-templates/facade-operator/new-crd/facade-service-crd-v1.yaml); \
+		$(call check_crd_existence,gateways.core.netcracker.com,gateways,kubectl apply -f $(REPOS_DIR)/qubership-core-facade-operator/helm-templates/facade-operator/new-crd/gateway-crd-v1.yaml); \
 		echo "$(CYAN)--- Checking Core Operator CRDs (INSTALL_CRDS=false)...$(NC)"; \
-		$(call check_crd_existence,securities.core.qubership.org,securities,kubectl apply -f $(REPOS_DIR)/qubership-core-core-operator/helm-templates/core-operator/new-crd/security.yaml); \
-		$(call check_crd_existence,meshes.core.qubership.org,meshes,kubectl apply -f $(REPOS_DIR)/qubership-core-core-operator/helm-templates/core-operator/new-crd/mesh.yaml); \
-		$(call check_crd_existence,dbaases.core.qubership.org,dbaases,kubectl apply -f $(REPOS_DIR)/qubership-core-core-operator/helm-templates/core-operator/new-crd/dbaas.yaml); \
-		$(call check_crd_existence,maases.core.qubership.org,maases,kubectl apply -f $(REPOS_DIR)/qubership-core-core-operator/helm-templates/core-operator/new-crd/maas.yaml); \
-		$(call check_crd_existence,composites.core.qubership.org,composites,kubectl apply -f $(REPOS_DIR)/qubership-core-core-operator/helm-templates/core-operator/new-crd/composite.yaml); \
+		$(call check_crd_existence,securities.core.netcracker.com,securities,kubectl apply -f $(REPOS_DIR)/qubership-core-core-operator/helm-templates/core-operator/new-crd/security.yaml); \
+		$(call check_crd_existence,meshes.core.netcracker.com,meshes,kubectl apply -f $(REPOS_DIR)/qubership-core-core-operator/helm-templates/core-operator/new-crd/mesh.yaml); \
+		$(call check_crd_existence,dbaases.core.netcracker.com,dbaases,kubectl apply -f $(REPOS_DIR)/qubership-core-core-operator/helm-templates/core-operator/new-crd/dbaas.yaml); \
+		$(call check_crd_existence,maases.core.netcracker.com,maases,kubectl apply -f $(REPOS_DIR)/qubership-core-core-operator/helm-templates/core-operator/new-crd/maas.yaml); \
+		$(call check_crd_existence,composites.core.netcracker.com,composites,kubectl apply -f $(REPOS_DIR)/qubership-core-core-operator/helm-templates/core-operator/new-crd/composite.yaml); \
 	else \
 		echo "$(CYAN)--- Skipping additional CRD checks (INSTALL_CRDS=true, CRDs will be installed automatically)...$(NC)"; \
 	fi
@@ -398,7 +398,7 @@ deploy-cloud-core-print-start:
 apply-facade-operator-crds:
 	@if [ "$(INSTALL_CRDS)" = "true" ]; then \
 		echo "$(YELLOW)--- Create Facade Operator CRDs...$(NC)"; \
-		echo "Creating facadeservices.qubership.org, gateways.core.qubership.org CRDs..."; \
+		echo "Creating facadeservices.netcracker.com, gateways.core.netcracker.com CRDs..."; \
 		kubectl apply -f $(REPOS_DIR)/qubership-core-facade-operator/helm-templates/facade-operator/new-crd; \
 		echo ""; \
 	else \
@@ -613,14 +613,14 @@ cleanup-crds:
 	@echo "$(YELLOW)--- Cleaning up CRDs...$(NC)"
 	@if [ "$(INSTALL_CRDS)" = "true" ]; then \
 		echo "Removing Facade Operator CRDs..."; \
-		kubectl delete crd facadeservices.qubership.org --ignore-not-found=true; \
-		kubectl delete crd gateways.core.qubership.org --ignore-not-found=true; \
+		kubectl delete crd facadeservices.netcracker.com --ignore-not-found=true; \
+		kubectl delete crd gateways.core.netcracker.com --ignore-not-found=true; \
 		echo "Removing Core Operator CRDs..."; \
-		kubectl delete crd securities.core.qubership.org --ignore-not-found=true; \
-		kubectl delete crd meshes.core.qubership.org --ignore-not-found=true; \
-		kubectl delete crd dbaases.core.qubership.org --ignore-not-found=true; \
-		kubectl delete crd maases.core.qubership.org --ignore-not-found=true; \
-		kubectl delete crd composites.core.qubership.org --ignore-not-found=true; \
+		kubectl delete crd securities.core.netcracker.com --ignore-not-found=true; \
+		kubectl delete crd meshes.core.netcracker.com --ignore-not-found=true; \
+		kubectl delete crd dbaases.core.netcracker.com --ignore-not-found=true; \
+		kubectl delete crd maases.core.netcracker.com --ignore-not-found=true; \
+		kubectl delete crd composites.core.netcracker.com --ignore-not-found=true; \
 		echo ""; \
 	else \
 		echo "$(YELLOW)--- Skipping CRD cleanup (INSTALL_CRDS=false)...$(NC)"; \

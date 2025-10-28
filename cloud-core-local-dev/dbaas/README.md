@@ -90,7 +90,7 @@ metadata:
   name: qubership
 rules:
 - apiGroups:
-  - "qubership.org"
+  - "netcracker.com"
   resources:
   - "*"
   verbs:

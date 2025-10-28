@@ -122,13 +122,13 @@ Set `CREATE_NAMESPACE=true` to automatically create namespaces during installati
 ### Required CRDs
 
 The following Custom Resource Definitions are required:
-- `facadeservices.qubership.org`
-- `gateways.core.qubership.org`
-- `securities.core.qubership.org`
-- `meshes.core.qubership.org`
-- `dbaases.core.qubership.org`
-- `maases.core.qubership.org`
-- `composites.core.qubership.org`
+- `facadeservices.netcracker.com`
+- `gateways.core.netcracker.com`
+- `securities.core.netcracker.com`
+- `meshes.core.netcracker.com`
+- `dbaases.core.netcracker.com`
+- `maases.core.netcracker.com`
+- `composites.core.netcracker.com`
 
 Set `INSTALL_CRDS=true` to install CRDs automatically, or `INSTALL_CRDS=false` to skip CRD installation (the script will validate their presence).
 
@@ -143,7 +143,7 @@ metadata:
   name: qubership
 rules:
 - apiGroups:
-  - "qubership.org"
+  - "netcracker.com"
   resources:
   - "*"
   verbs:
