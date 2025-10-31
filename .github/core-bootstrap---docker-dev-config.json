@@ -4,6 +4,11 @@
       "name": "core-bootstrap",
       "file": "core-bootstrap/Dockerfile",
       "context": "./core-bootstrap"
+    },
+    {
+      "name": "svt-test",
+      "file": "cloud-core-local-dev/istio/Dockerfile",
+      "context": "./cloud-core-local-dev/istio"
     }
   ],
   "platforms" : "linux/amd64"
