@@ -507,8 +507,8 @@ cleanup-crds:
 	@echo "$(CYAN)--- Cleaning up CRDs...$(NC)"
 	@if [ "$(SKIP_CRDS)" = "false" ]; then \
 		echo " CRDs..."; \
-		kubectl delete crd patronicores.qubership.org --ignore-not-found=true; \
-		kubectl delete crd patroniservices.qubership.org --ignore-not-found=true; \
+		kubectl delete crd patronicores.netcracker.com --ignore-not-found=true; \
+		kubectl delete crd patroniservices.netcracker.com --ignore-not-found=true; \
 		echo ""; \
 	else \
 		echo "$(GREEN)--- Skipping CRD cleanup (SKIP_CRDS=true)...$(NC)"; \

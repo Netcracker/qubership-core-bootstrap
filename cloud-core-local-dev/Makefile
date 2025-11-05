@@ -241,7 +241,7 @@ deploy-consul-print-start:
 	@echo ""
 
 validate-consul-namespace:
-	@if [ "$(CREATE_NAMESPACE)" = "false" ]; then \
+	@if [ "$(CREATE_NAMESPACE)" = "false" && "$(INSTALL_CONSUL)" = "true" ]; then \
 		echo "$(BLUE)=== CONSUL NAMESPACE EXISTENCE CHECKS ===$(NC)"; \
 		$(call check_namespace_existence,$(CONSUL_NAMESPACE)); \
 	else \
@@ -291,10 +291,12 @@ install-consul:
 		helm upgrade --install --namespace $(CONSUL_NAMESPACE) $(CREATE_NAMESPACE_OPTION) \
 			consul $(REPOS_DIR)/consul-k8s/charts/consul/ \
 			-f $(REPOS_DIR)/consul-k8s/charts/consul/values.yaml \
- 		--set server.securityContext.runAsNonRoot=false \
+			--set server.securityContext.runAsNonRoot=false \
 			--set server.securityContext.runAsUser=0 \
 			--set connectInject.enabled=false \
-			--set server.storage=1Gi; \
+			--set server.storage=1Gi \
+			--set global.imageK8S='docker.io/hashicorp/consul-k8s-control-plane:latest' \
+			--set global.image='docker.io/hashicorp/consul:latest'; \
 	else \
 		echo "$(YELLOW)--- Skipping Consul installation (INSTALL_CONSUL=false)...$(NC)"; \
 		echo ""; \
