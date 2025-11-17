@@ -5,6 +5,7 @@ on:
     paths:
       - 'core-bootstrap/**'
       - 'cr-synchronizer/**'
+      - '.github/workflows/**'
   pull_request:
     types: [ opened, synchronize, reopened ]
     paths:
