@@ -1,6 +1,15 @@
 name: '[Multi-Module] SonarQube Analysis'
 
 on:
+  push:
+    paths:
+      - 'core-bootstrap/**'
+      - 'cr-synchronizer/**'
+  pull_request:
+    types: [ opened, synchronize, reopened ]
+    paths:
+      - 'core-bootstrap/**'
+      - 'cr-synchronizer/**'
   workflow_dispatch:
 
 jobs:
