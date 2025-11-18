@@ -1,27 +1,47 @@
-name: '[Core Bootstrap] Go build'
+name: '[Multi-Module] SonarQube Analysis'
 
 on:
   push:
     paths:
       - 'core-bootstrap/**'
+      - 'cr-synchronizer/**'
+      - '.github/workflows/**'
   pull_request:
     types: [ opened, synchronize, reopened ]
     paths:
       - 'core-bootstrap/**'
+      - 'cr-synchronizer/**'
+  workflow_dispatch:
 
 jobs:
-  build-with-sonar:
-    uses: netcracker/qubership-core-infra/.github/workflows/go-build-with-sonar.yaml@v1.0.7
-    with:
-      actor: ${{ github.actor }}
-      sonar-project-key: ${{ vars.SONAR_PROJECT_KEY_CORE_BOOTSTRAP }}
-      go-module-dir: core-bootstrap
-    secrets:
-      sonar-token: ${{ secrets.SONAR_TOKEN }}
+  sonar-analysis:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Shallow clones should be disabled for better analysis
 
-  docker-build:
-    needs: [ build-with-sonar ]
-    uses: netcracker/qubership-core-infra/.github/workflows/docker-build.yaml@v1.0.7
-    with:
-      dry-run: false
-      config-filename: "core-bootstrap---docker-dev-config.json"
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+
+      - name: Run tests with coverage for core-bootstrap
+        working-directory: core-bootstrap
+        run: go test -v -coverprofile=coverage.out ./...
+
+      - name: Run tests with coverage for cr-synchronizer
+        working-directory: cr-synchronizer
+        run: go test -v -coverprofile=coverage.out ./...
+
+      - name: SonarQube Scan
+        uses: sonarsource/sonarqube-scan-action@master
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          projectBaseDir: .
+          args: >
+            -Dsonar.organization=${{ vars.SONAR_ORGANIZATION }}
+            -Dsonar.projectKey=${{ vars.SONAR_PROJECT_KEY_CORE_BOOTSTRAP }}

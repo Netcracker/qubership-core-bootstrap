@@ -1,13 +1,7 @@
 name: '[CR Synchronizer] Go build'
 
 on:
-  push:
-    paths:
-      - 'cr-synchronizer/**'
-  pull_request:
-    types: [ opened, synchronize, reopened ]
-    paths:
-      - 'cr-synchronizer/**'
+  workflow_dispatch:
 
 jobs:
   build-with-sonar:
