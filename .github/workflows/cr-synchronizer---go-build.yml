@@ -15,7 +15,7 @@ permissions:
   packages: write
 
 concurrency:
-  group: ci-${{ github.event_name }}-${{ github.head_ref || github.ref_name }}
+  group: ci-cr-synchronizer-build-${{ github.event_name }}-${{ github.head_ref || github.ref_name }}
   cancel-in-progress: true
 
 jobs:
