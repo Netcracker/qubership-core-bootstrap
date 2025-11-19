@@ -2,6 +2,8 @@ name: '[Multi-Module] Go code coverage analysis'
 
 on:
   push:
+    branches:
+      - main
     paths:
       - 'core-bootstrap/**'
       - 'cr-synchronizer/**'
@@ -14,7 +16,7 @@ on:
 
 jobs:
   check-pr:
-    name: Check is PR exists
+    name: Check if PR exists
     runs-on: ubuntu-latest
     outputs:
         hasOpenPr: ${{ steps.pr.outputs.hasOpenPr }}

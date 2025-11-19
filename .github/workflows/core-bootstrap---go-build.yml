@@ -10,7 +10,19 @@ on:
       - 'core-bootstrap/**'
 
 jobs:
+  check-pr:
+    name: Check if PR exists
+    runs-on: ubuntu-latest
+    outputs:
+        hasOpenPr: ${{ steps.pr.outputs.hasOpenPr }}
+    steps:
+      - name: Check for open PR
+        id: pr
+        uses: Netcracker/qubership-core-infra/.github/actions/check-open-pr@v1.1.1
+
   docker-build:
+    needs: [ check-pr ]
+    if: ${{ !(github.event_name == 'push' && needs.check-pr.outputs.hasOpenPr == 'true') }}
     uses: netcracker/qubership-core-infra/.github/workflows/docker-build.yaml@v1.1.1
     with:
       dry-run: false
