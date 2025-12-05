@@ -2,7 +2,7 @@ module github.com/netcracker/core-bootstrap/v2
 
 go 1.23.0
 
-toolchain go1.24.0
+toolchain go1.25.5
 
 require (
 	github.com/go-resty/resty/v2 v2.11.0
