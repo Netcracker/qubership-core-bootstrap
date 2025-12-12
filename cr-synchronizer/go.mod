@@ -3,7 +3,7 @@ module github.com/netcracker/cr-synchronizer
 go 1.22.4
 
 require (
-	github.com/stretchr/testify v1.8.4
+	github.com/stretchr/testify v1.11.1
 	k8s.io/client-go v0.29.1
 )
 
