@@ -3,7 +3,7 @@ module github.com/netcracker/core-bootstrap/v2
 go 1.25.4
 
 require (
-	github.com/go-resty/resty/v2 v2.17.0
+	github.com/go-resty/resty/v2 v2.17.1
 	github.com/stretchr/testify v1.11.1
 	k8s.io/api v0.28.4
 	k8s.io/apimachinery v0.28.4
