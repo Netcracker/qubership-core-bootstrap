@@ -80,7 +80,7 @@ ifeq ($(SKIP_CRD),true)
 	@echo "$(CYAN)--- Checking if CRDs qubership.org.PatroniCore, qubership.org.PatroniServices exists...$(NC)"
 	@kubectl api-resources | grep -q patronicores || (echo "$(RED)Error: CRD patronicores.qubership.org not found$(NC)" && echo "$(CYAN)Please install the CRD first:$(NC)" && echo "$(CYAN)kubectl apply -f ./pgskipper-operator/charts/patroni-core/crds/qubership.org_patronicores.yaml$(NC)" && exit 1)
 	@echo "$(GREEN)--- CRD patronicores.qubership.org found$(NC)"
-	@kubectl api-resources | grep -q patroniservices || (echo "$(RED)Error: CRD patroniservices.qubership.org not found$(NC)" && echo "$(CYAN)Please install the CRD first:$(NC)" && echo "$(CYAN)kubectl apply -f ./pgskipper-operator/charts/patroni-services/crds/qubership.org_patroniservices.yaml$(NC)" && exit 1)
+	@kubectl api-resources | grep -q patroniservices || (echo "$(RED)Error: CRD patroniservices.qubership.org not found$(NC)" && echo "$(CYAN)Please install the CRD first:$(NC)" && echo "$(CYAN)kubectl apply -f ./pgskipper-operator/operator/charts/patroni-services/crds/qubership.org_patroniservices.yaml$(NC)" && exit 1)
 	@echo "$(GREEN)--- CRD patroniservices.qubership.org found$(NC)"
 else
 	@echo "$(CYAN)--- Skipping CRD validation (CRD will be installed)...$(NC)"
@@ -162,7 +162,7 @@ install-patroni-core:
 	echo "$(GREEN)--- Final STORAGE_CLASS value: $$STORAGE_CLASS$(NC)"; \
 	echo ""; \
 	envsubst < $(PATRONI_CORE_VALUES_FILE) | helm upgrade --install --namespace=$(PG_NAMESPACE) $(CREATE_NAMESPACE_OPTION) $(SKIP_CRDS_OPTION) \
-		patroni-core $(REPOS_DIR)/pgskipper-operator/charts/patroni-core -f - || \
+		patroni-core $(REPOS_DIR)/pgskipper-operator/operator/charts/patroni-core -f - || \
 		(echo "$(RED)Error: Patroni Core installation failed$(NC)" && echo "$(CYAN)Please check the helm output above for details$(NC)" && exit 1)
 	@echo "$(GREEN)--- Stage 2 END: Patroni Core installation completed$(NC)"
 	@echo ""
@@ -258,7 +258,7 @@ install-patroni-services:
 	echo "$(GREEN)--- Final STORAGE_CLASS value: $$STORAGE_CLASS$(NC)"; \
 	echo ""; \
 	envsubst < $(PATRONI_SERVICES_VALUES_FILE) | helm upgrade --install --namespace=$(PG_NAMESPACE) $(CREATE_NAMESPACE_OPTION) $(SKIP_CRDS_OPTION) \
-		patroni-services $(REPOS_DIR)/pgskipper-operator/charts/patroni-services -f - || \
+		patroni-services $(REPOS_DIR)/pgskipper-operator/operator/charts/patroni-services -f - || \
 		(echo "$(RED)Error: Patroni Services installation failed$(NC)" && echo "$(CYAN)Please check the helm output above for details$(NC)" && exit 1)
 	@echo "$(GREEN)--- Stage 6 END: Patroni Services installation completed$(NC)"
 	@echo ""
