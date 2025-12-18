@@ -18,7 +18,7 @@ DBAAS_SERVICE_NAME ?= dbaas-aggregator
 NODE_SELECTOR_DBAAS_KEY ?= region
 REGION_DBAAS ?= database
 # Validation image tag
-TAG ?= dbaas-validation-image-merge-20250617131852-28
+TAG ?= main-20251216114420-1035
 
 # Export all variables for use in shell commands
 export PG_NAMESPACE
