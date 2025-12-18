@@ -31,7 +31,7 @@ jobs:
     steps:
       - name: Check for open PR
         id: pr
-        uses: Netcracker/qubership-core-infra/.github/actions/check-open-pr@v1.1.1
+        uses: Netcracker/qubership-core-infra/.github/actions/check-open-pr@v1.2.1
 
       - name: Explain routing decision
         if: ${{ github.event_name == 'push' && steps.pr.outputs.hasOpenPr == 'true' }}
@@ -73,7 +73,7 @@ jobs:
         run: go test -v -coverprofile=coverage.out ./...
 
       - name: SonarQube Scan
-        uses: sonarsource/sonarqube-scan-action@v6.0.0
+        uses: sonarsource/sonarqube-scan-action@a31c9398be7ace6bbfaf30c0bd5d415f843d45e9 # v7.0.0
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         with:
