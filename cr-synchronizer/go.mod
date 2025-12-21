@@ -4,7 +4,7 @@ go 1.22.4
 
 require (
 	github.com/stretchr/testify v1.11.1
-	k8s.io/client-go v0.29.1
+	k8s.io/client-go v0.35.0
 )
 
 require (
