@@ -9,19 +9,30 @@ on:
     paths:
       - 'cr-synchronizer/**'
 
+permissions:
+  contents: read
+  pull-requests: read
+  packages: write
+
+concurrency:
+  group: ci-cr-synchronizer-build-${{ github.event_name }}-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
 jobs:
-  build-with-sonar:
-    uses: netcracker/qubership-core-infra/.github/workflows/go-build-with-sonar.yaml@v1.2.1
-    with:
-      actor: ${{ github.actor }}
-      sonar-project-key: ${{ vars.SONAR_PROJECT_KEY_CR_SYNCHRONIZER }}
-      go-module-dir: cr-synchronizer
-    secrets:
-      sonar-token: ${{ secrets.SONAR_TOKEN }}
+  check-pr:
+    name: Check if PR exists
+    runs-on: ubuntu-latest
+    outputs:
+        hasOpenPr: ${{ steps.pr.outputs.hasOpenPr }}
+    steps:
+      - name: Check for open PR
+        id: pr
+        uses: Netcracker/qubership-core-infra/.github/actions/check-open-pr@v1.1.1
 
   docker-build:
-    needs: [ build-with-sonar ]
-    uses: netcracker/qubership-core-infra/.github/workflows/docker-build.yaml@v1.2.1
+    needs: [ check-pr ]
+    if: ${{ !(github.event_name == 'push' && needs.check-pr.outputs.hasOpenPr == 'true') }}
+    uses: netcracker/qubership-core-infra/.github/workflows/docker-build.yaml@v1.1.1
     with:
       dry-run: false
       config-filename: "cr-synchronizer---docker-dev-config.json"

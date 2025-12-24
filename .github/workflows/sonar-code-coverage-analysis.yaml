@@ -1,0 +1,83 @@
+name: '[Multi-Module] Go code coverage analysis'
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'core-bootstrap/**'
+      - 'cr-synchronizer/**'
+  pull_request:
+    types: [ opened, synchronize, reopened ]
+    paths:
+      - 'core-bootstrap/**'
+      - 'cr-synchronizer/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: ci-code-coverage-analysis-${{ github.event_name }}-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  check-pr:
+    name: Check if PR exists
+    runs-on: ubuntu-latest
+    outputs:
+        hasOpenPr: ${{ steps.pr.outputs.hasOpenPr }}
+    steps:
+      - name: Check for open PR
+        id: pr
+        uses: Netcracker/qubership-core-infra/.github/actions/check-open-pr@v1.2.1
+
+      - name: Explain routing decision
+        if: ${{ github.event_name == 'push' && steps.pr.outputs.hasOpenPr == 'true' }}
+        run: |
+          {
+            echo "### Router decision"
+            echo ""
+            echo "- Event: \`${{ github.event_name }}\`"
+            echo "- Branch: \`${{ github.head_ref || github.ref_name }}\`"
+            echo "- Open PR detected: **yes**"
+            echo ""
+            echo "Work is delegated to the PR workflow. Skip next steps."
+          } >> "$GITHUB_STEP_SUMMARY"
+  
+  sonar-analysis:
+    name: Measure code coverage and upload to SonarCloud
+    needs: [ check-pr ]
+    if: ${{ !(github.event_name == 'push' && needs.check-pr.outputs.hasOpenPr == 'true') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Shallow clones should be disabled for better analysis
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          cache: true
+          cache-dependency-path: "**/*.sum"
+          go-version: '1.23'
+
+      - name: Run tests with coverage for core-bootstrap
+        working-directory: core-bootstrap
+        run: go test -v -coverprofile=coverage.out ./...
+
+      - name: Run tests with coverage for cr-synchronizer
+        working-directory: cr-synchronizer
+        run: go test -v -coverprofile=coverage.out ./...
+
+      - name: SonarQube Scan
+        uses: sonarsource/sonarqube-scan-action@a31c9398be7ace6bbfaf30c0bd5d415f843d45e9 # v7.0.0
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          projectBaseDir: .
+          args: >
+            -Dsonar.organization=${{ vars.SONAR_ORGANIZATION }}
+            -Dsonar.projectKey=${{ vars.SONAR_PROJECT_KEY_CORE_BOOTSTRAP }}
