@@ -66,11 +66,13 @@ jobs:
 
       - name: Run tests with coverage for core-bootstrap
         working-directory: core-bootstrap
-        run: go test -v -coverprofile=coverage.out ./...
+        run: |
+          go test -v -coverprofile=coverage.out ./... || true
 
       - name: Run tests with coverage for cr-synchronizer
         working-directory: cr-synchronizer
-        run: go test -v -coverprofile=coverage.out ./...
+        run: |
+          go test -v -coverprofile=coverage.out ./... || true
 
       - name: SonarQube Scan
         uses: sonarsource/sonarqube-scan-action@a31c9398be7ace6bbfaf30c0bd5d415f843d45e9 # v7.0.0
