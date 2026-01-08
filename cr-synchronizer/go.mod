@@ -1,6 +1,8 @@
 module github.com/netcracker/cr-synchronizer
 
-go 1.22.4
+go 1.23
+
+toolchain go1.24.11
 
 require (
 	github.com/stretchr/testify v1.11.1
@@ -53,7 +55,7 @@ require (
 	k8s.io/klog v1.0.0
 	k8s.io/klog/v2 v2.120.1
 	k8s.io/kube-openapi v0.0.0-20231010175941-2dd684a91f00 // indirect
-	k8s.io/utils v0.0.0-20251002143259-bc988d571ff4
+	k8s.io/utils v0.0.0-20260108192941-914a6e750570
 	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.4.1 // indirect
 	sigs.k8s.io/yaml v1.4.0 // indirect
