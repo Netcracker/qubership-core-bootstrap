@@ -20,6 +20,7 @@
 	deploy-paas-mediation \
 	deploy-control-plane \
 	deploy-dbaas-agent \
+	deploy-maas-agent \
 	apply-core-operator-crds deploy-core-operator \
 	deploy-config-server
 
@@ -31,7 +32,7 @@
 	uninstall-maas \
 	uninstall-control-plane-db-credentials \
 	uninstall-facade-operator uninstall-ingress-gateway uninstall-site-management \
-	uninstall-paas-mediation uninstall-control-plane uninstall-dbaas-agent \
+	uninstall-paas-mediation uninstall-control-plane uninstall-dbaas-agent uninstall-maas-agent \
 	uninstall-core-operator uninstall-config-server \
 	cleanup-crds cleanup-namespaces
 
@@ -134,11 +135,11 @@ help:
 # INSTALLATION
 # =============================================================================
 
-install: validate clone-repos template-values-files deploy mesh-smoke-test deploy-maas
+install: validate clone-repos template-values-files deploy mesh-smoke-test
 
 deploy: deploy-dependencies deploy-core
 
-deploy-dependencies: deploy-metrics-server deploy-monitoring deploy-consul deploy-dbaas
+deploy-dependencies: deploy-metrics-server deploy-monitoring deploy-consul deploy-dbaas deploy-maas
 	@echo "$(GREEN)=== Cloud Core dependencies deployment completed$(NC)"
 	@echo ""
 
@@ -213,6 +214,7 @@ clone-repos:
 	@$(call clone_or_update_repo,qubership-core-site-management,https://github.com/Netcracker/qubership-core-site-management.git,main)
 	@$(call clone_or_update_repo,qubership-core-facade-operator,https://github.com/Netcracker/qubership-core-facade-operator.git,main)
 	@$(call clone_or_update_repo,qubership-core-dbaas-agent,https://github.com/Netcracker/qubership-core-dbaas-agent.git,main)
+	@$(call clone_or_update_repo,qubership-core-maas-agent,https://github.com/Netcracker/qubership-core-maas-agent.git,main)
 	@$(call clone_or_update_repo,qubership-core-core-operator,https://github.com/Netcracker/qubership-core-core-operator.git,main)
 	@$(call clone_or_update_repo,qubership-core-config-server,https://github.com/Netcracker/qubership-core-config-server.git,main)
 	@echo ""
@@ -382,6 +384,8 @@ deploy-cloud-core-configuration:
 		cloud-core-app-chart ../cloud-core-configuration/helm-charts \
 		-f ./core-values.yaml \
 		--set CONSUL_ENABLED=$(CORE_CONFIG_CONSUL_ENABLED) \
+		--set MAAS_ENABLED=$(CORE_CONFIG_MAAS_ENABLED) \
+		--set MAAS_INTERNAL_ADDRESS=$(CORE_CONFIG_MAAS_INTERNAL_ADDRESS) \
 		--set NAMESPACE=$(CORE_NAMESPACE) \
 		--set CORE_BOOTSTRAP_IMAGE=$(CORE_BOOTSTRAP_IMAGE) \
 		$(HELM_DEBUG_FLAGS)
@@ -389,7 +393,7 @@ deploy-cloud-core-configuration:
 
 # ------------------ cloud core ---------------------------
 
-deploy-cloud-core-components: deploy-cloud-core-print-start deploy-facade-operator deploy-ingress-gateway deploy-control-plane deploy-paas-mediation deploy-dbaas-agent deploy-core-operator deploy-config-server deploy-site-management
+deploy-cloud-core-components: deploy-cloud-core-print-start deploy-facade-operator deploy-ingress-gateway deploy-control-plane deploy-paas-mediation deploy-dbaas-agent deploy-maas-agent deploy-core-operator deploy-config-server deploy-site-management
 	@echo "$(GREEN)=== Cloud Core components deployment completed$(NC)"
 	@echo ""
 
@@ -473,6 +477,20 @@ deploy-dbaas-agent:
 		$(HELM_DEBUG_FLAGS)
 	@echo ""
 
+deploy-maas-agent:
+	@echo "$(YELLOW)--- Setting up MaaS agent...$(NC)"
+	@$(call update_helm_dependencies,$(REPOS_DIR)/qubership-core-maas-agent/helm-templates/maas-agent,)
+	helm upgrade --install maas-agent $(REPOS_DIR)/qubership-core-maas-agent/helm-templates/maas-agent -n $(CORE_NAMESPACE) \
+		-f $(REPOS_DIR)/qubership-core-maas-agent/helm-templates/maas-agent/resource-profiles/dev.yaml \
+		-f ./core-values.yaml \
+		--set IMAGE_REPOSITORY=$(MAAS_AGENT_IMAGE_REPOSITORY) \
+		--set TAG=$(MAAS_AGENT_TAG) \
+		--set MAAS_ENABLED=$(CORE_CONFIG_MAAS_ENABLED) \
+		--set MAAS_INTERNAL_ADDRESS=$(CORE_CONFIG_MAAS_INTERNAL_ADDRESS) \
+		$(HELM_DEBUG_FLAGS)
+	@echo ""
+
+
 apply-core-operator-crds:
 	@if [ "$(INSTALL_CRDS)" = "true" ]; then \
 		echo "$(YELLOW)--- Applying Core Operator CRDs...$(NC)"; \
@@ -518,7 +536,7 @@ uninstall-core: uninstall-cloud-core-components uninstall-cloud-core-configurati
 	@echo "$(GREEN)=== Core uninstallation completed$(NC)"
 	@echo ""
 
-uninstall-cloud-core-components: uninstall-site-management uninstall-config-server uninstall-core-operator uninstall-dbaas-agent uninstall-paas-mediation uninstall-control-plane uninstall-ingress-gateway uninstall-facade-operator
+uninstall-cloud-core-components: uninstall-site-management uninstall-config-server uninstall-core-operator uninstall-dbaas-agent uninstall-maas-agent uninstall-paas-mediation uninstall-control-plane uninstall-ingress-gateway uninstall-facade-operator
 	@echo "$(GREEN)=== Cloud Core components uninstallation completed$(NC)"
 	@echo ""
 
@@ -566,6 +584,11 @@ uninstall-control-plane: uninstall-control-plane-db-credentials
 uninstall-dbaas-agent:
 	@echo "$(YELLOW)--- Uninstalling dbaas-agent...$(NC)"
 	helm uninstall dbaas-agent -n $(CORE_NAMESPACE) --ignore-not-found=true || true
+	@echo ""
+
+uninstall-maas-agent:
+	@echo "$(YELLOW)--- Uninstalling maas-agent...$(NC)"
+	helm uninstall maas-agent -n $(CORE_NAMESPACE) --ignore-not-found=true || true
 	@echo ""
 
 uninstall-core-operator:
