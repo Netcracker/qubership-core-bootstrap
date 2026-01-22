@@ -44,6 +44,8 @@ RABBIT_INSTANCES ?=
 # Core bootstrap configuration
 CORE_BOOTSTRAP_IMAGE ?= ghcr.io/netcracker/core-bootstrap:latest 
 CORE_CONFIG_CONSUL_ENABLED ?= false
+CORE_CONFIG_MAAS_ENABLED ?= true
+CORE_CONFIG_MAAS_INTERNAL_ADDRESS ?= http://maas-service.maas:8080
 
 # Components values
 FACADE_OPERATOR_TAG ?= latest
@@ -57,6 +59,9 @@ CONTROL_PLANE_TAG ?= latest
 PAAS_MEDIATION_TAG ?= latest
 
 DBAAS_AGENT_TAG ?= latest
+
+MAAS_AGENT_TAG ?= latest
+MAAS_AGENT_IMAGE_REPOSITORY ?= ghcr.io/netcracker/qubership-core-maas-agent
 
 CORE_OPERATOR_TAG ?= latest
 CORE_OPERATOR_IMAGE_REPOSITORY ?= ghcr.io/netcracker/qubership-core-core-operator

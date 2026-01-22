@@ -333,7 +333,7 @@ smoke-test:
 	PORT_FOUND=false;\
 	ATTEMPT=1;\
 	while [ $$ATTEMPT -le 10 ] && [ "$$PORT_FOUND" != "true" ]; do \
-		RANDOM_PORT=$$(shuf -i 63000-65900 -n 1); \
+		RANDOM_PORT=$$(awk 'BEGIN{srand(); print int(63000 + rand() * (65900-63000+1))}'); \
 		echo "$(CYAN)--- Attempt $$ATTEMPT: Trying port $$RANDOM_PORT$(NC)"; \
 		if ! netstat -tuln 2>/dev/null | grep -q ":$$RANDOM_PORT "; then \
 			echo "$(GREEN)--- Port $$RANDOM_PORT is available$(NC)"; \
@@ -352,7 +352,7 @@ smoke-test:
 	fi; \
 	sleep 10;\
 	echo "$(CYAN)--- Creating test database via REST API (10 attempts with 10s sleep)...$(NC)";\
-	BASIC_AUTH_HEADER=$$(echo -n "$$DBAAS_USERNAME:$$DBAAS_PASSWORD" | base64);\
+	BASIC_AUTH_HEADER=$$(printf "%s" "$$DBAAS_USERNAME:$$DBAAS_PASSWORD" | base64);\
 	DB_CREATION_SUCCESS=false;\
 	DB_ATTEMPT=1;\
 	while [ $$DB_ATTEMPT -le 10 ] && [ "$$DB_CREATION_SUCCESS" != "true" ]; do \
