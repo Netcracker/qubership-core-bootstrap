@@ -2,7 +2,21 @@
 apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway
 metadata:
-  name: istio-gateway
+  name: public-gateway
+spec:
+  gatewayClassName: istio
+  listeners:
+  - name: default
+    port: 80
+    protocol: HTTP
+    allowedRoutes:
+      namespaces:
+        from: All
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: private-gateway
 spec:
   gatewayClassName: istio
   listeners:
@@ -32,7 +46,7 @@ metadata:
   name: fallback-to-private-gateway
 spec:
   parentRefs:
-  - name: istio-gateway
+  - name: private-gateway
   rules:
   - matches:
     - path:
@@ -40,4 +54,20 @@ spec:
         value: /
     backendRefs:
     - name: private-gateway-service
+      port: 8080
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: fallback-to-public-gateway
+spec:
+  parentRefs:
+  - name: public-gateway
+  rules:
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /
+    backendRefs:
+    - name: public-gateway-service
       port: 8080
