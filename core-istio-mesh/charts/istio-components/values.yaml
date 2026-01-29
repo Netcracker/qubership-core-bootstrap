@@ -1,0 +1,4 @@
+ISTIO_PRIVATE_GATEWAY_NAME: private-gateway
+ISTIO_PUBLIC_GATEWAY_NAME: public-gateway
+PUBLIC_FB_SERVICE_NAME: public-fallback-service
+PRIVATE_FB_SERVICE_NAME: private-fallback-service
