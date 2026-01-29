@@ -392,6 +392,9 @@ deploy-istio:
 	@echo ""
 
 deploy-istio-components-to-core:
+	@echo "$(YELLOW)--- Applying Gateway API...$(NC)"
+	kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.4.0/standard-install.yaml
+	@echo ""
 	@echo "$(YELLOW)--- Deploying Helm charts...$(NC)"
 	helm upgrade --install istio-components ./istio/charts/istio-components -n $(CORE_NAMESPACE) \
 		-f ./core-values.yaml \
@@ -400,9 +403,6 @@ deploy-istio-components-to-core:
 	@echo "$(YELLOW)--- Switching environment to Istio mesh...$(NC)"
 	kubectl label namespace $(CORE_NAMESPACE) istio.io/dataplane-mode=ambient
 	kubectl label namespace $(CORE_NAMESPACE) istio.io/use-waypoint=waypoint
-	@echo ""
-	@echo "$(YELLOW)--- Step 3: Applying Gateway API...$(NC)"
-	kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.4.0/standard-install.yaml
 	@echo ""
 	@echo "$(GREEN)=== Istio deployment completed$(NC)"
 	@echo ""
