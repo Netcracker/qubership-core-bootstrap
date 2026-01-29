@@ -8,6 +8,7 @@ This repository contains a comprehensive installation script for deploying Cloud
 - **Metrics Server** - [Optional] Kubernetes metrics collection and aggregation
 - **Qubership Monitoring Operator** - [Optional] Automates the deployment and management of complete monitoring infrastructure on Kubernetes 
 - **Consul**
+- **Istio** - [Optional] Service mesh for advanced traffic management and security
 - **DBaaS** - Database-as-a-Service with PostgreSQL and Patroni
 
 ### Core Cloud
@@ -173,6 +174,9 @@ The script uses a `.mk` configuration file to define all installation parameters
 | `INSTALL_METRICS_SERVER` | `true`/`false` | Install Kubernetes metrics server |
 | `INSTALL_MONITORING` | `true`/`false` | Install monitoring operator |
 | `INSTALL_CONSUL` | `true`/`false` | Install Consul |
+| `INSTALL_ISTIO` | `true`/`false` | Install Istio service mesh |
+| `ISTIO_NAMESPACE` | `istio-system` | Namespace for Istio deployment |
+| `ISTIO_INFRA_TAG` | `latest` | Docker image tag for Istio infrastructure |
 | `INSTALL_DBAAS` | `true`/`false` | Install DBaaS components |
 | `DBAAS_CONFIG_FILE` | `local.mk` | DBaaS configuration file path (relative path will be resolved upon ./dbaas folder, where sub-Makefile is placed)|
 | `INSTALL_MAAS` | `true`/`false` | Install MAAS components |
@@ -232,6 +236,10 @@ The installation script performs the following stages:
   - Installs Consul with custom configuration
   - Waits for Consul pods to be ready
   - Validates Consul connectivity
+- **Istio** (if `INSTALL_ISTIO=true`)
+  - Clones qubership-istio-distr repository
+  - Updates Helm dependencies
+  - Installs Istio deployer
 - **DBaaS** (if `INSTALL_DBAAS=true`)
   - Calls DBaaS installation sub-Makefile
   - Runs smoke test if installation is skipped
@@ -263,7 +271,11 @@ The installation script performs the following stages:
 - **Core Operator**
   - Applies CRDs (if `INSTALL_CRDS=true`)
   - Updates Helm dependencies
-  - Installs Core Operator
+  - Istio Components to Core** (optional, requires Istio to be deployed first)
+  - Deploys Istio components to core namespace
+  - Applies Istio mesh labels to core namespace for ambient mode
+  - Applies Gateway API resources
+- **Installs Core Operator
 - **Config Server**
   - Updates Helm dependencies
   - Installs Config Server
@@ -291,8 +303,10 @@ The uninstallation script performs the following stages in reverse order:
 - Uninstalls Ingress Gateway
 - Uninstalls Facade Operator
 - Uninstalls cloud-core-configuration
+- Uninstalls Istio components from core namespace
 
 ### Stage 2: Uninstall Dependencies
+- Uninstalls Istio deployer (if `INSTALL_ISTIO=true`)
 - Uninstalls MAAS components (if `INSTALL_MAAS=true`)
 - Uninstalls DBaaS components
 - Uninstalls Consul (if `INSTALL_CONSUL=true`)

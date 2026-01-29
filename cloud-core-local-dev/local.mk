@@ -8,6 +8,7 @@ INSTALL_CRDS ?= true
 INSTALL_METRICS_SERVER ?= true
 INSTALL_MONITORING ?= false
 INSTALL_CONSUL ?= true
+INSTALL_ISTIO ?= false
 INSTALL_DBAAS ?= true
 # config file for dbaas installation - relative path will be resolved upon ./dbaas folder
 DBAAS_CONFIG_FILE ?= local.mk
@@ -26,6 +27,7 @@ DBAAS_NAMESPACE ?= dbaas
 MAAS_NAMESPACE ?= maas
 RABBIT_NAMESPACE ?= rabbit
 KAFKA_NAMESPACE ?= kafka
+ISTIO_NAMESPACE ?= istio-system
 
 # General values
 DEPLOYMENT_SESSION_ID ?= cloud-core-local-dev
@@ -71,3 +73,6 @@ CONFIG_SERVER_IMAGE_REPOSITORY ?= ghcr.io/netcracker/qubership-core-config-serve
 CONFIG_SERVER_CONSUL_ENABLED ?= false
 
 SITE_MANAGEMENT_TAG ?= latest
+
+ISTIO_DEPLOYER_IMAGE_REPOSITORY ?= ghcr.io/netcracker/qubership-istio-deployer
+ISTIO_DEPLOYER_TAG ?= 1.28-latest

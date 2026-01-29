@@ -9,7 +9,7 @@
 .PHONY: deploy deploy-dependencies deploy-core \
 	clone-repos template-values-files \
 	deploy-consul deploy-consul-old deploy-consul-print-start install-consul wait-for-consul check-consul-connectivity \
-	deploy-monitoring deploy-metrics-server \
+	deploy-monitoring deploy-metrics-server deploy-istio \
 	deploy-dbaas \
 	deploy-maas \
 	prepare-core-bootstrap prepare-core-bootstrap-print-start deploy-cloud-core-configuration \
@@ -22,7 +22,8 @@
 	deploy-dbaas-agent \
 	deploy-maas-agent \
 	apply-core-operator-crds deploy-core-operator \
-	deploy-config-server
+	deploy-config-server \
+	deploy-istio-components-to-core
 
 # Uninstallation targets
 .PHONY: uninstall uninstall-core uninstall-dependencies \
@@ -34,6 +35,7 @@
 	uninstall-facade-operator uninstall-ingress-gateway uninstall-site-management \
 	uninstall-paas-mediation uninstall-control-plane uninstall-dbaas-agent uninstall-maas-agent \
 	uninstall-core-operator uninstall-config-server \
+	uninstall-istio uninstall-istio-components-from-core switch-back-from-istio \
 	cleanup-crds cleanup-namespaces
 
 # Validation and utility targets
@@ -95,6 +97,8 @@ help:
 	@echo "  deploy-consul           # Deploy Consul (if INSTALL_CONSUL=true)"
 	@echo "  deploy-monitoring       # Deploy monitoring operator (if INSTALL_MONITORING=true)"
 	@echo "  deploy-metrics-server   # Deploy metrics server (if INSTALL_METRICS_SERVER=true)"
+	@echo "  deploy-istio            # Deploy Istio from qubership-istio-distr (if INSTALL_ISTIO=true)"
+	@echo "  deploy-istio-components-to-core # Deploy Istio components to core namespace"
 	@echo "  deploy-dbaas            # Deploy DBaaS (if INSTALL_DBAAS=true)"
 	@echo "  deploy-maas             # Deploy MaaS (if INSTALL_MAAS=true)"
 	@echo ""
@@ -114,6 +118,9 @@ help:
 	@echo "  uninstall-consul        # Uninstall Consul (if INSTALL_CONSUL=true)"
 	@echo "  uninstall-monitoring    # Uninstall monitoring (if INSTALL_MONITORING=true)"
 	@echo "  uninstall-metrics-server # Uninstall metrics server (if INSTALL_METRICS_SERVER=true)"
+	@echo "  uninstall-istio         # Uninstall Istio deployer (if INSTALL_ISTIO=true)"
+	@echo "  uninstall-istio-components-from-core # Uninstall Istio components from core namespace"
+	@echo "  switch-back-from-istio  # Remove Istio mesh labels from core namespace"
 	@echo "  uninstall-dbaas         # Uninstall DBaaS (if INSTALL_DBAAS=true)"
 	@echo "  uninstall-maas          # Uninstall MaaS (if INSTALL_MAAS=true)"
 	@echo "  cleanup-crds            # Remove all CRDs (if INSTALL_CRDS=true)"
@@ -217,6 +224,8 @@ clone-repos:
 	@$(call clone_or_update_repo,qubership-core-maas-agent,https://github.com/Netcracker/qubership-core-maas-agent.git,main)
 	@$(call clone_or_update_repo,qubership-core-core-operator,https://github.com/Netcracker/qubership-core-core-operator.git,main)
 	@$(call clone_or_update_repo,qubership-core-config-server,https://github.com/Netcracker/qubership-core-config-server.git,main)
+	@$(call clone_or_update_repo,qubership-istio-distr,https://github.com/Netcracker/qubership-istio-distr.git,main)
+	@echo "$(GREEN)=== Required repositories are cloned$(NC)"
 	@echo ""
 
 #---------------------------- values templating ---------------------------------------------
@@ -367,6 +376,36 @@ deploy-metrics-server:
 		echo "$(YELLOW)--- Skipping Metrics Server deployment (INSTALL_METRICS_SERVER=false)...$(NC)"; \
 		echo ""; \
 	fi
+
+# ------------------- istio -------------------------------
+
+deploy-istio:
+	@echo "$(GREEN)=== Starting Istio deployment...$(NC)"
+	@echo ""
+	@echo "$(YELLOW)--- Deploying Istio from qubership-istio-distr...$(NC)"
+	@$(call update_helm_dependencies,$(REPOS_DIR)/qubership-istio-distr/helm-templates/istio-deployer,)
+	helm upgrade --install istio-deployer $(REPOS_DIR)/qubership-istio-distr/helm-templates/istio-deployer -n $(ISTIO_NAMESPACE) \
+#		-f $(REPOS_DIR)/qubership-istio-distr/helm-templates/istio-deployer/resource-profiles/dev.yaml \
+#		-f ./core-values.yaml \
+		--set TAG=$(ISTIO_DEPLOYER_TAG) \
+		$(HELM_DEBUG_FLAGS)
+	@echo ""
+
+deploy-istio-components-to-core:
+	@echo "$(YELLOW)--- Deploying Helm charts...$(NC)"
+	helm upgrade --install istio-components ./istio/charts/istio-components -n $(CORE_NAMESPACE) \
+		-f ./core-values.yaml \
+		$(HELM_DEBUG_FLAGS)
+	@echo ""
+	@echo "$(YELLOW)--- Switching environment to Istio mesh...$(NC)"
+	kubectl label namespace $(CORE_NAMESPACE) istio.io/dataplane-mode=ambient
+	kubectl label namespace $(CORE_NAMESPACE) istio.io/use-waypoint=waypoint
+	@echo ""
+	@echo "$(YELLOW)--- Step 3: Applying Gateway API...$(NC)"
+	kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.4.0/standard-install.yaml
+	@echo ""
+	@echo "$(GREEN)=== Istio deployment completed$(NC)"
+	@echo ""
 
 # --------------------- bootstrap --------------------
 
@@ -749,6 +788,34 @@ uninstall-maas:
 		echo ""; \
 	fi
 	@echo ""
+
+# =============================================================================
+# ISTIO 
+# =============================================================================
+
+uninstall-istio-components-from-core:
+	@echo "$(YELLOW)--- Uninstalling istio-components from $(CORE_NAMESPACE)...$(NC)"
+	helm uninstall istio-components -n $(CORE_NAMESPACE) --ignore-not-found=true || true
+	@echo ""
+
+uninstall-istio:
+	@if [ "$(INSTALL_ISTIO)" = "true" ]; then \
+		echo "$(YELLOW)--- Uninstalling istio-deployer...$(NC)"; \
+		kubectl run istio-uninstall-job --image=$(ISTIO_DEPLOYER_IMAGE_REPOSITORY):$(ISTIO_DEPLOYER_TAG) --rm -i --restart=Never -n $(ISTIO_NAMESPACE) -- istioctl uninstall -y --purge || true; \
+		helm uninstall istio-deployer -n $(ISTIO_NAMESPACE) --ignore-not-found=true || true; \
+		echo ""; \
+	else \
+		echo "$(YELLOW)--- Skipping Istio uninstallation (INSTALL_ISTIO=false)...$(NC)"; \
+		echo ""; \
+	fi
+
+switch-back-from-istio:
+	@echo "$(YELLOW)--- Removing Istio mesh labels from $(CORE_NAMESPACE)...$(NC)"
+	kubectl label namespace $(CORE_NAMESPACE) istio.io/dataplane-mode- --ignore-not-found=true || true
+	kubectl label namespace $(CORE_NAMESPACE) istio.io/use-waypoint- --ignore-not-found=true || true
+	@echo "$(GREEN)=== Switched back from Istio mesh$(NC)"
+	@echo ""
+
 
 # =============================================================================
 # HELPER FUNCTIONS

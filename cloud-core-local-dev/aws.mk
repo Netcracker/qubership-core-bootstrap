@@ -8,6 +8,7 @@ INSTALL_CRDS ?= false
 INSTALL_METRICS_SERVER ?= false
 INSTALL_MONITORING ?= false
 INSTALL_CONSUL ?= false
+INSTALL_ISTIO ?= false
 INSTALL_DBAAS ?= true
 # config file for dbaas installation - relative path will be resolved upon ./dbaas folder
 DBAAS_CONFIG_FILE ?= aws.mk
@@ -26,6 +27,7 @@ DBAAS_NAMESPACE ?= core-1-dbaas
 MAAS_NAMESPACE ?= core-1-maas
 RABBIT_NAMESPACE ?= core-1-maas
 KAFKA_NAMESPACE ?= core-1-maas
+ISTIO_NAMESPACE ?= istio-system
 
 # General values
 DEPLOYMENT_SESSION_ID ?= cloud-core-aws-dev
@@ -71,3 +73,6 @@ CONFIG_SERVER_IMAGE_REPOSITORY ?= ghcr.io/netcracker/qubership-core-config-serve
 CONFIG_SERVER_CONSUL_ENABLED ?= false
 
 SITE_MANAGEMENT_TAG ?= latest
+
+ISTIO_DEPLOYER_IMAGE_REPOSITORY ?= ghcr.io/netcracker/qubership-istio-deployer
+ISTIO_DEPLOYER_TAG ?= 1.28-latest
