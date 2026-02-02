@@ -10,6 +10,7 @@
 	clone-repos template-values-files \
 	deploy-consul deploy-consul-old deploy-consul-print-start install-consul wait-for-consul check-consul-connectivity \
 	deploy-monitoring deploy-metrics-server \
+	deploy-istio \
 	deploy-dbaas \
 	deploy-maas \
 	prepare-core-bootstrap prepare-core-bootstrap-print-start deploy-cloud-core-configuration \
@@ -28,6 +29,7 @@
 .PHONY: uninstall uninstall-core uninstall-dependencies \
 	uninstall-cloud-core-components uninstall-cloud-core-configuration \
 	uninstall-consul uninstall-monitoring uninstall-metrics-server \
+	uninstall-istio \
 	uninstall-dbaas \
 	uninstall-maas \
 	uninstall-control-plane-db-credentials \
@@ -91,10 +93,11 @@ help:
 	@echo ""
 	@echo "$(CYAN)INSTALLATION TARGETS:$(NC)"
 	@echo "  deploy-core             # Deploy Cloud Core bootstrap configuration and components"
-	@echo "  deploy-dependencies     # Deploy metrics-server, monitoring, consul, dbaas"
+	@echo "  deploy-dependencies     # Deploy metrics-server, monitoring, istio, consul, dbaas"
 	@echo "  deploy-consul           # Deploy Consul (if INSTALL_CONSUL=true)"
 	@echo "  deploy-monitoring       # Deploy monitoring operator (if INSTALL_MONITORING=true)"
 	@echo "  deploy-metrics-server   # Deploy metrics server (if INSTALL_METRICS_SERVER=true)"
+	@echo "  deploy-istio            # Deploy Istio via qubership-istio-distr (if INSTALL_ISTIO=true)"
 	@echo "  deploy-dbaas            # Deploy DBaaS (if INSTALL_DBAAS=true)"
 	@echo "  deploy-maas             # Deploy MaaS (if INSTALL_MAAS=true)"
 	@echo ""
@@ -114,6 +117,7 @@ help:
 	@echo "  uninstall-consul        # Uninstall Consul (if INSTALL_CONSUL=true)"
 	@echo "  uninstall-monitoring    # Uninstall monitoring (if INSTALL_MONITORING=true)"
 	@echo "  uninstall-metrics-server # Uninstall metrics server (if INSTALL_METRICS_SERVER=true)"
+	@echo "  uninstall-istio         # Uninstall Istio (if INSTALL_ISTIO=true)"
 	@echo "  uninstall-dbaas         # Uninstall DBaaS (if INSTALL_DBAAS=true)"
 	@echo "  uninstall-maas          # Uninstall MaaS (if INSTALL_MAAS=true)"
 	@echo "  cleanup-crds            # Remove all CRDs (if INSTALL_CRDS=true)"
@@ -137,7 +141,7 @@ help:
 
 install: validate clone-repos template-values-files deploy mesh-smoke-test
 
-deploy: deploy-dependencies deploy-core
+deploy: deploy-dependencies deploy-core deploy-istio
 
 deploy-dependencies: deploy-metrics-server deploy-monitoring deploy-consul deploy-dbaas deploy-maas
 	@echo "$(GREEN)=== Cloud Core dependencies deployment completed$(NC)"
@@ -528,7 +532,7 @@ deploy-config-server:
 # UNINSTALL
 # =============================================================================
 
-uninstall: uninstall-maas uninstall-core uninstall-dependencies cleanup-mesh-test cleanup-crds cleanup-namespaces
+uninstall: uninstall-istio uninstall-maas uninstall-core uninstall-dependencies cleanup-mesh-test cleanup-crds cleanup-namespaces
 	@echo "$(GREEN)=== Complete cleanup finished$(NC)"
 	@echo ""
 
@@ -751,6 +755,32 @@ uninstall-maas:
 	@echo ""
 
 # =============================================================================
+# ISTIO
+# =============================================================================
+deploy-istio:
+	@echo "$(GREEN)=== Starting Istio installation...$(NC)"
+	@echo ""
+	@if [ "$(INSTALL_ISTIO)" = "true" ]; then \
+		$(call run_istio_operation,install); \
+	else \
+		echo "$(CYAN)--- Skipping Istio installation (INSTALL_ISTIO=false)...$(NC)"; \
+		echo ""; \
+	fi
+	@echo ""
+
+uninstall-istio:
+	@echo "$(GREEN)=== Starting Istio uninstallation...$(NC)"
+	@echo ""
+	@if [ "$(INSTALL_ISTIO)" = "true" ]; then \
+		$(call run_istio_operation,uninstall); \
+	else \
+		echo "$(CYAN)--- Skipping Istio uninstallation (INSTALL_ISTIO=false)...$(NC)"; \
+		echo ""; \
+	fi
+	@echo ""
+
+
+# =============================================================================
 # HELPER FUNCTIONS
 # =============================================================================
 
@@ -859,3 +889,18 @@ define run_maas_operation
 	fi
 endef
 
+# Helper function to run Istio operations
+define run_istio_operation
+	set -e; \
+	echo "$(CYAN)--- Using istio config file: istio/$(ISTIO_CONFIG_FILE)$(NC)"; \
+	echo "$(CYAN)--- Using Istio namespace: $(ISTIO_NAMESPACE)$(NC)"; \
+	echo "$(CYAN)--- Enable Istio mesh for namespaces: $(CORE_NAMESPACE)$(NC)"; \
+	SKIP_CRDS=$(if $(filter true,$(INSTALL_CRDS)),false,true); \
+	echo "$(CYAN)--- Using skip crds: $$SKIP_CRDS$(NC)"; \
+	if (cd istio && '$(MAKE)' $(1) CONFIG_FILE=$(ISTIO_CONFIG_FILE) ISTIO_NAMESPACE=$(ISTIO_NAMESPACE) SKIP_CRDS=$$SKIP_CRDS CREATE_NAMESPACE=$(CREATE_NAMESPACE) MESH_NAMESPACES=$(CORE_NAMESPACE)); then \
+		echo "$(GREEN)=== Istio $(1) completed successfully$(NC)"; \
+	else \
+		echo "$(RED)Error: Istio $(1) failed$(NC)"; \
+		exit 1; \
+	fi
+endef

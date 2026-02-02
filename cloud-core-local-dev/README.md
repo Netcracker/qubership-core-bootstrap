@@ -9,6 +9,7 @@ This repository contains a comprehensive installation script for deploying Cloud
 - **Qubership Monitoring Operator** - [Optional] Automates the deployment and management of complete monitoring infrastructure on Kubernetes 
 - **Consul**
 - **DBaaS** - Database-as-a-Service with PostgreSQL and Patroni
+- **Istio** - [Optional] Service mesh for advanced traffic management and security
 
 ### Core Cloud
 - **Cloud Core Configuration** - Bootstrap configuration and initialization
@@ -116,6 +117,7 @@ The script manages several namespaces:
 - `MAAS_NAMESPACE` - Namespace for MAAS components
 - `RABBIT_NAMESPACE` - Namespace for RabbitMQ components
 - `KAFKA_NAMESPACE` - Namespace for Kafka components
+| `ISTIO_NAMESPACE` - Namespace for Istio deployment
 
 Set `CREATE_NAMESPACE=true` to automatically create namespaces during installation, or `CREATE_NAMESPACE=false` if you have pre-created namespaces.
 
@@ -177,6 +179,8 @@ The script uses a `.mk` configuration file to define all installation parameters
 | `DBAAS_CONFIG_FILE` | `local.mk` | DBaaS configuration file path (relative path will be resolved upon ./dbaas folder, where sub-Makefile is placed)|
 | `INSTALL_MAAS` | `true`/`false` | Install MAAS components |
 | `MAAS_CONFIG_FILE` | `local.mk` | MAAS configuration file path (relative path will be resolved upon ./maas folder, where sub-Makefile is placed)|
+| `INSTALL_ISTIO` | `true`/`false` | Install Istio service mesh |
+| `ISTIO_CONFIG_FILE` | `local.mk` | Istio configuration file path (relative path will be resolved upon ./istio folder, where sub-Makefile is placed)|
 
 ### Values Files
 
@@ -195,6 +199,10 @@ Specify list of instance names in parameters `KAFKA_INSTANCES`, `RABBIT_INSTANCE
 e.g. 
 `KAFKA_INSTANCES ?= kafka-1 kafka-2` means deploy 2 instances of Kafka
 `RABBIT_INSTANCES ?=` means do not deploy RabbitMQ at all
+
+### Istio configuration
+
+Istio ambient mesh will be enabled for `CORE_NAMESPACE`
 
 ## Installation Process
 
@@ -277,11 +285,17 @@ The installation script performs the following stages:
 - Runs connectivity test through public gateway
 - Cleans up test resources
 
+### Stage 8: Istio installation (if `INSTALL_ISTIO=true`)
+- Calls Istio installation sub-Makefile
+
 ## Uninstallation Process
 
 The uninstallation script performs the following stages in reverse order:
 
-### Stage 1: Uninstall Core Components
+### Stage 1: Uninstall Istio
+- Uninstalls Istio - calls Istio uninstallation sub-Makefile (if `INSTALL_ISTIO=true`)
+
+### Stage 2: Uninstall Core Components
 - Uninstalls Config Server
 - Uninstalls Core Operator
 - Uninstalls DBaaS Agent
@@ -292,14 +306,14 @@ The uninstallation script performs the following stages in reverse order:
 - Uninstalls Facade Operator
 - Uninstalls cloud-core-configuration
 
-### Stage 2: Uninstall Dependencies
+### Stage 3: Uninstall Dependencies
 - Uninstalls MAAS components (if `INSTALL_MAAS=true`)
 - Uninstalls DBaaS components
 - Uninstalls Consul (if `INSTALL_CONSUL=true`)
 - Uninstalls monitoring (if `INSTALL_MONITORING=true`)
 - Uninstalls metrics server (if `INSTALL_METRICS_SERVER=true`)
 
-### Stage 3: Cleanup
+### Stage 4: Cleanup
 - Cleans up mesh test resources
 - Removes CRDs (if `INSTALL_CRDS=true`)
 - Removes namespaces (if `CREATE_NAMESPACE=true`)
@@ -345,11 +359,11 @@ cloud-core-local-dev/
 ├── aws.mk                          # AWS deployment configuration
 ├── core-values.envsubst            # Core values template
 ├── core-bootstrap-helm-repo.yaml   # Helm repository config
-├── test/                           # Test resources
-├──── mesh-test/                    # Mesh smoke test resources
-├──── consul-conectivity-test/      # Consul conectivity test resources
 ├── dbaas/                          # DBaaS installation subdirectory
+├── istio/                           # Istio installation subdirectory
 ├── maas/                           # MAAS installation subdirectory
-├── repos/                          # [Created by script] Cloned repositories
-└── minikube/                       # Script for minikube cluster preparation
+├── minikube/                       # Script for minikube cluster preparation
+├── test/                           # Test resources
+├──── consul-conectivity-test/      # Consul conectivity test resources
+└──── mesh-test/                    # Mesh smoke test resources
 ```

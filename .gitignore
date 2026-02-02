@@ -3,4 +3,5 @@
 /cloud-core-local-dev/.tmp/**
 /cloud-core-local-dev/maas/.tmp/**
 /cloud-core-local-dev/dbaas/.tmp/**
+/cloud-core-local-dev/istio/.tmp/**
 /cloud-core-local-dev/core-values.yaml

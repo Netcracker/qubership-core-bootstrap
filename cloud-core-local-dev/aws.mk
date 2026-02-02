@@ -14,6 +14,9 @@ DBAAS_CONFIG_FILE ?= aws.mk
 INSTALL_MAAS ?= true
 # config file for maas installation - relative path will be resolved upon ./maas folder
 MAAS_CONFIG_FILE ?= aws.mk
+INSTALL_ISTIO ?= false
+# config file for istio installation - relative path will be resolved upon ./istio folder
+ISTIO_CONFIG_FILE ?= aws.mk
 
 # Namespace configuration
 CORE_NAMESPACE ?= core-1-core
@@ -26,6 +29,8 @@ DBAAS_NAMESPACE ?= core-1-dbaas
 MAAS_NAMESPACE ?= core-1-maas
 RABBIT_NAMESPACE ?= core-1-maas
 KAFKA_NAMESPACE ?= core-1-maas
+# istio namespace is propagated to istio-install
+ISTIO_NAMESPACE ?= istio-system
 
 # General values
 DEPLOYMENT_SESSION_ID ?= cloud-core-aws-dev
