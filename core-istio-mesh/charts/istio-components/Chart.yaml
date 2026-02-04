@@ -2,7 +2,7 @@ apiVersion: v2
 name: istio-components
 version: 0.1.0
 description: A Helm chart for deploying gateway(s) and related components
-type: application 
+type: application
 dependencies:
   - name: coretpl
     version: "0.2.3"
