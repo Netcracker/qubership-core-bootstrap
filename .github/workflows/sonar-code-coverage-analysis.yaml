@@ -31,7 +31,7 @@ jobs:
     steps:
       - name: Check for open PR
         id: pr
-        uses: Netcracker/qubership-core-infra/.github/actions/check-open-pr@v1.3.1
+        uses: Netcracker/qubership-core-infra/.github/actions/check-open-pr@v1.3.3
 
       - name: Explain routing decision
         if: ${{ github.event_name == 'push' && steps.pr.outputs.hasOpenPr == 'true' }}
