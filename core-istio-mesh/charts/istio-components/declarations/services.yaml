@@ -1,0 +1,62 @@
+---
+kind: Service
+apiVersion: v1
+metadata:
+    name: '{{ .Values.PUBLIC_GW_SERVICE_NAME }}'
+    annotations:
+      gateway.target: '{{ .Values.ISTIO_PUBLIC_GATEWAY_NAME }}'
+      gateway.route: '{{ .Values.PUBLIC_GW_ROUTE_NAME }}'
+    labels:
+        name: '{{ .Values.PUBLIC_GW_SERVICE_NAME }}'
+        app.kubernetes.io/name: '{{ .Values.PUBLIC_GW_SERVICE_NAME }}'
+        app.kubernetes.io/part-of: 'Cloud-Core'
+        app.kubernetes.io/managed-by: Helm
+        deployment.qubership.org/sessionId: '{{ .Values.DEPLOYMENT_SESSION_ID }}'
+spec:
+  ports:
+    - name: web
+      protocol: TCP
+      port: 8080
+      targetPort: 8080
+  selector:
+    name: '{{ .Values.ISTIO_PUBLIC_GATEWAY_NAME }}'
+    clusterIP: None
+    clusterIPs:
+      - None
+    type: ClusterIP
+    sessionAffinity: None
+    ipFamilies:
+      - IPv4
+    ipFamilyPolicy: SingleStack
+    internalTrafficPolicy: Cluster 
+---
+kind: Service
+apiVersion: v1
+metadata:
+    name: '{{ .Values.PRIVATE_GW_SERVICE_NAME }}'
+    annotations:
+      gateway.target: '{{ .Values.ISTIO_PRIVATE_GATEWAY_NAME }}'
+      gateway.route: '{{ .Values.PRIVATE_GW_ROUTE_NAME }}'
+    labels:
+        name: '{{ .Values.PRIVATE_GW_SERVICE_NAME }}'
+        app.kubernetes.io/name: '{{ .Values.PRIVATE_GW_SERVICE_NAME }}'
+        app.kubernetes.io/part-of: 'Cloud-Core'
+        app.kubernetes.io/managed-by: Helm
+        deployment.qubership.org/sessionId: '{{ .Values.DEPLOYMENT_SESSION_ID }}'
+spec:
+  ports:
+    - name: web
+      protocol: TCP
+      port: 8080
+      targetPort: 8080
+  selector:
+    name: '{{ .Values.ISTIO_PRIVATE_GATEWAY_NAME }}'
+    clusterIP: None
+    clusterIPs:
+      - None
+    type: ClusterIP
+    sessionAffinity: None
+    ipFamilies:
+      - IPv4
+    ipFamilyPolicy: SingleStack
+    internalTrafficPolicy: Cluster 

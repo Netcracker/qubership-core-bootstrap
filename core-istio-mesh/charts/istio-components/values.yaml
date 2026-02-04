@@ -2,3 +2,9 @@ ISTIO_PRIVATE_GATEWAY_NAME: private-gateway
 ISTIO_PUBLIC_GATEWAY_NAME: public-gateway
 PUBLIC_FB_SERVICE_NAME: public-fallback-service
 PRIVATE_FB_SERVICE_NAME: private-fallback-service
+PRIVATE_GW_SERVICE_NAME: private-gateway-service
+PUBLIC_GW_SERVICE_NAME: public-gateway-service
+PRIVATE_GW_ROUTE_NAME: fallback-to-private-gateway
+PUBLIC_GW_ROUTE_NAME: fallback-to-public-gateway
+CHECK_ISTIO_INTERGATION: "true"
+CHECK_DECLARATION_PLURALS: "services,gateways"

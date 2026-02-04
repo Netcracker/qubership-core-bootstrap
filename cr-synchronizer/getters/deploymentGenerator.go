@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -165,6 +166,12 @@ func (ng *DeploymentGenerator) createKnownGeneratorManager(dcl map[string][]unst
 	}
 	generatorManager.register(NewMaaSesRunnerGenerator(ng.ctx, dcl[MaaSKind], ng.client, ng.recorder, ng.clientset, ng.scheme, ng.runtimeReceiver, ng.timeoutSeconds))
 	generatorManager.register(NewDBaaSesRunnerGenerator(ng.ctx, dcl[DBaaSKind], ng.client, ng.recorder, ng.clientset, ng.scheme, ng.runtimeReceiver, ng.timeoutSeconds))
+
+	if val, ok := os.LookupEnv("ISTIO_INTERGATION"); ok && strings.EqualFold(val, "true") {
+		generatorManager.register(NewGatewayServiceGenerator(ng.ctx, dcl["Service"], ng.client, ng.timeoutSeconds))
+	} else {
+		log.Info().Str("type", "init").Msg("ISTIO_INTERGATION not enabled; skipping GatewayServiceGenerator registration")
+	}
 	return generatorManager
 }
 
