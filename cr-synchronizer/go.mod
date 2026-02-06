@@ -7,6 +7,7 @@ toolchain go1.25.7
 require (
 	github.com/stretchr/testify v1.11.1
 	k8s.io/client-go v0.29.1
+	k8s.io/klog v1.0.0
 )
 
 require (
@@ -52,7 +53,6 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	k8s.io/api v0.29.1
 	k8s.io/apimachinery v0.29.1
-	k8s.io/klog v1.0.0
 	k8s.io/klog/v2 v2.130.1
 	k8s.io/kube-openapi v0.0.0-20231010175941-2dd684a91f00 // indirect
 	k8s.io/utils v0.0.0-20260108192941-914a6e750570
