@@ -15,8 +15,8 @@ Example `values.yaml` (minimum for startup):
 ```yaml
 CR_SYNCHRONIZER_IMAGE: "your-registry/cr-synchronizer:latest"
 
-# Enable Istio-check step inside synchronizer job
-CHECK_ISTIO_INTERGATION: true
+# Enable Istio-mode inside synchronizer job
+SERVICE_MESH_TYPE: ISTIO
 
 # Session id / service name used by the template
 DEPLOYMENT_SESSION_ID: "postdeploy-{{ .Release.Revision }}"
@@ -60,8 +60,8 @@ where gateway.target and gateway.route are preconditions to process services dec
 
 ```bash
 helm upgrade --install my-app ./my-chart \
-  --set CR_SYNCHRONIZER_IMAGE=cr-synchronizer:latest \
-  --set CHECK_ISTIO_INTERGATION=true \
+  --set CR_SYNCHRONIZER_IMAGE="cr-synchronizer:latest" \
+  --set SERVICE_MESH_TYPE="ISTIO" \
   --set DEPLOYMENT_SESSION_ID="session-123" \
   --set SERVICE_NAME="my-service" \
   --namespace my-controller-namespace
