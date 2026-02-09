@@ -6,5 +6,5 @@ PRIVATE_GW_SERVICE_NAME: private-gateway-service
 PUBLIC_GW_SERVICE_NAME: public-gateway-service
 PRIVATE_GW_ROUTE_NAME: fallback-to-private-gateway
 PUBLIC_GW_ROUTE_NAME: fallback-to-public-gateway
-CHECK_ISTIO_INTERGATION: "true"
+SERVICE_MESH_TYPE: "ISTIO"
 CHECK_DECLARATION_PLURALS: "services,gateways"

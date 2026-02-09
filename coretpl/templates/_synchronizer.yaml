@@ -71,8 +71,8 @@ spec:
             value: {{ .Values.DEPLOYMENT_SESSION_ID }}
           - name: DECLARATIONS_PLURALS
             value: "{{ .Values.CHECK_DECLARATION_PLURALS }}"
-          - name: ISTIO_INTERGATION
-            value: "{{ .Values.CHECK_ISTIO_INTERGATION | default false }}"
+          - name: SERVICE_MESH_TYPE
+            value: "{{ .Values.SERVICE_MESH_TYPE | default CORE }}"
       restartPolicy: Never
       serviceAccountName: finalyzer-user
 {{ $filesExist := (.Files.Glob "declarations/*") }}

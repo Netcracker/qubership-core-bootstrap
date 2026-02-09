@@ -16,8 +16,8 @@ func TestServiceAppliedWhenGatewayAndRouteExist(t *testing.T) {
 	ns := "test-ns"
 	namespace = ns
 	ctx := context.Background()
-	os.Setenv("ISTIO_INTERGATION", "true")
-	defer os.Unsetenv("ISTIO_INTERGATION")
+	os.Setenv("SERVICE_MESH_TYPE", "ISTIO")
+	defer os.Unsetenv("SERVICE_MESH_TYPE")
 
 	client := dynamicfake.NewSimpleDynamicClientWithCustomListKinds(scheme.Scheme, map[schema.GroupVersionResource]string{
 		{Group: gatewayGVRGroup, Version: gatewayGVRVersion, Resource: gatewayGVRResource}: "GatewayList",
@@ -80,8 +80,8 @@ func TestServiceNotAppliedWhenEnvDisabled(t *testing.T) {
 	ns := "test-ns"
 	namespace = ns
 	ctx := context.Background()
-	os.Setenv("ISTIO_INTERGATION", "false")
-	defer os.Unsetenv("ISTIO_INTERGATION")
+	os.Setenv("SERVICE_MESH_TYPE", "CORE")
+	defer os.Unsetenv("SERVICE_MESH_TYPE")
 
 	client := dynamicfake.NewSimpleDynamicClientWithCustomListKinds(scheme.Scheme, map[schema.GroupVersionResource]string{
 		{Group: gatewayGVRGroup, Version: gatewayGVRVersion, Resource: gatewayGVRResource}: "GatewayList",
@@ -136,7 +136,7 @@ func TestServiceNotAppliedWhenEnvDisabled(t *testing.T) {
 
 	svcGVR := schema.GroupVersionResource{Group: "", Version: "v1", Resource: "services"}
 	if _, err := client.Resource(svcGVR).Namespace(ns).Get(ctx, "test-svc", k8sv1.GetOptions{}); err == nil {
-		t.Fatalf("expected service NOT to be created since ISTIO_INTERGATION is false")
+		t.Fatalf("expected service NOT to be created since SERVICE_MESH_TYPE is CORE")
 	}
 }
 
@@ -144,8 +144,8 @@ func TestServiceNotAppliedWhenRouteMissing(t *testing.T) {
 	ns := "test-ns"
 	namespace = ns
 	ctx := context.Background()
-	os.Setenv("ISTIO_INTERGATION", "true")
-	defer os.Unsetenv("ISTIO_INTERGATION")
+	os.Setenv("SERVICE_MESH_TYPE", "ISTIO")
+	defer os.Unsetenv("SERVICE_MESH_TYPE")
 
 	client := dynamicfake.NewSimpleDynamicClientWithCustomListKinds(scheme.Scheme, map[schema.GroupVersionResource]string{
 		{Group: gatewayGVRGroup, Version: gatewayGVRVersion, Resource: gatewayGVRResource}: "GatewayList",

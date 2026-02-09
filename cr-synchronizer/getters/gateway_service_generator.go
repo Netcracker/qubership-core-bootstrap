@@ -39,8 +39,8 @@ func NewGatewayServiceGenerator(ctx context.Context, services []unstructured.Uns
 func (g *GatewayServiceGenerator) Name() string { return "gatewayServiceApplier" }
 
 func (g *GatewayServiceGenerator) Generate() {
-	if val, ok := os.LookupEnv("ISTIO_INTERGATION"); !ok || !strings.EqualFold(val, "true") {
-		log.Info().Str("type", "gatewayServiceApplier").Msg("ISTIO_INTERGATION not enabled; skipping gateway service application")
+	if val, ok := os.LookupEnv("SERVICE_MESH_TYPE"); !ok || !strings.EqualFold(val, "ISTIO") {
+		log.Info().Str("type", "gatewayServiceApplier").Msg("SERVICE_MESH_TYPE not enabled; skipping gateway service application")
 		return
 	}
 
