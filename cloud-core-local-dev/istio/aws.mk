@@ -6,6 +6,7 @@ SKIP_CRDS ?= ftrue
 ISTIO_NAMESPACE ?= istio-system
 # Comma-separated list of namespaces to enable mesh on, e.g. "ns1,ns2"
 MESH_NAMESPACES ?=
+RUN_SMOKE_TEST ?= true
 
 #===============================================
 # Repo settings (where to clone Istio deployer helm package from)

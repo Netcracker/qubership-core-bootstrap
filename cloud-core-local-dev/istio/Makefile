@@ -26,11 +26,12 @@ CREATE_NAMESPACE_OPTION := $(if $(filter true,$(CREATE_NAMESPACE)),--create-name
 	install install-gateway-api-crds install-istio-deployer enable-istio-mesh \
 	uninstall uninstall-start disable-istio-mesh uninstall-istio \
 	cleanup-crds cleanup-namespace \
+	check-ztunnel-logs
 
 help:
 	@echo "$(BLUE)=== Istio Installation Makefile ===$(NC)"
 	@echo ""
-	@echo "Usage: make <target> [CONFIG_FILE=local.mk]"	
+	@echo "Usage: make <target> [CONFIG_FILE=local.mk] [MESH_NAMESPACES=ns1,ns2]"	
 	@echo ""
 	@echo "Targets:"
 	@echo "  install - Validate, deploy Istio, enable mesh"
@@ -45,11 +46,14 @@ help:
 	@echo ""
 	@echo "  uninstall - Disable mesh, uninstall Istio, clean up CRDs/namespace"
 	@echo "    uninstall-start   - Print uninstall start message"
-	@echo "    disable-istio-mesh - Disable mesh (uninstall $(MESH_HELM_RELEASE_NAME), remove labels)"
+	@echo "    disable-istio-mesh - Disable mesh (uninstall MESH_HELM_RELEASE_NAME, remove labels)"
 	@echo "    uninstall-istio   - Run istioctl uninstall via deployer image"
 	@echo "    cleanup-crds      - Remove Gateway API CRDs (if SKIP_CRDS=false)"
 	@echo "    cleanup-namespace - Remove ISTIO_NAMESPACE (if CREATE_NAMESPACE=true)"
 	@echo ""
+	@echo "Variables:"
+	@echo "  CONFIG_FILE - configuration file to use. Default value is \"local.mk\"."
+	@echo "  MESH_NAMESPACES - comma-separated list of namespaces to enable mesh on, e.g. \"MESH_NAMESPACES=ns1,ns2\"". Default value is empty.
 
 validate: validate-start validate-namespace validate-crds
 	@echo "$(GREEN)=== Istio validation completed$(NC)";
@@ -118,6 +122,7 @@ install-istio-deployer:
 	@helm upgrade --install $(ISTIO_RELEASE_NAME) $(REPOS_DIR)/qubership-istio-distr/helm-templates/istio-deployer \
 		--namespace $(ISTIO_NAMESPACE) $(CREATE_NAMESPACE_OPTION) \
 		--set NAMESPACE=$(ISTIO_NAMESPACE) \
+		--set meshConfig.accessLogFile="/dev/stdout" \
 		$(ISTIO_HELM_EXTRA_ARGS)
 	@echo ""
 	@echo "$(GREEN)=== Istio deploy completed$(NC)"
@@ -129,7 +134,7 @@ enable-istio-mesh:
 		echo "$(YELLOW)--- Skipping mesh enablement (MESH_NAMESPACES is empty)...$(NC)"; \
 		echo ""; \
 	else \
-		echo "$(GREEN)=== Enabling mesh for namespaces: $(MESH_NAMESPACES)$(NC)"; \
+		echo "$(BLUE)=== Enabling mesh for namespaces: $(MESH_NAMESPACES)$(NC)"; \
 		for ns in $$(echo "$(MESH_NAMESPACES)" | tr ',' ' '); do \
 			if [ -n "$$ns" ]; then \
 				echo "$(CYAN)--- Labeling namespace $$ns$(NC)"; \
@@ -139,6 +144,7 @@ enable-istio-mesh:
 					echo "$(CYAN)--- Installing $(MESH_HELM_RELEASE_NAME) Helm package in $$ns$(NC)"; \
 					helm upgrade --install $(MESH_HELM_RELEASE_NAME) $(MESH_HELM_CHART_PATH) \
 						--namespace "$$ns" $(MESH_HELM_EXTRA_ARGS); \
+					'$(MAKE)' -C test test NAMESPACE="$$ns" ISTIO_NAMESPACE="$(ISTIO_NAMESPACE)"; \
 				else \
 					echo "$(YELLOW)--- Skipping $(MESH_HELM_RELEASE_NAME) Helm package installation (MESH_HELM_CHART_PATH is empty)...$(NC)"; \
 					echo ""; \
@@ -164,7 +170,7 @@ disable-istio-mesh:
 				if [ -n "$(MESH_HELM_CHART_PATH)" ]; then \
 					echo "$(CYAN)--- Uninstalling $(MESH_HELM_RELEASE_NAME) Helm package in $$ns$(NC)"; \
 					helm uninstall $(MESH_HELM_RELEASE_NAME) -n "$$ns" --ignore-not-found=true || true; \
-				else
+				fi; \
 				echo "$(GREEN)--- Mesh disabled for namespace $$ns$(NC)"; \
 				echo ""; \
 			fi; \
@@ -174,32 +180,15 @@ disable-istio-mesh:
 	fi
 
 uninstall-istio:
-	@echo "$(YELLOW)--- Uninstalling Istio...$(NC)";
-	@if [ -z "$(MESH_HELM_CHART_PATH)" ]; then \
-		echo "$(RED)Error: MESH_HELM_CHART_PATH is required to resolve ISTIO_DEPLOYER_IMAGE_REPOSITORY and ISTIO_DEPLOYER_TAG$(NC)"; \
-		exit 1; \
-	fi; \
-	VALUES_FILE="$(MESH_HELM_CHART_PATH)/values.yaml"; \
-	if [ ! -f "$$VALUES_FILE" ]; then \
-		echo "$(RED)Error: values.yaml not found at $$VALUES_FILE$(NC)"; \
-		exit 1; \
-	fi; \
-	ISTIO_DEPLOYER_IMAGE_REPOSITORY=$$(awk -F': *' '/^ISTIO_DEPLOYER_IMAGE_REPOSITORY:/{gsub(/"/,"",$2); print $$2; exit}' "$$VALUES_FILE"); \
-	ISTIO_DEPLOYER_TAG=$$(awk -F': *' '/^ISTIO_DEPLOYER_TAG:/{gsub(/"/,"",$2); print $$2; exit}' "$$VALUES_FILE"); \
-	if [ -z "$$ISTIO_DEPLOYER_IMAGE_REPOSITORY" ] || [ -z "$$ISTIO_DEPLOYER_TAG" ]; then \
-		echo "$(RED)Error: ISTIO_DEPLOYER_IMAGE_REPOSITORY or ISTIO_DEPLOYER_TAG not found in $$VALUES_FILE$(NC)"; \
-		exit 1; \
-	fi; \
-	kubectl run istio-uninstall-job --image="$$ISTIO_DEPLOYER_IMAGE_REPOSITORY:$$ISTIO_DEPLOYER_TAG" --rm -i --restart=Never -n $(ISTIO_NAMESPACE) -- istioctl uninstall -y --purge || true; \
-	echo "";
+	@echo "$(YELLOW)--- Uninstalling $(ISTIO_RELEASE_NAME) Helm chart...$(NC)";
+	@helm uninstall $(ISTIO_RELEASE_NAME) -n $(ISTIO_NAMESPACE) --ignore-not-found=true || true;
+	@echo "";
 
 uninstall-start:
 	@echo "$(YELLOW)--- Uninstalling Istio (disabling mesh (uninstall $(MESH_HELM_RELEASE_NAME) Helm package, remove labels), uninstall $(ISTIO_RELEASE_NAME) Helm chart)...$(NC)";
 	@echo ""
 
 uninstall: uninstall-start disable-istio-mesh uninstall-istio cleanup-crds cleanup-namespace
-	@echo "$(YELLOW)--- Uninstalling $(ISTIO_RELEASE_NAME) Helm chart...$(NC)";
-	@helm uninstall $(ISTIO_RELEASE_NAME) -n $(ISTIO_NAMESPACE) --ignore-not-found=true || true;
 	@echo "$(GREEN)=== Istio uninstall completed$(NC)";
 	@echo ""
 
