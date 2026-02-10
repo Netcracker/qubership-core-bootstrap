@@ -141,6 +141,8 @@ spec:
             value: {{ .Values.APPLICATION_NAME }}
           - name: DEPLOYMENT_SESSION_ID
             value: {{ .Values.DEPLOYMENT_SESSION_ID }}
+          - name: SERVICE_MESH_TYPE
+            value: "{{ .Values.SERVICE_MESH_TYPE | default "CORE" }}"                   
         resources:
           requests:
             cpu: '50m'
