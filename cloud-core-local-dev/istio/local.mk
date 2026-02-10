@@ -30,5 +30,5 @@ MESH_HELM_RELEASE_NAME = core-istio-mesh
 # Example: MESH_HELM_CHART_PATH = ../some-chart
 MESH_HELM_CHART_PATH ?= ../../core-istio-mesh/charts/istio-components
 # Extra helm args (optional), e.g.: MESH_HELM_EXTRA_ARGS = --set someKey=someValue
-MESH_HELM_EXTRA_ARGS ?=
-
+MESH_HELM_EXTRA_ARGS ?= --set CR_SYNCHRONIZER_IMAGE="ghcr.io/netcracker/cr-synchronizer:feat-istio_services-snapshot"
+#MESH_HELM_EXTRA_ARGS ?= --set CR_SYNCHRONIZER_IMAGE="ghcr.io/netcracker/cr-synchronizer:latest"
