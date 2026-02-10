@@ -85,8 +85,7 @@ check-gateway-services:
 		echo ""; \
 	}; \
 	check_service_targets "$(NAMESPACE)" "$(PUBLIC_GATEWAY_SERVICE)" "$(PUBLIC_GATEWAY_DEPLOYMENT)"; \
-
-#	check_service_targets "$(NAMESPACE)" "$(PRIVATE_GATEWAY_SERVICE)" "$(PRIVATE_GATEWAY_DEPLOYMENT)";
+	check_service_targets "$(NAMESPACE)" "$(PRIVATE_GATEWAY_SERVICE)" "$(PRIVATE_GATEWAY_DEPLOYMENT)";
 
 
 define CHECK_ZTUNNEL_LOGS_FUNC
