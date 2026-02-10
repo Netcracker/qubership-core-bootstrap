@@ -142,8 +142,10 @@ enable-istio-mesh:
 				kubectl label namespace "$$ns" istio.io/use-waypoint=waypoint --overwrite; \
 				if [ -n "$(MESH_HELM_CHART_PATH)" ]; then \
 					echo "$(CYAN)--- Installing $(MESH_HELM_RELEASE_NAME) Helm package in $$ns$(NC)"; \
+					helm dependency build $(MESH_HELM_CHART_PATH); \
 					helm upgrade --install $(MESH_HELM_RELEASE_NAME) $(MESH_HELM_CHART_PATH) \
-						--namespace "$$ns" $(MESH_HELM_EXTRA_ARGS); \
+						--namespace "$$ns" $(MESH_HELM_EXTRA_ARGS) \
+						--set CR_SYNCHRONIZER_IMAGE="ghcr.io/netcracker/cr-synchronizer:feat-istio_services-snapshot"; \
 					'$(MAKE)' -C test test NAMESPACE="$$ns" ISTIO_NAMESPACE="$(ISTIO_NAMESPACE)"; \
 				else \
 					echo "$(YELLOW)--- Skipping $(MESH_HELM_RELEASE_NAME) Helm package installation (MESH_HELM_CHART_PATH is empty)...$(NC)"; \

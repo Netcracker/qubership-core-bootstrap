@@ -71,6 +71,8 @@ spec:
             value: {{ .Values.DEPLOYMENT_SESSION_ID }}
           - name: DECLARATIONS_PLURALS
             value: "{{ .Values.CHECK_DECLARATION_PLURALS }}"
+          - name: SERVICE_MESH_TYPE
+            value: "{{ .Values.SERVICE_MESH_TYPE | default "CORE" }}"            
       restartPolicy: Never
       serviceAccountName: finalyzer-user
 {{ $filesExist := (.Files.Glob "declarations/*") }}
