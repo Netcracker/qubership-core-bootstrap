@@ -167,9 +167,12 @@ disable-istio-mesh:
 		echo "$(GREEN)=== Disabling mesh for namespaces: $(MESH_NAMESPACES)$(NC)"; \
 		for ns in $$(echo "$(MESH_NAMESPACES)" | tr ',' ' '); do \
 			if [ -n "$$ns" ]; then \
-				echo "$(CYAN)--- Labeling namespace $$ns$(NC)"; \
+				echo "$(CYAN)--- Removing mesh labels from namespace $$ns$(NC)"; \
 				kubectl label namespace "$$ns" istio.io/dataplane-mode- --overwrite; \
 				kubectl label namespace "$$ns" istio.io/use-waypoint- --overwrite; \
+				echo "$(CYAN)--- Patching gateway services selectors in namespace $$ns$(NC)"; \
+				kubectl patch service public-gateway-service -n "$$ns" -p '{"spec":{"selector":{"name":"public-frontend-gateway"}}}' || true; \
+				kubectl patch service private-gateway-service -n "$$ns" -p '{"spec":{"selector":{"name":"private-frontend-gateway"}}}' || true; \
 				if [ -n "$(MESH_HELM_CHART_PATH)" ]; then \
 					echo "$(CYAN)--- Uninstalling $(MESH_HELM_RELEASE_NAME) Helm package in $$ns$(NC)"; \
 					helm uninstall $(MESH_HELM_RELEASE_NAME) -n "$$ns" --ignore-not-found=true || true; \
