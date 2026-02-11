@@ -117,7 +117,7 @@ install: validate validate-crds setup-repo install-gateway-api-crds install-isti
 
 install-istio-deployer:
 	@echo "SKIP_CRDS: $(SKIP_CRDS)";
-	@echo "$(GREEN)=== Deploying Istio ($(ISTIO_RELEASE_NAME) Helm chart)...$(NC)"
+	@echo "$(BLUE)=== Deploying Istio ($(ISTIO_RELEASE_NAME) Helm chart)...$(NC)"
 	@echo ""
 	@helm upgrade --install $(ISTIO_RELEASE_NAME) $(REPOS_DIR)/qubership-istio-distr/helm-templates/istio-deployer \
 		--namespace $(ISTIO_NAMESPACE) $(CREATE_NAMESPACE_OPTION) \
@@ -142,8 +142,8 @@ enable-istio-mesh:
 				kubectl label namespace "$$ns" istio.io/use-waypoint=waypoint --overwrite; \
 				if [ -n "$(MESH_HELM_CHART_PATH)" ]; then \
 					echo "$(CYAN)--- Installing $(MESH_HELM_RELEASE_NAME) Helm package in $$ns$(NC)"; \
+					echo "MESH_HELM_EXTRA_ARGS: $(MESH_HELM_EXTRA_ARGS)$(NC)"; \
 					helm dependency build $(MESH_HELM_CHART_PATH); \
-					echo "$(CYAN)--- MESH_HELM_EXTRA_ARGS: $(MESH_HELM_EXTRA_ARGS)$(NC)"; \
 					helm upgrade --install $(MESH_HELM_RELEASE_NAME) $(MESH_HELM_CHART_PATH) \
 						--namespace "$$ns" \
 						$(MESH_HELM_EXTRA_ARGS); \
