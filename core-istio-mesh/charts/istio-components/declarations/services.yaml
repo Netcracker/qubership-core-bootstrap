@@ -19,16 +19,16 @@ spec:
       port: 8080
       targetPort: 8080
   selector:
-    name: '{{ .Values.ISTIO_PUBLIC_GATEWAY_NAME }}'
-    clusterIP: None
-    clusterIPs:
-      - None
-    type: ClusterIP
-    sessionAffinity: None
-    ipFamilies:
-      - IPv4
-    ipFamilyPolicy: SingleStack
-    internalTrafficPolicy: Cluster 
+    gateway.networking.k8s.io/gateway-name: '{{ .Values.ISTIO_PUBLIC_GATEWAY_NAME }}'
+  clusterIP: None
+  clusterIPs:
+    - None
+  type: ClusterIP
+  sessionAffinity: None
+  ipFamilies:
+    - IPv4
+  ipFamilyPolicy: SingleStack
+  internalTrafficPolicy: Cluster 
 ---
 kind: Service
 apiVersion: v1
@@ -50,13 +50,13 @@ spec:
       port: 8080
       targetPort: 8080
   selector:
-    name: '{{ .Values.ISTIO_PRIVATE_GATEWAY_NAME }}'
-    clusterIP: None
-    clusterIPs:
-      - None
-    type: ClusterIP
-    sessionAffinity: None
-    ipFamilies:
-      - IPv4
-    ipFamilyPolicy: SingleStack
-    internalTrafficPolicy: Cluster 
+    gateway.networking.k8s.io/gateway-name: '{{ .Values.ISTIO_PRIVATE_GATEWAY_NAME }}'
+  clusterIP: None
+  clusterIPs:
+    - None
+  type: ClusterIP
+  sessionAffinity: None
+  ipFamilies:
+    - IPv4
+  ipFamilyPolicy: SingleStack
+  internalTrafficPolicy: Cluster 

@@ -677,8 +677,15 @@ cleanup-namespaces:
 # MESH SMOKE TEST
 # =============================================================================
 
-# Include mesh testing targets
-include test/mesh-test/mesh-test.mk
+mesh-smoke-test:
+	@echo "$(GREEN)=== Starting Cloud Core Mesh Smoke Test...$(NC)"
+	@'$(MAKE)' -C test/mesh-test mesh-smoke-test NAMESPACE=$(CORE_NAMESPACE)
+	@echo ""
+
+cleanup-mesh-test:
+	@echo "$(YELLOW)--- Cleaning up mesh test resources...$(NC)"
+	@'$(MAKE)' -C test/mesh-test cleanup-mesh-test NAMESPACE=$(CORE_NAMESPACE)
+	@echo ""
 
 # =============================================================================
 # DBAAS

@@ -6,4 +6,4 @@ type: application
 dependencies:
   - name: coretpl
     version: "0.2.3"
-    repository: "https://netcracker.github.io/qubership-core-bootstrap/"
+    repository: "file://../../../coretpl"

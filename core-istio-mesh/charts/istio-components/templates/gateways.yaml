@@ -7,7 +7,7 @@ spec:
   gatewayClassName: istio
   listeners:
   - name: default
-    port: 80
+    port: 8080
     protocol: HTTP
     allowedRoutes:
       namespaces:
@@ -21,7 +21,7 @@ spec:
   gatewayClassName: istio
   listeners:
   - name: default
-    port: 80
+    port: 8080
     protocol: HTTP
     allowedRoutes:
       namespaces:

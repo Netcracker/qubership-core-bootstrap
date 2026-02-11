@@ -8,3 +8,4 @@ PRIVATE_GW_ROUTE_NAME: fallback-to-private-gateway
 PUBLIC_GW_ROUTE_NAME: fallback-to-public-gateway
 SERVICE_MESH_TYPE: "ISTIO"
 CHECK_DECLARATION_PLURALS: "services,gateways"
+SERVICE_NAME: "core-istio-mesh"
