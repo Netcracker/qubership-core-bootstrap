@@ -6,6 +6,12 @@ PRIVATE_GW_SERVICE_NAME: private-gateway-service
 PUBLIC_GW_SERVICE_NAME: public-gateway-service
 PRIVATE_GW_ROUTE_NAME: fallback-to-private-gateway
 PUBLIC_GW_ROUTE_NAME: fallback-to-public-gateway
-SERVICE_MESH_TYPE: "ISTIO"
-CHECK_DECLARATION_PLURALS: "services,gateways"
+
+# cr-synchronizer values
+APPLICATION_NAME: "Cloud-Core"
 SERVICE_NAME: "core-istio-mesh"
+DEPLOYMENT_SESSION_ID: ""
+RESOURCE_POLLING_TIMEOUT: "300"
+CHECK_DECLARATION_PLURALS: "services,gateways"
+SERVICE_MESH_TYPE: "ISTIO"
+CR_SYNCHRONIZER_IMAGE: "ghcr.io/netcracker/cr-synchronizer:latest"
