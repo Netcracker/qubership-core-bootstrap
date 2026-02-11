@@ -48,6 +48,14 @@ spec:
           capabilities:
             drop:
               - ALL
+        volumeMounts:
+          - name: declarations-{{ .Values.SERVICE_NAME }}
+            mountPath: /mnt/declaratives
+      volumes:
+       - name: declarations-{{ .Values.SERVICE_NAME }}
+         configMap:
+           name: {{ template "synchronizer.transport.configmap" . }}
+      restartPolicy: Never
         env:
           - name: GOMEMLIMIT
             valueFrom:
