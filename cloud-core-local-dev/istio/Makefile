@@ -147,7 +147,7 @@ enable-istio-mesh:
 					helm upgrade --install $(MESH_HELM_RELEASE_NAME) $(MESH_HELM_CHART_PATH) \
 						--namespace "$$ns" \
 						$(MESH_HELM_EXTRA_ARGS); \
-					'$(MAKE)' -C test test NAMESPACE="$$ns" ISTIO_NAMESPACE="$(ISTIO_NAMESPACE)"; \
+					'$(MAKE)' -C test test NAMESPACE="$$ns" ISTIO_NAMESPACE="$(ISTIO_NAMESPACE)" || exit 1; \
 				else \
 					echo "$(YELLOW)--- Skipping $(MESH_HELM_RELEASE_NAME) Helm package installation (MESH_HELM_CHART_PATH is empty)...$(NC)"; \
 					echo ""; \
@@ -171,8 +171,8 @@ disable-istio-mesh:
 				kubectl label namespace "$$ns" istio.io/dataplane-mode- --overwrite; \
 				kubectl label namespace "$$ns" istio.io/use-waypoint- --overwrite; \
 				echo "$(CYAN)--- Patching gateway services selectors in namespace $$ns$(NC)"; \
-				kubectl patch service public-gateway-service -n "$$ns" -p '{"spec":{"selector":{"name":"public-frontend-gateway"}}}' || true; \
-				kubectl patch service private-gateway-service -n "$$ns" -p '{"spec":{"selector":{"name":"private-frontend-gateway"}}}' || true; \
+				kubectl patch service public-gateway-service -n "$$ns" --type='json' -p='[{"op": "replace", "path": "/spec/selector", "value": {"name":"public-frontend-gateway"}}]' || true; \
+				kubectl patch service private-gateway-service -n "$$ns" --type='json' -p='[{"op": "replace", "path": "/spec/selector", "value": {"name":"private-frontend-gateway"}}]' || true; \
 				if [ -n "$(MESH_HELM_CHART_PATH)" ]; then \
 					echo "$(CYAN)--- Uninstalling $(MESH_HELM_RELEASE_NAME) Helm package in $$ns$(NC)"; \
 					helm uninstall $(MESH_HELM_RELEASE_NAME) -n "$$ns" --ignore-not-found=true || true; \
