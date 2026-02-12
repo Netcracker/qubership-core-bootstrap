@@ -16,6 +16,7 @@ NC := \033[0m
  ISTIO_NAMESPACE ?= istio-system
  LOG_TAIL_LINES ?= 1000
  LOG_OUTPUT_DIR ?= ./istio-logs
+ LOG_OUTPUT_PATH = $(LOG_OUTPUT_DIR)/$(NAMESPACE)
 
  PUBLIC_GATEWAY_SERVICE = public-gateway-service
  PUBLIC_GATEWAY_DEPLOYMENT = public-gateway-istio
@@ -44,7 +45,7 @@ help:
 	@echo "  NAMESPACE        - Namespace under test (required)"
 	@echo "  ISTIO_NAMESPACE  - Istio control-plane namespace (required)"
 	@echo "  LOG_TAIL_LINES   - Number of log lines to collect per component (default: 100)"
-	@echo "  LOG_OUTPUT_DIR   - Directory for log files (default: ./logs)"
+	@echo "  LOG_OUTPUT_DIR   - Base directory for log files (default: ./istio-logs); logs go to LOG_OUTPUT_DIR/NAMESPACE/"
 	@echo ""
 	@echo "Runs mesh smoke test for the given namespace."
 	@echo "The test verifies that traffic goes through Istio mesh: ztunnel, public-gateway, waypoint."
@@ -157,34 +158,34 @@ test-start-message:
 	@echo ""
 
 collect-logs: validate-input
-	@mkdir -p $(LOG_OUTPUT_DIR)
-	@echo "$(BLUE)=== Collecting logs (last $(LOG_TAIL_LINES) lines) → $(LOG_OUTPUT_DIR)/ ===$(NC)"
+	@mkdir -p $(LOG_OUTPUT_PATH)
+	@echo "$(BLUE)=== Collecting logs (last $(LOG_TAIL_LINES) lines) → $(LOG_OUTPUT_PATH)/ ===$(NC)"
 	@echo ""
-	@echo "--- ztunnel ($(ISTIO_NAMESPACE)) ---" > $(LOG_OUTPUT_DIR)/ztunnel.log
+	@echo "--- ztunnel ($(ISTIO_NAMESPACE)) ---" > $(LOG_OUTPUT_PATH)/ztunnel.log
 	@for pod in $$(kubectl get pods -n $(ISTIO_NAMESPACE) -l app=ztunnel -o jsonpath='{.items[*].metadata.name}'); do \
 		[ -n "$$pod" ] || continue; \
-		echo ">>> $$pod" >> $(LOG_OUTPUT_DIR)/ztunnel.log; \
-		kubectl logs -n $(ISTIO_NAMESPACE) "$$pod" --tail=$(LOG_TAIL_LINES) 2>/dev/null >> $(LOG_OUTPUT_DIR)/ztunnel.log || echo "(no logs)" >> $(LOG_OUTPUT_DIR)/ztunnel.log; \
-		echo "" >> $(LOG_OUTPUT_DIR)/ztunnel.log; \
+		echo ">>> $$pod" >> $(LOG_OUTPUT_PATH)/ztunnel.log; \
+		kubectl logs -n $(ISTIO_NAMESPACE) "$$pod" --tail=$(LOG_TAIL_LINES) 2>/dev/null >> $(LOG_OUTPUT_PATH)/ztunnel.log || echo "(no logs)" >> $(LOG_OUTPUT_PATH)/ztunnel.log; \
+		echo "" >> $(LOG_OUTPUT_PATH)/ztunnel.log; \
 	done
-	@echo "--- waypoint ($(NAMESPACE)) ---" > $(LOG_OUTPUT_DIR)/waypoint.log
+	@echo "--- waypoint ($(NAMESPACE)) ---" > $(LOG_OUTPUT_PATH)/waypoint.log
 	@for pod in $$(kubectl get pods -n $(NAMESPACE) -l gateway.networking.k8s.io/gateway-name=waypoint -o jsonpath='{.items[*].metadata.name}'); do \
 		[ -n "$$pod" ] || continue; \
-		echo ">>> $$pod" >> $(LOG_OUTPUT_DIR)/waypoint.log; \
-		kubectl logs -n $(NAMESPACE) "$$pod" --tail=$(LOG_TAIL_LINES) 2>/dev/null >> $(LOG_OUTPUT_DIR)/waypoint.log || echo "(no logs)" >> $(LOG_OUTPUT_DIR)/waypoint.log; \
-		echo "" >> $(LOG_OUTPUT_DIR)/waypoint.log; \
+		echo ">>> $$pod" >> $(LOG_OUTPUT_PATH)/waypoint.log; \
+		kubectl logs -n $(NAMESPACE) "$$pod" --tail=$(LOG_TAIL_LINES) 2>/dev/null >> $(LOG_OUTPUT_PATH)/waypoint.log || echo "(no logs)" >> $(LOG_OUTPUT_PATH)/waypoint.log; \
+		echo "" >> $(LOG_OUTPUT_PATH)/waypoint.log; \
 	done
-	@echo "--- public-gateway ($(NAMESPACE)) ---" > $(LOG_OUTPUT_DIR)/public-gateway.log
+	@echo "--- public-gateway ($(NAMESPACE)) ---" > $(LOG_OUTPUT_PATH)/public-gateway.log
 	@for pod in $$(kubectl get pods -n $(NAMESPACE) -l gateway.networking.k8s.io/gateway-name=public-gateway -o jsonpath='{.items[*].metadata.name}'); do \
 		[ -n "$$pod" ] || continue; \
-		echo ">>> $$pod" >> $(LOG_OUTPUT_DIR)/public-gateway.log; \
-		kubectl logs -n $(NAMESPACE) "$$pod" --tail=$(LOG_TAIL_LINES) 2>/dev/null >> $(LOG_OUTPUT_DIR)/public-gateway.log || echo "(no logs)" >> $(LOG_OUTPUT_DIR)/public-gateway.log; \
-		echo "" >> $(LOG_OUTPUT_DIR)/public-gateway.log; \
+		echo ">>> $$pod" >> $(LOG_OUTPUT_PATH)/public-gateway.log; \
+		kubectl logs -n $(NAMESPACE) "$$pod" --tail=$(LOG_TAIL_LINES) 2>/dev/null >> $(LOG_OUTPUT_PATH)/public-gateway.log || echo "(no logs)" >> $(LOG_OUTPUT_PATH)/public-gateway.log; \
+		echo "" >> $(LOG_OUTPUT_PATH)/public-gateway.log; \
 	done
 	@echo "$(GREEN)=== Logs written to:$(NC)"
-	@echo "  $(LOG_OUTPUT_DIR)/ztunnel.log"
-	@echo "  $(LOG_OUTPUT_DIR)/waypoint.log"
-	@echo "  $(LOG_OUTPUT_DIR)/public-gateway.log"
+	@echo "  $(LOG_OUTPUT_PATH)/ztunnel.log"
+	@echo "  $(LOG_OUTPUT_PATH)/waypoint.log"
+	@echo "  $(LOG_OUTPUT_PATH)/public-gateway.log"
 
 test: test-start-message validate-input check-ztunnel-logs check-gateway-services run-mesh-test check-public-gateway-istio-logs check-waypoint-logs
 	@echo "$(GREEN)   - Ztunnel is registering traffic$(NC)"
