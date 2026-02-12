@@ -147,7 +147,7 @@ enable-istio-mesh:
 					helm upgrade --install $(MESH_HELM_RELEASE_NAME) $(MESH_HELM_CHART_PATH) \
 						--namespace "$$ns" \
 						$(MESH_HELM_EXTRA_ARGS); \
-					'$(MAKE)' -C test test NAMESPACE="$$ns" ISTIO_NAMESPACE="$(ISTIO_NAMESPACE)" || exit 1; \
+					'$(MAKE)' -C test test NAMESPACE="$$ns" ISTIO_NAMESPACE="$(ISTIO_NAMESPACE)" || { '$(MAKE)' -C test collect-logs NAMESPACE="$$ns" ISTIO_NAMESPACE="$(ISTIO_NAMESPACE)"; exit 1; }; \
 				else \
 					echo "$(YELLOW)--- Skipping $(MESH_HELM_RELEASE_NAME) Helm package installation (MESH_HELM_CHART_PATH is empty)...$(NC)"; \
 					echo ""; \
