@@ -39,7 +39,7 @@ help:
 	@echo "    run-mesh-test         - Run mesh smoke test (sub-make)"
 	@echo "    check-public-gateway-istio-logs - Verify gateway received /mesh-test/health"
 	@echo "    check-waypoint-logs   - Verify waypoint received /mesh-test/health"
-	@echo "  collect-logs      - Collect last N lines from ztunnel, waypoint, public-gateway"
+	@echo "  collect-logs      - Collect last N lines from ztunnel, waypoint, public-gateway, public-frontend-gateway"
 	@echo ""
 	@echo "Variables:"
 	@echo "  NAMESPACE        - Namespace under test (required)"
@@ -182,10 +182,18 @@ collect-logs: validate-input
 		kubectl logs -n $(NAMESPACE) "$$pod" --tail=$(LOG_TAIL_LINES) 2>/dev/null >> $(LOG_OUTPUT_PATH)/public-gateway.log || echo "(no logs)" >> $(LOG_OUTPUT_PATH)/public-gateway.log; \
 		echo "" >> $(LOG_OUTPUT_PATH)/public-gateway.log; \
 	done
+	@echo "--- public-frontend-gateway ($(NAMESPACE)) ---" > $(LOG_OUTPUT_PATH)/public-frontend-gateway.log
+	@for pod in $$(kubectl get pods -n $(NAMESPACE) -l name=public-frontend-gateway -o jsonpath='{.items[*].metadata.name}'); do \
+		[ -n "$$pod" ] || continue; \
+		echo ">>> $$pod" >> $(LOG_OUTPUT_PATH)/public-frontend-gateway.log; \
+		kubectl logs -n $(NAMESPACE) "$$pod" --tail=$(LOG_TAIL_LINES) 2>/dev/null >> $(LOG_OUTPUT_PATH)/public-frontend-gateway.log || echo "(no logs)" >> $(LOG_OUTPUT_PATH)/public-frontend-gateway.log; \
+		echo "" >> $(LOG_OUTPUT_PATH)/public-frontend-gateway.log; \
+	done
 	@echo "$(GREEN)=== Logs written to:$(NC)"
 	@echo "  $(LOG_OUTPUT_PATH)/ztunnel.log"
 	@echo "  $(LOG_OUTPUT_PATH)/waypoint.log"
 	@echo "  $(LOG_OUTPUT_PATH)/public-gateway.log"
+	@echo "  $(LOG_OUTPUT_PATH)/public-frontend-gateway.log"
 
 test: test-start-message validate-input check-ztunnel-logs check-gateway-services run-mesh-test check-public-gateway-istio-logs check-waypoint-logs
 	@echo "$(GREEN)   - Ztunnel is registering traffic$(NC)"
