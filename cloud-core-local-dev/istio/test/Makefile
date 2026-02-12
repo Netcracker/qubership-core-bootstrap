@@ -10,10 +10,12 @@ BLUE := \033[0;34m
 CYAN := \033[0;36m
 NC := \033[0m
 
- .PHONY: help validate-input check-gateway-services check-ztunnel-logs run-mesh-test check-public-gateway-istio-logs check-waypoint-logs test-start-message test
+ .PHONY: help validate-input check-gateway-services check-ztunnel-logs run-mesh-test check-public-gateway-istio-logs check-waypoint-logs test-start-message test collect-logs
  
  NAMESPACE ?= 
- ISTIO_NAMESPACE ?=
+ ISTIO_NAMESPACE ?= istio-system
+ LOG_TAIL_LINES ?= 1000
+ LOG_OUTPUT_DIR ?= ./istio-logs
 
  PUBLIC_GATEWAY_SERVICE = public-gateway-service
  PUBLIC_GATEWAY_DEPLOYMENT = public-gateway-istio
@@ -36,10 +38,13 @@ help:
 	@echo "    run-mesh-test         - Run mesh smoke test (sub-make)"
 	@echo "    check-public-gateway-istio-logs - Verify gateway received /mesh-test/health"
 	@echo "    check-waypoint-logs   - Verify waypoint received /mesh-test/health"
+	@echo "  collect-logs      - Collect last N lines from ztunnel, waypoint, public-gateway"
 	@echo ""
 	@echo "Variables:"
 	@echo "  NAMESPACE        - Namespace under test (required)"
 	@echo "  ISTIO_NAMESPACE  - Istio control-plane namespace (required)"
+	@echo "  LOG_TAIL_LINES   - Number of log lines to collect per component (default: 100)"
+	@echo "  LOG_OUTPUT_DIR   - Directory for log files (default: ./logs)"
 	@echo ""
 	@echo "Runs mesh smoke test for the given namespace."
 	@echo "The test verifies that traffic goes through Istio mesh: ztunnel, public-gateway, waypoint."
@@ -151,6 +156,36 @@ test-start-message:
 	@echo "$(BLUE)=== Starting Istio Mesh test for namespace \"$(NAMESPACE)\"(NC)"
 	@echo ""
 
+collect-logs: validate-input
+	@mkdir -p $(LOG_OUTPUT_DIR)
+	@echo "$(BLUE)=== Collecting logs (last $(LOG_TAIL_LINES) lines) → $(LOG_OUTPUT_DIR)/ ===$(NC)"
+	@echo ""
+	@echo "--- ztunnel ($(ISTIO_NAMESPACE)) ---" > $(LOG_OUTPUT_DIR)/ztunnel.log
+	@for pod in $$(kubectl get pods -n $(ISTIO_NAMESPACE) -l app=ztunnel -o jsonpath='{.items[*].metadata.name}'); do \
+		[ -n "$$pod" ] || continue; \
+		echo ">>> $$pod" >> $(LOG_OUTPUT_DIR)/ztunnel.log; \
+		kubectl logs -n $(ISTIO_NAMESPACE) "$$pod" --tail=$(LOG_TAIL_LINES) 2>/dev/null >> $(LOG_OUTPUT_DIR)/ztunnel.log || echo "(no logs)" >> $(LOG_OUTPUT_DIR)/ztunnel.log; \
+		echo "" >> $(LOG_OUTPUT_DIR)/ztunnel.log; \
+	done
+	@echo "--- waypoint ($(NAMESPACE)) ---" > $(LOG_OUTPUT_DIR)/waypoint.log
+	@for pod in $$(kubectl get pods -n $(NAMESPACE) -l gateway.networking.k8s.io/gateway-name=waypoint -o jsonpath='{.items[*].metadata.name}'); do \
+		[ -n "$$pod" ] || continue; \
+		echo ">>> $$pod" >> $(LOG_OUTPUT_DIR)/waypoint.log; \
+		kubectl logs -n $(NAMESPACE) "$$pod" --tail=$(LOG_TAIL_LINES) 2>/dev/null >> $(LOG_OUTPUT_DIR)/waypoint.log || echo "(no logs)" >> $(LOG_OUTPUT_DIR)/waypoint.log; \
+		echo "" >> $(LOG_OUTPUT_DIR)/waypoint.log; \
+	done
+	@echo "--- public-gateway ($(NAMESPACE)) ---" > $(LOG_OUTPUT_DIR)/public-gateway.log
+	@for pod in $$(kubectl get pods -n $(NAMESPACE) -l gateway.networking.k8s.io/gateway-name=public-gateway -o jsonpath='{.items[*].metadata.name}'); do \
+		[ -n "$$pod" ] || continue; \
+		echo ">>> $$pod" >> $(LOG_OUTPUT_DIR)/public-gateway.log; \
+		kubectl logs -n $(NAMESPACE) "$$pod" --tail=$(LOG_TAIL_LINES) 2>/dev/null >> $(LOG_OUTPUT_DIR)/public-gateway.log || echo "(no logs)" >> $(LOG_OUTPUT_DIR)/public-gateway.log; \
+		echo "" >> $(LOG_OUTPUT_DIR)/public-gateway.log; \
+	done
+	@echo "$(GREEN)=== Logs written to:$(NC)"
+	@echo "  $(LOG_OUTPUT_DIR)/ztunnel.log"
+	@echo "  $(LOG_OUTPUT_DIR)/waypoint.log"
+	@echo "  $(LOG_OUTPUT_DIR)/public-gateway.log"
+
 test: test-start-message validate-input check-ztunnel-logs check-gateway-services run-mesh-test check-public-gateway-istio-logs check-waypoint-logs
 	@echo "$(GREEN)   - Ztunnel is registering traffic$(NC)"
 	@echo "$(GREEN)   - Public-gateway-service is pointing to public-gateway-istio$(NC)"
@@ -159,4 +194,3 @@ test: test-start-message validate-input check-ztunnel-logs check-gateway-service
 	@echo "$(GREEN)   - Waypoint has received traffic for mesh test service$(NC)"
 	@echo ""
 	@echo "$(GREEN)=== Istio Mesh test completed for namespace \"$(NAMESPACE)\"(NC)"
-
