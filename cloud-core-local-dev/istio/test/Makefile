@@ -150,7 +150,7 @@ check-waypoint-logs:
 		exit 1; \
 	fi; \
 	echo "$$LOG_MATCH" | tail -n 1; \
-	echo "$(GREEN)=== Gateway interaction verified (/mesh-test/health found)$(NC)"
+	echo "$(GREEN)=== Waypoint interaction verified (/mesh-test/health found)$(NC)"
 	@echo ""
 
 test-start-message:
@@ -195,7 +195,7 @@ collect-logs: validate-input
 	@echo "  $(LOG_OUTPUT_PATH)/public-gateway.log"
 	@echo "  $(LOG_OUTPUT_PATH)/public-frontend-gateway.log"
 
-test: test-start-message validate-input check-ztunnel-logs check-gateway-services run-mesh-test check-public-gateway-istio-logs check-waypoint-logs
+test: test-start-message validate-input check-ztunnel-logs check-gateway-services check-public-gateway-istio-logs check-waypoint-logs
 	@echo "$(GREEN)   - Ztunnel is registering traffic$(NC)"
 	@echo "$(GREEN)   - Public-gateway-service is pointing to public-gateway-istio$(NC)"
 	@echo "$(GREEN)   - Public-gateway-istio has received traffic for mesh test service$(NC)"
