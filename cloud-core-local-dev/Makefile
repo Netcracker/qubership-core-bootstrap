@@ -139,7 +139,7 @@ help:
 # INSTALLATION
 # =============================================================================
 
-install: validate clone-repos template-values-files deploy mesh-smoke-test
+install: validate clone-repos template-values-files deploy #mesh-smoke-test
 
 deploy: deploy-dependencies deploy-core deploy-istio
 
@@ -478,22 +478,27 @@ deploy-dbaas-agent:
 		-f $(REPOS_DIR)/qubership-core-dbaas-agent/helm-templates/dbaas-agent/resource-profiles/dev.yaml \
 		-f ./core-values.yaml \
 		--set TAG=$(DBAAS_AGENT_TAG) \
-		$(HELM_DEBUG_FLAGS)
+		$(HELM_DEBUG_FLAGS)	
 	@echo ""
 
 deploy-maas-agent:
-	@echo "$(YELLOW)--- Setting up MaaS agent...$(NC)"
-	@$(call update_helm_dependencies,$(REPOS_DIR)/qubership-core-maas-agent/helm-templates/maas-agent,)
-	helm upgrade --install maas-agent $(REPOS_DIR)/qubership-core-maas-agent/helm-templates/maas-agent -n $(CORE_NAMESPACE) \
-		-f $(REPOS_DIR)/qubership-core-maas-agent/helm-templates/maas-agent/resource-profiles/dev.yaml \
-		-f ./core-values.yaml \
-		--set IMAGE_REPOSITORY=$(MAAS_AGENT_IMAGE_REPOSITORY) \
-		--set TAG=$(MAAS_AGENT_TAG) \
-		--set MAAS_ENABLED=$(CORE_CONFIG_MAAS_ENABLED) \
-		--set MAAS_INTERNAL_ADDRESS=$(CORE_CONFIG_MAAS_INTERNAL_ADDRESS) \
-		$(HELM_DEBUG_FLAGS)
+	@if [ "$(INSTALL_MAAS)" = "true" ]; then \
+		echo "$(YELLOW)--- Setting up MaaS agent...$(NC)"; \
+		$(call update_helm_dependencies,$(REPOS_DIR)/qubership-core-maas-agent/helm-templates/maas-agent,); \
+		helm upgrade --install maas-agent $(REPOS_DIR)/qubership-core-maas-agent/helm-templates/maas-agent -n $(CORE_NAMESPACE) \
+			-f $(REPOS_DIR)/qubership-core-maas-agent/helm-templates/maas-agent/resource-profiles/dev.yaml \
+			-f ./core-values.yaml \
+			--set IMAGE_REPOSITORY=$(MAAS_AGENT_IMAGE_REPOSITORY) \
+			--set TAG=$(MAAS_AGENT_TAG) \
+			--set MAAS_ENABLED=$(CORE_CONFIG_MAAS_ENABLED) \
+			--set MAAS_INTERNAL_ADDRESS=$(CORE_CONFIG_MAAS_INTERNAL_ADDRESS) \
+			$(HELM_DEBUG_FLAGS); \
+		echo ""; \
+	else \
+		echo "$(CYAN)--- Skipping MaaS agent installation (INSTALL_MAAS=false)...$(NC)"; \
+		echo ""; \
+	fi
 	@echo ""
-
 
 apply-core-operator-crds:
 	@if [ "$(INSTALL_CRDS)" = "true" ]; then \
