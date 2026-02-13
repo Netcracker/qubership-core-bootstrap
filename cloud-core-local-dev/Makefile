@@ -141,7 +141,7 @@ help:
 
 install: validate clone-repos template-values-files deploy #mesh-smoke-test
 
-deploy: deploy-dependencies deploy-core deploy-istio
+deploy: deploy-dependencies deploy-core
 
 deploy-dependencies: deploy-metrics-server deploy-monitoring deploy-consul deploy-dbaas deploy-maas
 	@echo "$(GREEN)=== Cloud Core dependencies deployment completed$(NC)"
@@ -397,7 +397,7 @@ deploy-cloud-core-configuration:
 
 # ------------------ cloud core ---------------------------
 
-deploy-cloud-core-components: deploy-cloud-core-print-start deploy-facade-operator deploy-ingress-gateway deploy-control-plane deploy-paas-mediation deploy-dbaas-agent deploy-maas-agent deploy-core-operator deploy-config-server deploy-site-management
+deploy-cloud-core-components: deploy-cloud-core-print-start deploy-facade-operator deploy-ingress-gateway deploy-istio deploy-control-plane deploy-paas-mediation deploy-dbaas-agent deploy-maas-agent deploy-core-operator deploy-config-server deploy-site-management
 	@echo "$(GREEN)=== Cloud Core components deployment completed$(NC)"
 	@echo ""
 
