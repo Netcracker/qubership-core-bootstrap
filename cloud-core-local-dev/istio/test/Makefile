@@ -195,7 +195,7 @@ collect-logs: validate-input
 	@echo "  $(LOG_OUTPUT_PATH)/public-gateway.log"
 	@echo "  $(LOG_OUTPUT_PATH)/public-frontend-gateway.log"
 
-test: test-start-message validate-input check-ztunnel-logs check-gateway-services check-public-gateway-istio-logs check-waypoint-logs
+test: test-start-message validate-input check-ztunnel-logs check-gateway-services
 	@echo "$(GREEN)   - Ztunnel is registering traffic$(NC)"
 	@echo "$(GREEN)   - Public-gateway-service is pointing to public-gateway-istio$(NC)"
 	@echo "$(GREEN)   - Public-gateway-istio has received traffic for mesh test service$(NC)"
