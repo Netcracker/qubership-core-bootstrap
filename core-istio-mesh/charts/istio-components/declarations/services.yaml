@@ -28,7 +28,7 @@ spec:
   ipFamilies:
     - IPv4
   ipFamilyPolicy: SingleStack
-  internalTrafficPolicy: Cluster
+  internalTrafficPolicy: Cluster 
 ---
 kind: Service
 apiVersion: v1
@@ -59,4 +59,4 @@ spec:
   ipFamilies:
     - IPv4
   ipFamilyPolicy: SingleStack
-  internalTrafficPolicy: Cluster
+  internalTrafficPolicy: Cluster 
