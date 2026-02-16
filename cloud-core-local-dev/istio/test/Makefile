@@ -195,11 +195,16 @@ collect-logs: validate-input
 	@echo "  $(LOG_OUTPUT_PATH)/public-gateway.log"
 	@echo "  $(LOG_OUTPUT_PATH)/public-frontend-gateway.log"
 
-test: test-start-message validate-input check-ztunnel-logs check-gateway-services
+test: test-start-message validate-input check-gateway-services
+	@echo "$(GREEN)   - Public-gateway-service is pointing to public-gateway-istio$(NC)"
+	@echo ""
+	@echo "$(GREEN)=== QuickIstio Mesh test completed for namespace \"$(NAMESPACE)\"(NC)"
+
+full-test: test-start-message validate-input check-ztunnel-logs check-gateway-services run-mesh-test check-public-gateway-istio-logs check-waypoint-logs
 	@echo "$(GREEN)   - Ztunnel is registering traffic$(NC)"
 	@echo "$(GREEN)   - Public-gateway-service is pointing to public-gateway-istio$(NC)"
 	@echo "$(GREEN)   - Public-gateway-istio has received traffic for mesh test service$(NC)"
 	@echo "$(GREEN)   - Fallback route on public-gateway-istio is working fine$(NC)"
 	@echo "$(GREEN)   - Waypoint has received traffic for mesh test service$(NC)"
 	@echo ""
-	@echo "$(GREEN)=== Istio Mesh test completed for namespace \"$(NAMESPACE)\"(NC)"
+	@echo "$(GREEN)=== Full Istio Mesh test completed for namespace \"$(NAMESPACE)\"(NC)"
