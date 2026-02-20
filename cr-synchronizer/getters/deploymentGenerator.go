@@ -156,13 +156,6 @@ func (ng *DeploymentGenerator) createGenericGeneratorManager() *GeneratorManager
 	generatorManager = &GeneratorManager{
 		generators: make(map[string]Generator),
 	}
-	
-	if val, ok := os.LookupEnv("SERVICE_MESH_TYPE"); ok && strings.EqualFold(val, "ISTIO") {
-		installedDeclaratives := prepareDataFromFiles()
-		generatorManager.register(NewGatewayServiceGenerator(ng.ctx, installedDeclaratives["Service"], ng.client, ng.timeoutSeconds))
-	} else {
-		log.Info().Str("type", "init").Msg("SERVICE_MESH_TYPE not enabled; skipping GatewayServiceGenerator registration")
-	}
 
 	generatorManager.register(NewGenericRunnerGenerator(ng.ctx, ng.client, ng.recorder, ng.clientset, ng.scheme, ng.runtimeReceiver, ng.timeoutSeconds))
 	return generatorManager

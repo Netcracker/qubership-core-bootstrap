@@ -98,25 +98,6 @@ spec:
            name: {{ template "synchronizer.transport.configmap" . }}
       restartPolicy: Never
       serviceAccountName: synchronizer-user
-
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: {{ template "synchronizer.transport.configmap" . }}
-  annotations:
-    helm.sh/hook: "post-install, post-upgrade"
-    helm.sh/hook-delete-policy: "before-hook-creation, hook-succeeded"
-    helm.sh/hook-weight: "90"
-  labels:
-    app.kubernetes.io/instance: {{ .Values.SERVICE_NAME }}
-    deployment.netcracker.com/sessionId: '{{ .Values.DEPLOYMENT_SESSION_ID }}'
-    app.kubernetes.io/part-of: {{ .Values.APPLICATION_NAME }}
-data:
-{{- range $path, $file := .Files.Glob "declarations/*" }}
-  {{ base $path }}: |
-{{ tpl ($file | toString) $ | indent 4 }}
-{{- end }}
 ---
 apiVersion: batch/v1
 kind: Job
@@ -187,13 +168,6 @@ spec:
           capabilities:
             drop:
               - ALL
-        volumeMounts:
-          - name: declarations-{{ .Values.SERVICE_NAME }}
-            mountPath: /mnt/declaratives
-      volumes:
-       - name: declarations-{{ .Values.SERVICE_NAME }}
-         configMap:
-           name: {{ template "synchronizer.transport.configmap" . }}
       restartPolicy: Never
       restartPolicy: Never
       serviceAccountName: finalyzer-user

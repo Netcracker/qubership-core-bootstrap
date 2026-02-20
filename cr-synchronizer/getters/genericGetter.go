@@ -69,6 +69,8 @@ func (ng *GenericRunner) Generate() {
 		var schemeResources schema.GroupVersionResource
 		if strings.EqualFold(objPlural, "cdns") {
 			schemeResources = schema.GroupVersionResource{Group: CdnGroupName, Version: CdnGroupVersion, Resource: objPlural}
+		} else if strings.EqualFold(objPlural, "services") {
+			schemeResources = schema.GroupVersionResource{Group: ServiceGroupName, Version: ServiceGroupVersion, Resource: objPlural}
 		} else {
 			schemeResources = schema.GroupVersionResource{Group: GroupName, Version: GroupVersion, Resource: objPlural}
 		}

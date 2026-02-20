@@ -18,7 +18,7 @@ spec:
       port: 8080
       targetPort: 8080
   selector:
-    name: public-frontend-gateway
+    name: '{{ .Values.PUBLIC_SERVICE }}'
   clusterIP: None
   clusterIPs:
     - None
@@ -48,7 +48,7 @@ spec:
       port: 8080
       targetPort: 8080
   selector:
-    name: private-frontend-gateway
+    name: '{{ .Values.PRIVATE_SERVICE }}'
   clusterIP: None
   clusterIPs:
     - None

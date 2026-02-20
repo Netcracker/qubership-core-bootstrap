@@ -23,6 +23,8 @@ const (
 	GroupVersion                   = "v1"
 	CdnGroupName                   = "cdn.netcracker.com"
 	CdnGroupVersion                = "v1"
+	ServiceGroupName               = ""
+	ServiceGroupVersion            = "v1"
 	manager                        = "cr-synchronizer"
 )
 
