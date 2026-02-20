@@ -5,7 +5,7 @@ metadata:
     name: '{{ .Values.PUBLIC_SERVICE_NAME }}'
     annotations:
       helm.sh/hook: "post-install, post-upgrade"
-      helm.sh/hook-weight: "110"
+      helm.sh/hook-weight: "90"
       helm.sh/hook-delete-policy: "before-hook-creation"
     labels:
         name: '{{ .Values.PUBLIC_SERVICE_NAME }}'
@@ -37,7 +37,7 @@ metadata:
     name: '{{ .Values.PRIVATE_SERVICE_NAME }}'
     annotations:
       helm.sh/hook: "post-install, post-upgrade"
-      helm.sh/hook-weight: "110"
+      helm.sh/hook-weight: "90"
       helm.sh/hook-delete-policy: "before-hook-creation"
     labels:
         name: '{{ .Values.PRIVATE_SERVICE_NAME }}'
