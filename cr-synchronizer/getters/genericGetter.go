@@ -64,15 +64,17 @@ func (ng *GenericRunner) Generate() {
 	definedPl, found := os.LookupEnv("DECLARATIONS_PLURALS")
 	if found && len(definedPl) > 0 {
 		objPlurals = strings.Split(definedPl, ",")
+		log.Info().Str("type", "genericWaiter").Str("DECLARATIONS_PLURALS", definedPl).Msgf("debug for DECLARATIONS_PLURALS env variable")
 	}
 	for _, objPlural := range objPlurals {
 		var schemeResources schema.GroupVersionResource
 		if strings.EqualFold(objPlural, "cdns") {
 			schemeResources = schema.GroupVersionResource{Group: CdnGroupName, Version: CdnGroupVersion, Resource: objPlural}
 		} else if strings.EqualFold(objPlural, RouteResourceName) {
-			log.Info().Str("type", "genericWaiter").Str("resource", objPlural).Str("version", RouteGroupVersion).Str("group", RouteGroupName).Str("labelKey", "app.kubernetes.io/name").Str("sessionId", deploymentSessionId).Msgf("debug for checking resource")
+			log.Info().Str("type", "genericWaiter").Str("resource", objPlural).Str("version", RouteGroupVersion).Str("group", RouteGroupName).Str("labelKey", "app.kubernetes.io/name").Str("sessionId", deploymentSessionId).Msgf("debug for checking route resource")
 			schemeResources = schema.GroupVersionResource{Group:RouteGroupName, Version: RouteGroupVersion, Resource: objPlural}
 		} else {
+			log.Info().Str("type", "genericWaiter").Str("resource", objPlural).Str("version", GroupVersion).Str("group", GroupName).Str("labelKey", "app.kubernetes.io/name").Str("sessionId", deploymentSessionId).Msgf("debug for checking resource")
 			schemeResources = schema.GroupVersionResource{Group: GroupName, Version: GroupVersion, Resource: objPlural}
 		}
 
