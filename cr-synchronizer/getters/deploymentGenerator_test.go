@@ -111,3 +111,104 @@ func TestDeclarationWaiter_UpdatedPhase(t *testing.T) {
 		t.Fatal("declarationWaiter did not complete for Updated phase")
 	}
 }
+
+func TestDeclarationWaiter_HTTPRouteReady(t *testing.T) {
+	resourceTypeWatchersMu.Lock()
+	resourceTypeWatchers = make(map[schema.GroupVersionResource]*resourceTypeWatcher)
+	resourceTypeWatchersMu.Unlock()
+
+	resource := schema.GroupVersionResource{
+		Group:    RouteGroupName,
+		Version:  RouteGroupVersion,
+		Resource: RouteResourceName,
+	}
+
+	scheme := runtime.NewScheme()
+	fclient := k8sClientDynamic.NewSimpleDynamicClient(scheme)
+	fakeClientSet := fake.NewSimpleClientset()
+
+	ng := NewDeploymentGenerator(
+		context.Background(),
+		fclient,
+		&testRecorder{},
+		&fakeClientset{appsV1: fakeClientSet.AppsV1()},
+		scheme,
+		&unstructured.Unstructured{},
+		false,
+		10,
+	)
+
+	obj := &unstructured.Unstructured{}
+	obj.SetName("test-route")
+	obj.SetNamespace("default")
+	obj.Object = map[string]interface{}{
+		"apiVersion": RouteGroupName + "/" + RouteGroupVersion,
+		"kind":       "HTTPRoute",
+		"metadata": map[string]interface{}{
+			"name":      "test-route",
+			"namespace": "default",
+		},
+		"status": map[string]interface{}{
+			"parents": []interface{}{
+				map[string]interface{}{
+					"conditions": []interface{}{
+						map[string]interface{}{
+							"type":   "Accepted",
+							"status": "True",
+						},
+						map[string]interface{}{
+							"type":   "ResolvedRefs",
+							"status": "True",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	deploymentUID := uuid.NewUUID()
+	fakeClientSet.PrependReactor("get", "deployments", func(action k8sTesting.Action) (bool, runtime.Object, error) {
+		return true, &v1.Deployment{
+			ObjectMeta: metav1.ObjectMeta{
+				UID: deploymentUID,
+			},
+		}, nil
+	})
+
+	fclient.PrependReactor("update", RouteResourceName, func(action k8sTesting.Action) (bool, runtime.Object, error) {
+		updateAction := action.(k8sTesting.UpdateAction)
+		return true, updateAction.GetObject(), nil
+	})
+
+	fclient.PrependReactor("get", RouteResourceName, func(action k8sTesting.Action) (bool, runtime.Object, error) {
+    return true, obj, nil
+	})
+
+	w := watch.NewFake()
+	defer w.Stop()
+
+	fclient.PrependWatchReactor(RouteResourceName, func(action k8sTesting.Action) (bool, watch.Interface, error) {
+		return true, w, nil
+	})
+
+	done := make(chan struct{})
+
+	go func() {
+		ng.declarationWaiter(resource, "test-route")
+		done <- struct{}{}
+	}()
+
+	w.Add(obj)
+
+	select {
+	case <-done:
+		ownerRefs, found, err := unstructured.NestedSlice(obj.Object, "metadata", "ownerReferences")
+		assert.NoError(t, err)
+		assert.True(t, found)
+		assert.NotEmpty(t, ownerRefs)
+		assert.Equal(t, string(deploymentUID), ownerRefs[0].(map[string]interface{})["uid"])
+
+	case <-time.After(1 * time.Second):
+		t.Fatal("declarationWaiter did not complete for HTTPRoute readiness")
+	}
+}

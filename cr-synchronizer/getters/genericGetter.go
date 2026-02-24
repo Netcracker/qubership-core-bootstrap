@@ -43,7 +43,8 @@ func (ng *GenericRunner) Name() string {
 	return genericRunner
 }
 
-func (ng *GenericRunner) processResourcesForLabel(schemeRes schema.GroupVersionResource, objPlural, deploymentSessionId, labelKey string) {
+func (ng *GenericRunner) processResourcesForLabel(schemeRes schema.GroupVersionResource, deploymentSessionId, labelKey string) {
+	objPlural := schemeRes.Resource
 	log.Info().Str("type", "genericWaiter").Str("resource", schemeRes.Resource).Str("version", schemeRes.Version).Str("group", schemeRes.Group).Str(labelKey, serviceName).Str("sessionId", deploymentSessionId).Msgf("checking resource in kubernetes to wait for")
 	listRes, err := ng.client.Resource(schemeRes).Namespace(namespace).List(ng.ctx, k8sv1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s, %s=%s", "deployment.netcracker.com/sessionId", deploymentSessionId, labelKey, serviceName)})
 	if err != nil {
@@ -69,14 +70,14 @@ func (ng *GenericRunner) Generate() {
 		var schemeResources schema.GroupVersionResource
 		if strings.EqualFold(objPlural, "cdns") {
 			schemeResources = schema.GroupVersionResource{Group: CdnGroupName, Version: CdnGroupVersion, Resource: objPlural}
-		} else if strings.EqualFold(objPlural, "services") {
-			schemeResources = schema.GroupVersionResource{Group: ServiceGroupName, Version: ServiceGroupVersion, Resource: objPlural}
+		} else if strings.EqualFold(objPlural, RouteResourceName) {
+			schemeResources = schema.GroupVersionResource{Group:RouteGroupName, Version: RouteGroupVersion, Resource: objPlural}
 		} else {
 			schemeResources = schema.GroupVersionResource{Group: GroupName, Version: GroupVersion, Resource: objPlural}
 		}
 
-		ng.processResourcesForLabel(schemeResources, objPlural, deploymentSessionId, "app.kubernetes.io/name")
-		ng.processResourcesForLabel(schemeResources, objPlural, deploymentSessionId, "app.kubernetes.io/instance")
+		ng.processResourcesForLabel(schemeResources, deploymentSessionId, "app.kubernetes.io/name")
+		ng.processResourcesForLabel(schemeResources, deploymentSessionId, "app.kubernetes.io/instance")
 	}
 
 	ng.v1DeploymentAndHpaMigration()

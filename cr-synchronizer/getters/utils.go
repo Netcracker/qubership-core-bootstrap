@@ -23,8 +23,9 @@ const (
 	GroupVersion                   = "v1"
 	CdnGroupName                   = "cdn.netcracker.com"
 	CdnGroupVersion                = "v1"
-	ServiceGroupName               = ""
-	ServiceGroupVersion            = "v1"
+    RouteGroupName                 = "gateway.networking.k8s.io"
+	RouteGroupVersion              = "v1"
+	RouteResourceName              = "httproutes"
 	manager                        = "cr-synchronizer"
 )
 
