@@ -417,6 +417,41 @@ func (ng *DeploymentGenerator) GenericWaiter(deploymentRes schema.GroupVersionRe
 				if err != nil {
 					log.Warn().Stack().Str("name", declarativeAsUnstructured.GetName()).Str("group", deploymentRes.Group).Err(err).Msg("Resource cant be fetched")
 				}
+				if isHTTPRoute(deploymentRes) {
+					parents, found, _ := unstructured.NestedSlice(declarativeAsUnstructured.Object, "status", "parents")
+					if !found || len(parents) == 0 {
+						log.Info().Str("name", declarativeAsUnstructured.GetName()).Msg("HTTPRoute has no parents yet, waiting...")
+						time.Sleep(5 * time.Second)
+						continue
+					}
+
+					ready := true
+					for _, p := range parents {
+						parentMap := p.(map[string]interface{})
+						conds, found, _ := unstructured.NestedSlice(parentMap, "conditions")
+						if found {
+							for _, c := range conds {
+								cond := c.(map[string]interface{})
+								if cond["type"] == "Accepted" && cond["status"] != "True" {
+									ready = false
+								}
+								if cond["type"] == "ResolvedRefs" && cond["status"] != "True" {
+									ready = false
+								}
+							}
+						}
+					}
+
+					if ready {
+						log.Info().Str("name", declarativeAsUnstructured.GetName()).Msg("HTTPRoute ready, setting owner reference")
+						ng.setOwnerRef(deploymentRes, declarativeAsUnstructured.GetName())
+						done <- true
+						return
+					} else {
+						log.Info().Str("name", declarativeAsUnstructured.GetName()).Msg("HTTPRoute not ready yet")
+						time.Sleep(5 * time.Second)
+					}
+				}
 				phaseField, isFound, err := unstructured.NestedString(declarativeAsUnstructured.Object, "status", "phase")
 				if !isFound {
 					log.Warn().Stack().Str("name", declarativeAsUnstructured.GetName()).Str("group", deploymentRes.Group).Err(err).Msg("Phase field not found")
