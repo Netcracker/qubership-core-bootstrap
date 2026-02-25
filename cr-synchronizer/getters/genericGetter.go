@@ -60,7 +60,7 @@ func (ng *GenericRunner) processResourcesForLabel(schemeRes schema.GroupVersionR
 
 func (ng *GenericRunner) Generate() {
 	deploymentSessionId := os.Getenv("DEPLOYMENT_SESSION_ID")
-	objPlurals := []string{"configurationpackages", "smartplugplugins", "meshes", "securities", "composites", "maases", "dbaases", "gateways"}
+	objPlurals := []string{"configurationpackages", "smartplugplugins", "meshes", "securities", "composites", "maases", "dbaases", "gateways", RouteResourceName}
 	definedPl, found := os.LookupEnv("DECLARATIONS_PLURALS")
 	if found && len(definedPl) > 0 {
 		objPlurals = strings.Split(definedPl, ",")

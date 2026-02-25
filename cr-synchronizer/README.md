@@ -45,15 +45,12 @@ metadata:
       helm.sh/hook-delete-policy: "before-hook-creation"
 ...      
 ```
-Set or pass the values used by the template: `CR_SYNCHRONIZER_IMAGE`, `SERVICE_MESH_TYPE`, `DEPLOYMENT_SESSION_ID`, `CHECK_DECLARATION_PLURALS` (if needed), `SERVICE_NAME`, etc.
+Set or pass the values used by the template: `CR_SYNCHRONIZER_IMAGE`, `DEPLOYMENT_SESSION_ID`, `CHECK_DECLARATION_PLURALS` (if needed), `SERVICE_NAME`, etc.
 
 Example `values.yaml` (minimum for startup):
 
 ```yaml
 CR_SYNCHRONIZER_IMAGE: "your-registry/cr-synchronizer:latest"
-
-# Enable Istio-mode inside synchronizer job
-SERVICE_MESH_TYPE: ISTIO
 
 # Session id / service name used by the template
 DEPLOYMENT_SESSION_ID: "postdeploy-{{ .Release.Revision }}"
@@ -71,7 +68,6 @@ RESOURCE_POLLING_TIMEOUT: 300
 ```bash
 helm upgrade --install test-app ./test-chart \
   --set CR_SYNCHRONIZER_IMAGE="cr-synchronizer:latest" \
-  --set SERVICE_MESH_TYPE="ISTIO" \
   --set DEPLOYMENT_SESSION_ID="session-123" \
   --set SERVICE_NAME="test-service" \
   --namespace controller-namespace
