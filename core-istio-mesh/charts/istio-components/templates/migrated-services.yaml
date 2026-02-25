@@ -7,12 +7,6 @@ metadata:
       helm.sh/hook: "post-install, post-upgrade"
       helm.sh/hook-weight: "110"
       helm.sh/hook-delete-policy: "before-hook-creation"
-    labels:
-        name: '{{ .Values.PUBLIC_SERVICE_NAME }}'
-        app.kubernetes.io/name: '{{ .Values.PUBLIC_SERVICE_NAME }}'
-        app.kubernetes.io/part-of: 'Cloud-Core'
-        app.kubernetes.io/managed-by: Helm
-        deployment.qubership.org/sessionId: '{{ .Values.DEPLOYMENT_SESSION_ID }}'
 spec:
   ports:
     - name: web
@@ -39,12 +33,6 @@ metadata:
       helm.sh/hook: "post-install, post-upgrade"
       helm.sh/hook-weight: "110"
       helm.sh/hook-delete-policy: "before-hook-creation"
-    labels:
-        name: '{{ .Values.PRIVATE_SERVICE_NAME }}'
-        app.kubernetes.io/name: '{{ .Values.PRIVATE_SERVICE_NAME }}'
-        app.kubernetes.io/part-of: 'Cloud-Core'
-        app.kubernetes.io/managed-by: Helm
-        deployment.qubership.org/sessionId: '{{ .Values.DEPLOYMENT_SESSION_ID }}'
 spec:
   ports:
     - name: web

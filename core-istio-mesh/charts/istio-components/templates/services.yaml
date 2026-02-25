@@ -5,12 +5,6 @@ metadata:
     name: '{{ .Values.PUBLIC_FB_SERVICE_NAME }}'
     annotations:
         qubership.cloud/start.stage: '1'
-    labels:
-        name: '{{ .Values.PUBLIC_FB_SERVICE_NAME }}'
-        app.kubernetes.io/name: '{{ .Values.PUBLIC_FB_SERVICE_NAME }}'
-        app.kubernetes.io/part-of: 'Cloud-Core'
-        app.kubernetes.io/managed-by: Helm
-        deployment.qubership.org/sessionId: '{{ .Values.DEPLOYMENT_SESSION_ID }}'
 spec:
   ports:
     - name: web
@@ -35,12 +29,6 @@ metadata:
     name: '{{ .Values.PRIVATE_FB_SERVICE_NAME }}'
     annotations:
         qubership.cloud/start.stage: '1'
-    labels:
-        name: '{{ .Values.PRIVATE_FB_SERVICE_NAME }}'
-        app.kubernetes.io/name: '{{ .Values.PRIVATE_FB_SERVICE_NAME }}'
-        app.kubernetes.io/part-of: 'Cloud-Core'
-        app.kubernetes.io/managed-by: Helm
-        deployment.qubership.org/sessionId: '{{ .Values.DEPLOYMENT_SESSION_ID }}'
 spec:
   ports:
     - name: web

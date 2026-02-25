@@ -112,10 +112,12 @@ func TestDeclarationWaiter_UpdatedPhase(t *testing.T) {
 	}
 }
 
-func TestDeclarationWaiter_HTTPRouteReady(t *testing.T) {
+func TestGenericWaiter_HTTPRouteReady(t *testing.T) {
 	resourceTypeWatchersMu.Lock()
 	resourceTypeWatchers = make(map[schema.GroupVersionResource]*resourceTypeWatcher)
 	resourceTypeWatchersMu.Unlock()
+
+	namespace = "core"
 
 	resource := schema.GroupVersionResource{
 		Group:    RouteGroupName,
@@ -138,77 +140,51 @@ func TestDeclarationWaiter_HTTPRouteReady(t *testing.T) {
 		10,
 	)
 
-	obj := &unstructured.Unstructured{}
+	obj := unstructured.Unstructured{}
 	obj.SetName("test-route")
-	obj.SetNamespace("default")
-	obj.Object = map[string]interface{}{
-		"apiVersion": RouteGroupName + "/" + RouteGroupVersion,
-		"kind":       "HTTPRoute",
-		"metadata": map[string]interface{}{
-			"name":      "test-route",
-			"namespace": "default",
-		},
-		"status": map[string]interface{}{
-			"parents": []interface{}{
-				map[string]interface{}{
-					"conditions": []interface{}{
-						map[string]interface{}{
-							"type":   "Accepted",
-							"status": "True",
-						},
-						map[string]interface{}{
-							"type":   "ResolvedRefs",
-							"status": "True",
-						},
-					},
-				},
-			},
-		},
-	}
+	obj.SetNamespace("core")
+	obj.SetKind("HTTPRoute")
+	obj.SetAPIVersion(RouteGroupName + "/" + RouteGroupVersion)
 
-	deploymentUID := uuid.NewUUID()
-	fakeClientSet.PrependReactor("get", "deployments", func(action k8sTesting.Action) (bool, runtime.Object, error) {
-		return true, &v1.Deployment{
-			ObjectMeta: metav1.ObjectMeta{
-				UID: deploymentUID,
-			},
-		}, nil
-	})
+	_ = unstructured.SetNestedSlice(obj.Object, []interface{}{}, "status", "parents")
 
-	fclient.PrependReactor("update", RouteResourceName, func(action k8sTesting.Action) (bool, runtime.Object, error) {
-		updateAction := action.(k8sTesting.UpdateAction)
-		return true, updateAction.GetObject(), nil
-	})
+	currentObj := &obj
 
 	fclient.PrependReactor("get", RouteResourceName, func(action k8sTesting.Action) (bool, runtime.Object, error) {
-    return true, obj, nil
-	})
-
-	w := watch.NewFake()
-	defer w.Stop()
-
-	fclient.PrependWatchReactor(RouteResourceName, func(action k8sTesting.Action) (bool, watch.Interface, error) {
-		return true, w, nil
+		return true, currentObj.DeepCopy(), nil
 	})
 
 	done := make(chan struct{})
 
 	go func() {
-		ng.declarationWaiter(resource, "test-route")
+		ng.GenericWaiter(resource, obj)
 		done <- struct{}{}
 	}()
 
-	w.Add(obj)
+	time.Sleep(100 * time.Millisecond)
+
+	readyObj := currentObj.DeepCopy()
+
+	_ = unstructured.SetNestedSlice(
+		readyObj.Object,
+		[]interface{}{
+			map[string]interface{}{
+				"parentRef": map[string]interface{}{"name": "SomeGateway"},
+				"conditions": []interface{}{
+					map[string]interface{}{"type": "Accepted", "status": "True"},
+					map[string]interface{}{"type": "ResolvedRefs", "status": "True"},
+				},
+			},
+		},
+		"status", "parents",
+	)
+
+	currentObj = readyObj
 
 	select {
 	case <-done:
-		ownerRefs, found, err := unstructured.NestedSlice(obj.Object, "metadata", "ownerReferences")
-		assert.NoError(t, err)
-		assert.True(t, found)
-		assert.NotEmpty(t, ownerRefs)
-		assert.Equal(t, string(deploymentUID), ownerRefs[0].(map[string]interface{})["uid"])
-
-	case <-time.After(1 * time.Second):
-		t.Fatal("declarationWaiter did not complete for HTTPRoute readiness")
+		// success
+	case <-time.After(5 * time.Second):
+		t.Fatal("GenericWaiter did not complete for HTTPRoute readiness")
 	}
 }
