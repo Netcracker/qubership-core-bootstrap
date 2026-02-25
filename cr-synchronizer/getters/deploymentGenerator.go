@@ -155,7 +155,6 @@ func (ng *DeploymentGenerator) createGenericGeneratorManager() *GeneratorManager
 	generatorManager = &GeneratorManager{
 		generators: make(map[string]Generator),
 	}
-
 	generatorManager.register(NewGenericRunnerGenerator(ng.ctx, ng.client, ng.recorder, ng.clientset, ng.scheme, ng.runtimeReceiver, ng.timeoutSeconds))
 	return generatorManager
 }
@@ -370,21 +369,6 @@ func (ng *DeploymentGenerator) declarationWaiter(resourceType schema.GroupVersio
 			log.Fatal().Stack().Str("name", resourceName).Str("group", resourceType.Group).Msg("TimeOutReached")
 			return
 		case obj := <-ch:
-			if isHTTPRoute(resourceType) {
-				ready, reason := isHTTPRouteReady(obj)
-				if ready {
-					log.Info().Str("type", "waiter").Str("name", resourceName).
-						Msg("HTTPRoute ready, setting owner reference")
-
-					ng.setOwnerRef(resourceType, resourceName)
-					return
-				}
-
-				log.Info().	Str("type", "waiter").Str("name", resourceName).Str("reason", reason).
-					Msg("HTTPRoute not ready yet")
-
-				continue
-			}
 			phaseField, isFound, err := unstructured.NestedString(obj.Object, "status", "phase")
 			if !isFound {
 				log.Warn().Str("type", "waiter").Stack().Str("name", resourceName).Str("group", resourceType.Group).Err(err).Msg("Phase field not found")
@@ -502,52 +486,6 @@ func (ng *DeploymentGenerator) GenericWaiter(deploymentRes schema.GroupVersionRe
 	<-done
 }
 
-
 func isHTTPRoute(resource schema.GroupVersionResource) bool {
 	return resource.Group == RouteGroupName && resource.Resource == RouteResourceName
-}
-
-func isHTTPRouteReady(obj *unstructured.Unstructured) (bool, string) {
-    parents, found, err := unstructured.NestedSlice(obj.Object, "status", "parents")
-    if err != nil || !found {
-        return false, "status.parents not found"
-    }
-
-    for _, p := range parents {
-        parentMap, ok := p.(map[string]interface{})
-        if !ok {
-            continue
-        }
-
-        conditions, found, _ := unstructured.NestedSlice(parentMap, "conditions")
-        if !found {
-            continue
-        }
-
-        accepted := false
-        resolved := false
-
-        for _, c := range conditions {
-            condMap, ok := c.(map[string]interface{})
-            if !ok {
-                continue
-            }
-
-            t, _, _ := unstructured.NestedString(condMap, "type")
-            status, _, _ := unstructured.NestedString(condMap, "status")
-
-            if t == "Accepted" && status == "True" {
-                accepted = true
-            }
-            if t == "ResolvedRefs" && status == "True" {
-                resolved = true
-            }
-        }
-
-        if accepted && resolved {
-            return true, ""
-        }
-    }
-
-    return false, "Accepted or ResolvedRefs condition not True"
 }

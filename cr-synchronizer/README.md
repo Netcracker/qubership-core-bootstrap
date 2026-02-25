@@ -3,11 +3,48 @@
 cr-synchronizer is a lightweight controller component that watches and synchronizes Custom Resources (CRs) used by the qubership platform. It ensures desired CR state is propagated, reconciled, and recorded with structured events and labels. 
 
 ## Istio gateway handling
-For correct routing through Istio Gateway and ensure backward compatibility were kept, fallback routes have been included. After installing, we need to update existing services to switch to these fallback routes accordingly. So the gateway_service_generator was added to check preconditions before services switching
+For correct routing through Istio Gateway and ensure backward compatibility were kept, fallback routes have been included. After installing, we need to update existing services to switch to these fallback routes accordingly. So helm weight-based approach is used, CR syncronizer waits fallback routes have parents and correct status.conditions
 
 ### Local development
 
-Place the files with the desired Service manifests into the chart's `declarations/` so that the Helm expression `.Files.Glob "declarations/*"` in `_synchronizer.yaml` includes them in a ConfigMap.  
+Create configuration for HTTPRoute with the proper weight (before postintall job) and lables watched by cr-synchronizer, eg:
+```
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: '{{ .Values.PRIVATE_GW_ROUTE_NAME }}'
+  annotations:
+    helm.sh/hook: "pre-install, pre-upgrade"
+    helm.sh/hook-weight: "-60"
+    helm.sh/hook-delete-policy: "before-hook-creation"
+  labels:
+    app.kubernetes.io/name: '{{ .Values.SERVICE_NAME }}'
+    deployment.netcracker.com/sessionId: '{{ .Values.DEPLOYMENT_SESSION_ID }}'
+spec:
+  parentRefs:
+  - name: '{{ .Values.ISTIO_PRIVATE_GATEWAY_NAME }}'
+  rules:
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /
+    backendRefs:
+    - name: '{{ .Values.PRIVATE_FB_SERVICE_NAME }}'
+      port: 8080
+---
+```
+Services are pointing to the gateway where this route is configured should use post-install hook and have a weight more then "100" to be applied after cr-synchronizer postinstall job, eg:
+```
+kind: Service
+apiVersion: v1
+metadata:
+    name: '{{ .Values.PRIVATE_SERVICE_NAME }}'
+    annotations:
+      helm.sh/hook: "post-install, post-upgrade"
+      helm.sh/hook-weight: "110"
+      helm.sh/hook-delete-policy: "before-hook-creation"
+...      
+```
 Set or pass the values used by the template: `CR_SYNCHRONIZER_IMAGE`, `SERVICE_MESH_TYPE`, `DEPLOYMENT_SESSION_ID`, `CHECK_DECLARATION_PLURALS` (if needed), `SERVICE_NAME`, etc.
 
 Example `values.yaml` (minimum for startup):
@@ -24,37 +61,10 @@ SERVICE_NAME: "test-service"
 APPLICATION_NAME: "test-app"
 
 # Optional: list of plurals to process
-CHECK_DECLARATION_PLURALS: "services,gateways"
+CHECK_DECLARATION_PLURALS: "httproutes"
 RESOURCE_POLLING_TIMEOUT: 300
 ```
 
-**How to organize declaratives (chart structure):**
-
-Create a `declarations/` folder in your chart, and add YAML files there (each file can contain one or multiple objects separated by `---`).  
-The `_synchronizer.yaml` template already does:
-- `{{ $filesExist := (.Files.Glob "declarations/*") }}` — if files exist, it creates a ConfigMap named `synchronizer.transport.configmap` and includes all files as data entries.
-- The `synchronizer.postinstall.job` mounts this ConfigMap into the container: the volume `declarations-{{ .Values.SERVICE_NAME }}` is mounted at `/mnt/declaratives`.
-
-**Example declaration file (`declarations/test-gateway-services.yaml`):**
-
-```yaml
-apiVersion: v1
-kind: Service
-metadata:
-  name: test-service
-  annotations:
-    gateway.target: "test-gateway-name"
-    gateway.route: "test-route-name"
-spec:
-  selector:
-    app: test-app
-  ports:
-    - protocol: TCP
-      port: 8080
-      targetPort: 8080
----
-```
-where gateway.target and gateway.route are preconditions to process services declarations. These resources must be deployed first
 
 **Installing the chart (example):**
 
@@ -82,7 +92,8 @@ Check logs of the Job/Pod for debugging:
 ```bash
 kubectl -n controller-namespace logs job/synchronizer-postinstall-job-name
 # or, if it's a Deployment/Pod:
-kubectl -n controller-namespace logs deploy/my-cr-synchronizer
+kubectl -n controller-namespace logs deploy/cr-synchronizer
+kubectl -n controller-namespace logs finalyzer-postinstall-job-core-istio-mesh-7mmtl
 ```
 
 Verify that the service has been applied:
