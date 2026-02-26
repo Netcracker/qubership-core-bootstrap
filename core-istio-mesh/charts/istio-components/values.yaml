@@ -2,8 +2,10 @@ ISTIO_PRIVATE_GATEWAY_NAME: private-gateway
 ISTIO_PUBLIC_GATEWAY_NAME: public-gateway
 PUBLIC_FB_SERVICE_NAME: public-fallback-service
 PRIVATE_FB_SERVICE_NAME: private-fallback-service
-PRIVATE_GW_SERVICE_NAME: private-gateway-service
-PUBLIC_GW_SERVICE_NAME: public-gateway-service
+PUBLIC_SERVICE: "public-frontend-gateway"
+PUBLIC_SERVICE_NAME: "public-gateway-service"
+PRIVATE_SERVICE: "private-frontend-gateway"
+PRIVATE_SERVICE_NAME: "private-gateway-service"
 PRIVATE_GW_ROUTE_NAME: fallback-to-private-gateway
 PUBLIC_GW_ROUTE_NAME: fallback-to-public-gateway
 
@@ -12,6 +14,5 @@ APPLICATION_NAME: "Cloud-Core"
 SERVICE_NAME: "core-istio-mesh"
 DEPLOYMENT_SESSION_ID: ""
 RESOURCE_POLLING_TIMEOUT: "300"
-CHECK_DECLARATION_PLURALS: "services,gateways"
-SERVICE_MESH_TYPE: "ISTIO"
+CHECK_DECLARATION_PLURALS: "httproutes"
 CR_SYNCHRONIZER_IMAGE: "ghcr.io/netcracker/cr-synchronizer:latest"

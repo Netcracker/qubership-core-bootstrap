@@ -111,3 +111,80 @@ func TestDeclarationWaiter_UpdatedPhase(t *testing.T) {
 		t.Fatal("declarationWaiter did not complete for Updated phase")
 	}
 }
+
+func TestGenericWaiter_HTTPRouteReady(t *testing.T) {
+	resourceTypeWatchersMu.Lock()
+	resourceTypeWatchers = make(map[schema.GroupVersionResource]*resourceTypeWatcher)
+	resourceTypeWatchersMu.Unlock()
+
+	namespace = "core"
+
+	resource := schema.GroupVersionResource{
+		Group:    RouteGroupName,
+		Version:  RouteGroupVersion,
+		Resource: RouteResourceName,
+	}
+
+	scheme := runtime.NewScheme()
+	fclient := k8sClientDynamic.NewSimpleDynamicClient(scheme)
+	fakeClientSet := fake.NewSimpleClientset()
+
+	ng := NewDeploymentGenerator(
+		context.Background(),
+		fclient,
+		&testRecorder{},
+		&fakeClientset{appsV1: fakeClientSet.AppsV1()},
+		scheme,
+		&unstructured.Unstructured{},
+		false,
+		10,
+	)
+
+	obj := unstructured.Unstructured{}
+	obj.SetName("test-route")
+	obj.SetNamespace("core")
+	obj.SetKind("HTTPRoute")
+	obj.SetAPIVersion(RouteGroupName + "/" + RouteGroupVersion)
+
+	_ = unstructured.SetNestedSlice(obj.Object, []interface{}{}, "status", "parents")
+
+	currentObj := &obj
+
+	fclient.PrependReactor("get", RouteResourceName, func(action k8sTesting.Action) (bool, runtime.Object, error) {
+		return true, currentObj.DeepCopy(), nil
+	})
+
+	done := make(chan struct{})
+
+	go func() {
+		ng.GenericWaiter(resource, obj)
+		done <- struct{}{}
+	}()
+
+	time.Sleep(100 * time.Millisecond)
+
+	readyObj := currentObj.DeepCopy()
+
+	_ = unstructured.SetNestedSlice(
+		readyObj.Object,
+		[]interface{}{
+			map[string]interface{}{
+				"parentRef": map[string]interface{}{"name": "SomeGateway"},
+				"conditions": []interface{}{
+					map[string]interface{}{"type": "Accepted", "status": "True"},
+					map[string]interface{}{"type": "ResolvedRefs", "status": "True"},
+				},
+			},
+		},
+		"status", "parents",
+	)
+
+	currentObj = readyObj
+
+	select {
+	case <-done:
+		// success
+	case <-time.After(5 * time.Second):
+		t.Fatal("GenericWaiter did not complete for HTTPRoute readiness")
+	}
+}

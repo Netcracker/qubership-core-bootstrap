@@ -401,52 +401,92 @@ func (ng *DeploymentGenerator) GenericWaiter(deploymentRes schema.GroupVersionRe
 				if err != nil {
 					log.Warn().Stack().Str("name", declarativeAsUnstructured.GetName()).Str("group", deploymentRes.Group).Err(err).Msg("Resource cant be fetched")
 				}
-				phaseField, isFound, err := unstructured.NestedString(declarativeAsUnstructured.Object, "status", "phase")
-				if !isFound {
-					log.Warn().Stack().Str("name", declarativeAsUnstructured.GetName()).Str("group", deploymentRes.Group).Err(err).Msg("Phase field not found")
-				}
-				if err != nil {
-					log.Warn().Stack().Str("name", declarativeAsUnstructured.GetName()).Str("group", deploymentRes.Group).Err(err).Msg("Phase field lookup error")
-				}
-				switch phaseField {
-				case "WaitingForDependency":
-					log.Info().Str("name", declarativeAsUnstructured.GetName()).Str("kind", declarativeAsUnstructured.GetKind()).Str("phase", phaseField).Msgf("Declarative not ready")
-					time.Sleep(5 * time.Second)
-				case "BackingOff":
-					log.Info().Str("name", declarativeAsUnstructured.GetName()).Str("kind", declarativeAsUnstructured.GetKind()).Str("phase", phaseField).Msgf("Declarative not ready")
-					time.Sleep(5 * time.Second)
-				case "Updating":
-					log.Info().Str("name", declarativeAsUnstructured.GetName()).Str("kind", declarativeAsUnstructured.GetKind()).Str("phase", phaseField).Msgf("Declarative not ready")
-					time.Sleep(5 * time.Second)
-				case "InvalidConfiguration":
-					cReason, isFound, err := unstructured.NestedString(declarativeAsUnstructured.Object, "status", "phase")
+				if isHTTPRoute(deploymentRes) {
+					parents, found, _ := unstructured.NestedSlice(declarativeAsUnstructured.Object, "status", "parents")
+					if !found || len(parents) == 0 {
+						log.Info().Str("name", declarativeAsUnstructured.GetName()).Msg("HTTPRoute has no parents yet, waiting...")
+						time.Sleep(5 * time.Second)
+						continue
+					}
+
+					ready := true
+					for _, p := range parents {
+						parentMap := p.(map[string]interface{})
+						conds, found, _ := unstructured.NestedSlice(parentMap, "conditions")
+						if found {
+							for _, c := range conds {
+								cond := c.(map[string]interface{})
+								if cond["type"] == "Accepted" && cond["status"] != "True" {
+									ready = false
+								}
+								if cond["type"] == "ResolvedRefs" && cond["status"] != "True" {
+									ready = false
+								}
+							}
+						}
+					}
+
+					if ready {
+						log.Info().Str("name", declarativeAsUnstructured.GetName()).Msg("HTTPRoute ready, setting owner reference")
+						ng.setOwnerRef(deploymentRes, declarativeAsUnstructured.GetName())
+						done <- true
+						return
+					} else {
+						log.Info().Str("name", declarativeAsUnstructured.GetName()).Msg("HTTPRoute not ready yet")
+						time.Sleep(5 * time.Second)
+					}
+				} else {
+					phaseField, isFound, err := unstructured.NestedString(declarativeAsUnstructured.Object, "status", "phase")
 					if !isFound {
-						log.Fatal().Stack().Str("name", declarativeAsUnstructured.GetName()).Str("kind", declarativeAsUnstructured.GetKind()).Err(err).Msg("Cant find reason field")
+						log.Warn().Stack().Str("name", declarativeAsUnstructured.GetName()).Str("group", deploymentRes.Group).Err(err).Msg("Phase field not found")
 					}
 					if err != nil {
-						log.Fatal().Stack().Str("name", declarativeAsUnstructured.GetName()).Str("kind", declarativeAsUnstructured.GetKind()).Err(err).Msg("Error searching reason field")
+						log.Warn().Stack().Str("name", declarativeAsUnstructured.GetName()).Str("group", deploymentRes.Group).Err(err).Msg("Phase field lookup error")
 					}
-					cMessage, isFound, err := unstructured.NestedString(declarativeAsUnstructured.Object, "status", "phase")
-					if !isFound {
-						log.Fatal().Stack().Str("name", declarativeAsUnstructured.GetName()).Str("kind", declarativeAsUnstructured.GetKind()).Err(err).Msg("Cant find message field")
+					switch phaseField {
+					case "WaitingForDependency":
+						log.Info().Str("name", declarativeAsUnstructured.GetName()).Str("kind", declarativeAsUnstructured.GetKind()).Str("phase", phaseField).Msgf("Declarative not ready")
+						time.Sleep(5 * time.Second)
+					case "BackingOff":
+						log.Info().Str("name", declarativeAsUnstructured.GetName()).Str("kind", declarativeAsUnstructured.GetKind()).Str("phase", phaseField).Msgf("Declarative not ready")
+						time.Sleep(5 * time.Second)
+					case "Updating":
+						log.Info().Str("name", declarativeAsUnstructured.GetName()).Str("kind", declarativeAsUnstructured.GetKind()).Str("phase", phaseField).Msgf("Declarative not ready")
+						time.Sleep(5 * time.Second)
+					case "InvalidConfiguration":
+						cReason, isFound, err := unstructured.NestedString(declarativeAsUnstructured.Object, "status", "phase")
+						if !isFound {
+							log.Fatal().Stack().Str("name", declarativeAsUnstructured.GetName()).Str("kind", declarativeAsUnstructured.GetKind()).Err(err).Msg("Cant find reason field")
+						}
+						if err != nil {
+							log.Fatal().Stack().Str("name", declarativeAsUnstructured.GetName()).Str("kind", declarativeAsUnstructured.GetKind()).Err(err).Msg("Error searching reason field")
+						}
+						cMessage, isFound, err := unstructured.NestedString(declarativeAsUnstructured.Object, "status", "phase")
+						if !isFound {
+							log.Fatal().Stack().Str("name", declarativeAsUnstructured.GetName()).Str("kind", declarativeAsUnstructured.GetKind()).Err(err).Msg("Cant find message field")
+						}
+						if err != nil {
+							log.Fatal().Stack().Str("name", declarativeAsUnstructured.GetName()).Str("kind", declarativeAsUnstructured.GetKind()).Err(err).Msg("Error searching message field")
+						}
+						ng.sendEvent(cReason, cMessage, declarativeAsUnstructured.GetName(), declarativeAsUnstructured.GetKind())
+						log.Fatal().Stack().Str("name", declarativeAsUnstructured.GetName()).Str("kind", declarativeAsUnstructured.GetKind()).Str("phase", phaseField).Msgf(cReason)
+					case "Updated":
+						log.Info().Str("type", "waiter").Str("name", declarativeAsUnstructured.GetName()).Msg("start setting owner reference on stable phase 'Updated'")
+						ng.setOwnerRef(deploymentRes, declarativeAsUnstructured.GetName())
+						log.Info().Str("type", "waiter").Str("name", declarativeAsUnstructured.GetName()).Msg("finished setting owner reference on stable phase 'Updated'")
+						done <- true
+						return
+					default:
+						log.Info().Str("name", declarativeAsUnstructured.GetName()).Str("kind", declarativeAsUnstructured.GetKind()).Str("phase", phaseField).Msgf("Resource still not have phase field")
+						time.Sleep(5 * time.Second)
 					}
-					if err != nil {
-						log.Fatal().Stack().Str("name", declarativeAsUnstructured.GetName()).Str("kind", declarativeAsUnstructured.GetKind()).Err(err).Msg("Error searching message field")
-					}
-					ng.sendEvent(cReason, cMessage, declarativeAsUnstructured.GetName(), declarativeAsUnstructured.GetKind())
-					log.Fatal().Stack().Str("name", declarativeAsUnstructured.GetName()).Str("kind", declarativeAsUnstructured.GetKind()).Str("phase", phaseField).Msgf(cReason)
-				case "Updated":
-					log.Info().Str("type", "waiter").Str("name", declarativeAsUnstructured.GetName()).Msg("start setting owner reference on stable phase 'Updated'")
-					ng.setOwnerRef(deploymentRes, declarativeAsUnstructured.GetName())
-					log.Info().Str("type", "waiter").Str("name", declarativeAsUnstructured.GetName()).Msg("finished setting owner reference on stable phase 'Updated'")
-					done <- true
-					return
-				default:
-					log.Info().Str("name", declarativeAsUnstructured.GetName()).Str("kind", declarativeAsUnstructured.GetKind()).Str("phase", phaseField).Msgf("Resource still not have phase field")
-					time.Sleep(5 * time.Second)
 				}
 			}
 		}
 	}()
 	<-done
+}
+
+func isHTTPRoute(resource schema.GroupVersionResource) bool {
+	return resource.Group == RouteGroupName && resource.Resource == RouteResourceName
 }
