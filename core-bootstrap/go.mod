@@ -5,7 +5,7 @@ go 1.25.7
 require (
 	github.com/go-resty/resty/v2 v2.17.2
 	github.com/stretchr/testify v1.11.1
-	k8s.io/api v0.28.4
+	k8s.io/api v0.35.2
 	k8s.io/apimachinery v0.28.4
 	k8s.io/client-go v0.28.4
 )
