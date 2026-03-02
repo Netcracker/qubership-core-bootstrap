@@ -23,7 +23,7 @@ concurrency:
 jobs:
   docker-build:
     if: ${{ !(github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork) }}
-    uses: Netcracker/qubership-core-infra/.github/workflows/docker-build.yaml@v2.0.0
+    uses: Netcracker/qubership-core-infra/.github/workflows/docker-build.yaml@v2.1.0
     with:
       dry-run: false
       config-filename: "core-bootstrap---docker-dev-config.json"
