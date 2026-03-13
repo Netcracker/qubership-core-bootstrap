@@ -10,7 +10,7 @@ BLUE := \033[0;34m
 CYAN := \033[0;36m
 NC := \033[0m
 
- .PHONY: help validate-input check-gateway-services check-ztunnel-logs run-mesh-test check-public-gateway-istio-logs check-waypoint-logs test-start-message test collect-logs
+ .PHONY: help validate-input check-gateway-services check-ztunnel-logs run-mesh-test check-public-gateway-istio-logs check-waypoint-logs test-start-message test full-test collect-logs
  
  NAMESPACE ?= 
  ISTIO_NAMESPACE ?= istio-system
@@ -31,21 +31,22 @@ help:
 	@echo "  make <target> [NAMESPACE=ns] [ISTIO_NAMESPACE=istio-system]"
 	@echo ""
 	@echo "Targets:"
-	@echo "  test                  - Run full Istio mesh test flow"
-	@echo "    test-start-message   - Print start message"
-	@echo "    validate-input       - Validate required parameters"
-	@echo "    check-ztunnel-logs    - Validate ztunnel logs for NAMESPACE"
-	@echo "    check-gateway-services - Verify public/private services point to istio gateway deployments"
-	@echo "    run-mesh-test         - Run mesh smoke test (sub-make)"
-	@echo "    check-public-gateway-istio-logs - Verify gateway received /mesh-test/health"
-	@echo "    check-waypoint-logs   - Verify waypoint received /mesh-test/health"
-	@echo "  collect-logs      - Collect last N lines from ztunnel, waypoint, public-gateway, public-frontend-gateway"
+	@echo "  test                             - Quick test: validate input and gateway services"
+	@echo "    test-start-message             - Print start message"
+	@echo "    validate-input                 - Validate required parameters"
+	@echo "    check-gateway-services         - Verify public/private services point to istio gateway deployments"
+	@echo "  full-test                        - Full Istio mesh test flow"
+	@echo "    run-mesh-test                  - Deploy and run mesh smoke test (sub-make)"
+	@echo "    check-ztunnel-Logs             - Verify ztunnel registered mesh-test traffic (all nodes)"
+	@echo "    check-public-gateway-istio-logs  - Verify public gateway received /mesh-test/health"
+	@echo "    check-waypoint-logs            - Verify waypoint received /mesh-test/health"
+	@echo "  collect-logs                     - Collect last N lines from ztunnel, waypoint, public-gateway, public-frontend-gateway"
 	@echo ""
 	@echo "Variables:"
-	@echo "  NAMESPACE        - Namespace under test (required)"
-	@echo "  ISTIO_NAMESPACE  - Istio control-plane namespace (required)"
-	@echo "  LOG_TAIL_LINES   - Number of log lines to collect per component (default: 100)"
-	@echo "  LOG_OUTPUT_DIR   - Base directory for log files (default: ./istio-logs); logs go to LOG_OUTPUT_DIR/NAMESPACE/"
+	@echo "  NAMESPACE            - Namespace under test (required)"
+	@echo "  ISTIO_NAMESPACE      - Istio control-plane namespace (default: istio-system)"
+	@echo "  LOG_TAIL_LINES       - Number of log lines to collect per component (default: 1000)"
+	@echo "  LOG_OUTPUT_DIR       - Base directory for log files (default: ./istio-logs)"
 	@echo ""
 	@echo "Runs mesh smoke test for the given namespace."
 	@echo "The test verifies that traffic goes through Istio mesh: ztunnel, public-gateway, waypoint."
@@ -94,26 +95,39 @@ check-gateway-services:
 	check_service_targets "$(NAMESPACE)" "$(PRIVATE_GATEWAY_SERVICE)" "$(PRIVATE_GATEWAY_DEPLOYMENT)";
 
 
-define CHECK_ZTUNNEL_LOGS_FUNC
-check_ztunnel_logs() { \
-	namespace="$$1"; \
-	echo "$(YELLOW)--- Checking ztunnel logs for namespace $$namespace...$(NC)"; \
-	ZTUNNEL_POD=$$(kubectl get pod -n $(ISTIO_NAMESPACE) -l app=ztunnel -o jsonpath='{.items[0].metadata.name}'); \
-	LOG_MATCH=$$(kubectl logs -n $(ISTIO_NAMESPACE) $$ZTUNNEL_POD | grep -i "$$namespace/sa/.*$$namespace/sa/.*"); \
-	if [ -z "$$LOG_MATCH" ]; then \
-		echo "$(RED)Error: ztunnel logs do not contain expected $$namespace/sa entries$(NC)"; \
+define check_ztunnel_logs
+	search_text="$(1)"; \
+	echo "$(BLUE)=== Checking ztunnel logs (search: $$search_text)...$(NC)"; \
+	ZTUNNEL_PODS=$$(kubectl get pod -n $(ISTIO_NAMESPACE) -l app=ztunnel -o jsonpath='{.items[*].metadata.name}'); \
+	ZTUNNEL_NODES=$$(kubectl get pod -n $(ISTIO_NAMESPACE) -l app=ztunnel -o jsonpath='{.items[*].spec.nodeName}'); \
+	if [ -z "$$ZTUNNEL_PODS" ]; then \
+		echo "$(RED)Error: no ztunnel pods found in $(ISTIO_NAMESPACE)$(NC)"; \
 		exit 1; \
 	fi; \
-	echo "$$LOG_MATCH" | tail -n 1; \
-};
+	found_pods=""; \
+	i=1; \
+	for pod in $$ZTUNNEL_PODS; do \
+		pod_node=$$(echo "$$ZTUNNEL_NODES" | cut -d' ' -f$$i); \
+		i=$$((i+1)); \
+		LOG_MATCH=$$(kubectl logs -n $(ISTIO_NAMESPACE) "$$pod" | grep "$$search_text"); \
+		if [ -n "$$LOG_MATCH" ]; then \
+			echo "$(GREEN)  [FOUND]     node=$$pod_node pod=$$pod$(NC)"; \
+			echo "$$LOG_MATCH" | tail -n 10; \
+			found_pods="$$found_pods $$pod"; \
+		else \
+			echo "$(YELLOW)  [NOT FOUND] node=$$pod_node pod=$$pod$(NC)"; \
+		fi; \
+	done; \
+	if [ -z "$$found_pods" ]; then \
+		echo "$(RED)Error: no ztunnel pod contains entries matching: $$search_text$(NC)"; \
+		exit 1; \
+	fi; \
+	echo "$(GREEN)=== ztunnel logs are fine$(NC)"; \
+	echo ""
 endef
 
 check-ztunnel-logs:
-	@$(CHECK_ZTUNNEL_LOGS_FUNC) \
-	echo "$(BLUE)=== Checking ztunnel logs$(NC)"; \
-	check_ztunnel_logs "$(NAMESPACE)"; \
-	echo "$(GREEN)=== ztunnel logs are fine$(NC)"; \
-	echo ""; \
+	@$(call check_ztunnel_logs,mesh-test)
 
 run-mesh-test:
 	@echo "$(CYAN)--- Running mesh test...$(NC)"
@@ -200,8 +214,8 @@ test: test-start-message validate-input check-gateway-services
 	@echo ""
 	@echo "$(GREEN)=== QuickIstio Mesh test completed for namespace \"$(NAMESPACE)\"(NC)"
 
-full-test: test-start-message validate-input check-ztunnel-logs check-gateway-services run-mesh-test check-public-gateway-istio-logs check-waypoint-logs
-	@echo "$(GREEN)   - Ztunnel is registering traffic$(NC)"
+full-test: test-start-message validate-input check-gateway-services run-mesh-test check-ztunnel-logs check-public-gateway-istio-logs check-waypoint-logs
+	@echo "$(GREEN)   - Ztunnel is registering traffic for mesh test$(NC)"
 	@echo "$(GREEN)   - Public-gateway-service is pointing to public-gateway-istio$(NC)"
 	@echo "$(GREEN)   - Public-gateway-istio has received traffic for mesh test service$(NC)"
 	@echo "$(GREEN)   - Fallback route on public-gateway-istio is working fine$(NC)"
