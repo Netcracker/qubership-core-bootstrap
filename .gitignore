@@ -3,4 +3,8 @@
 /cloud-core-local-dev/.tmp/**
 /cloud-core-local-dev/maas/.tmp/**
 /cloud-core-local-dev/dbaas/.tmp/**
+/cloud-core-local-dev/istio/.tmp/**
 /cloud-core-local-dev/core-values.yaml
+/core-istio-mesh/charts/istio-components/Chart.lock
+/core-istio-mesh/charts/istio-components/charts/**
+/cloud-core-local-dev/istio/test/istio-logs/**

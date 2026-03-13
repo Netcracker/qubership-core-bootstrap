@@ -10,6 +10,7 @@
 	clone-repos template-values-files \
 	deploy-consul deploy-consul-old deploy-consul-print-start install-consul wait-for-consul check-consul-connectivity \
 	deploy-monitoring deploy-metrics-server \
+	deploy-istio \
 	deploy-dbaas \
 	deploy-maas \
 	prepare-core-bootstrap prepare-core-bootstrap-print-start deploy-cloud-core-configuration \
@@ -28,6 +29,7 @@
 .PHONY: uninstall uninstall-core uninstall-dependencies \
 	uninstall-cloud-core-components uninstall-cloud-core-configuration \
 	uninstall-consul uninstall-monitoring uninstall-metrics-server \
+	uninstall-istio \
 	uninstall-dbaas \
 	uninstall-maas \
 	uninstall-control-plane-db-credentials \
@@ -91,10 +93,11 @@ help:
 	@echo ""
 	@echo "$(CYAN)INSTALLATION TARGETS:$(NC)"
 	@echo "  deploy-core             # Deploy Cloud Core bootstrap configuration and components"
-	@echo "  deploy-dependencies     # Deploy metrics-server, monitoring, consul, dbaas"
+	@echo "  deploy-dependencies     # Deploy metrics-server, monitoring, istio, consul, dbaas"
 	@echo "  deploy-consul           # Deploy Consul (if INSTALL_CONSUL=true)"
 	@echo "  deploy-monitoring       # Deploy monitoring operator (if INSTALL_MONITORING=true)"
 	@echo "  deploy-metrics-server   # Deploy metrics server (if INSTALL_METRICS_SERVER=true)"
+	@echo "  deploy-istio            # Deploy Istio via qubership-istio-distr (if INSTALL_ISTIO=true)"
 	@echo "  deploy-dbaas            # Deploy DBaaS (if INSTALL_DBAAS=true)"
 	@echo "  deploy-maas             # Deploy MaaS (if INSTALL_MAAS=true)"
 	@echo ""
@@ -114,6 +117,7 @@ help:
 	@echo "  uninstall-consul        # Uninstall Consul (if INSTALL_CONSUL=true)"
 	@echo "  uninstall-monitoring    # Uninstall monitoring (if INSTALL_MONITORING=true)"
 	@echo "  uninstall-metrics-server # Uninstall metrics server (if INSTALL_METRICS_SERVER=true)"
+	@echo "  uninstall-istio         # Uninstall Istio (if INSTALL_ISTIO=true)"
 	@echo "  uninstall-dbaas         # Uninstall DBaaS (if INSTALL_DBAAS=true)"
 	@echo "  uninstall-maas          # Uninstall MaaS (if INSTALL_MAAS=true)"
 	@echo "  cleanup-crds            # Remove all CRDs (if INSTALL_CRDS=true)"
@@ -135,7 +139,7 @@ help:
 # INSTALLATION
 # =============================================================================
 
-install: validate clone-repos template-values-files deploy mesh-smoke-test
+install: validate clone-repos template-values-files deploy #mesh-smoke-test
 
 deploy: deploy-dependencies deploy-core
 
@@ -403,7 +407,7 @@ deploy-cloud-core-configuration:
 
 # ------------------ cloud core ---------------------------
 
-deploy-cloud-core-components: deploy-cloud-core-print-start deploy-facade-operator deploy-ingress-gateway deploy-control-plane deploy-paas-mediation deploy-dbaas-agent deploy-maas-agent deploy-core-operator deploy-config-server deploy-site-management
+deploy-cloud-core-components: deploy-cloud-core-print-start deploy-facade-operator deploy-ingress-gateway deploy-istio deploy-control-plane deploy-paas-mediation deploy-dbaas-agent deploy-maas-agent deploy-core-operator deploy-config-server deploy-site-management
 	@echo "$(GREEN)=== Cloud Core components deployment completed$(NC)"
 	@echo ""
 
@@ -484,22 +488,27 @@ deploy-dbaas-agent:
 		-f $(REPOS_DIR)/qubership-core-dbaas-agent/helm-templates/dbaas-agent/resource-profiles/dev.yaml \
 		-f ./core-values.yaml \
 		--set TAG=$(DBAAS_AGENT_TAG) \
-		$(HELM_DEBUG_FLAGS)
+		$(HELM_DEBUG_FLAGS)	
 	@echo ""
 
 deploy-maas-agent:
-	@echo "$(YELLOW)--- Setting up MaaS agent...$(NC)"
-	@$(call update_helm_dependencies,$(REPOS_DIR)/qubership-core-maas-agent/helm-templates/maas-agent,)
-	helm upgrade --install maas-agent $(REPOS_DIR)/qubership-core-maas-agent/helm-templates/maas-agent -n $(CORE_NAMESPACE) \
-		-f $(REPOS_DIR)/qubership-core-maas-agent/helm-templates/maas-agent/resource-profiles/dev.yaml \
-		-f ./core-values.yaml \
-		--set IMAGE_REPOSITORY=$(MAAS_AGENT_IMAGE_REPOSITORY) \
-		--set TAG=$(MAAS_AGENT_TAG) \
-		--set MAAS_ENABLED=$(CORE_CONFIG_MAAS_ENABLED) \
-		--set MAAS_INTERNAL_ADDRESS=$(CORE_CONFIG_MAAS_INTERNAL_ADDRESS) \
-		$(HELM_DEBUG_FLAGS)
+	@if [ "$(INSTALL_MAAS)" = "true" ]; then \
+		echo "$(YELLOW)--- Setting up MaaS agent...$(NC)"; \
+		$(call update_helm_dependencies,$(REPOS_DIR)/qubership-core-maas-agent/helm-templates/maas-agent,); \
+		helm upgrade --install maas-agent $(REPOS_DIR)/qubership-core-maas-agent/helm-templates/maas-agent -n $(CORE_NAMESPACE) \
+			-f $(REPOS_DIR)/qubership-core-maas-agent/helm-templates/maas-agent/resource-profiles/dev.yaml \
+			-f ./core-values.yaml \
+			--set IMAGE_REPOSITORY=$(MAAS_AGENT_IMAGE_REPOSITORY) \
+			--set TAG=$(MAAS_AGENT_TAG) \
+			--set MAAS_ENABLED=$(CORE_CONFIG_MAAS_ENABLED) \
+			--set MAAS_INTERNAL_ADDRESS=$(CORE_CONFIG_MAAS_INTERNAL_ADDRESS) \
+			$(HELM_DEBUG_FLAGS); \
+		echo ""; \
+	else \
+		echo "$(CYAN)--- Skipping MaaS agent installation (INSTALL_MAAS=false)...$(NC)"; \
+		echo ""; \
+	fi
 	@echo ""
-
 
 apply-core-operator-crds:
 	@if [ "$(INSTALL_CRDS)" = "true" ]; then \
@@ -538,7 +547,7 @@ deploy-config-server:
 # UNINSTALL
 # =============================================================================
 
-uninstall: uninstall-maas uninstall-core uninstall-dependencies cleanup-mesh-test cleanup-crds cleanup-namespaces
+uninstall: uninstall-istio uninstall-maas uninstall-core uninstall-dependencies cleanup-mesh-test cleanup-crds cleanup-namespaces
 	@echo "$(GREEN)=== Complete cleanup finished$(NC)"
 	@echo ""
 
@@ -683,8 +692,15 @@ cleanup-namespaces:
 # MESH SMOKE TEST
 # =============================================================================
 
-# Include mesh testing targets
-include test/mesh-test/mesh-test.mk
+mesh-smoke-test:
+	@echo "$(GREEN)=== Starting Cloud Core Mesh Smoke Test...$(NC)"
+	@'$(MAKE)' -C test/mesh-test mesh-smoke-test NAMESPACE=$(CORE_NAMESPACE)
+	@echo ""
+
+cleanup-mesh-test:
+	@echo "$(YELLOW)--- Cleaning up mesh test resources...$(NC)"
+	@'$(MAKE)' -C test/mesh-test cleanup-mesh-test NAMESPACE=$(CORE_NAMESPACE)
+	@echo ""
 
 # =============================================================================
 # DBAAS
@@ -759,6 +775,32 @@ uninstall-maas:
 		echo ""; \
 	fi
 	@echo ""
+
+# =============================================================================
+# ISTIO
+# =============================================================================
+deploy-istio:
+	@echo "$(GREEN)=== Starting Istio installation...$(NC)"
+	@echo ""
+	@if [ "$(INSTALL_ISTIO)" = "true" ]; then \
+		$(call run_istio_operation,install); \
+	else \
+		echo "$(CYAN)--- Skipping Istio installation (INSTALL_ISTIO=false)...$(NC)"; \
+		echo ""; \
+	fi
+	@echo ""
+
+uninstall-istio:
+	@echo "$(GREEN)=== Starting Istio uninstallation...$(NC)"
+	@echo ""
+	@if [ "$(INSTALL_ISTIO)" = "true" ]; then \
+		$(call run_istio_operation,uninstall); \
+	else \
+		echo "$(CYAN)--- Skipping Istio uninstallation (INSTALL_ISTIO=false)...$(NC)"; \
+		echo ""; \
+	fi
+	@echo ""
+
 
 # =============================================================================
 # HELPER FUNCTIONS
@@ -869,3 +911,18 @@ define run_maas_operation
 	fi
 endef
 
+# Helper function to run Istio operations
+define run_istio_operation
+	set -e; \
+	echo "$(CYAN)--- Using istio config file: istio/$(ISTIO_CONFIG_FILE)$(NC)"; \
+	echo "$(CYAN)--- Using Istio namespace: $(ISTIO_NAMESPACE)$(NC)"; \
+	echo "$(CYAN)--- Enable Istio mesh for namespaces: $(CORE_NAMESPACE)$(NC)"; \
+	SKIP_CRDS=$(if $(filter true,$(INSTALL_CRDS)),false,true); \
+	echo "$(CYAN)--- Using skip crds: $$SKIP_CRDS$(NC)"; \
+	if (cd istio && '$(MAKE)' $(1) CONFIG_FILE=$(ISTIO_CONFIG_FILE) ISTIO_NAMESPACE=$(ISTIO_NAMESPACE) SKIP_CRDS=$$SKIP_CRDS CREATE_NAMESPACE=$(CREATE_NAMESPACE) MESH_NAMESPACES=$(CORE_NAMESPACE)); then \
+		echo "$(GREEN)=== Istio $(1) completed successfully$(NC)"; \
+	else \
+		echo "$(RED)Error: Istio $(1) failed$(NC)"; \
+		exit 1; \
+	fi
+endef
