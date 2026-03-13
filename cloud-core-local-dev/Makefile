@@ -158,7 +158,7 @@ validate: validate-cli validate-crd
 validate-cli:
 	@echo "$(BLUE)=== CLI PREREQUISITE CHECKS ===$(NC)"
 	@echo "$(CYAN)--- Checking if helm is available...$(NC)"
-    @command -v helm >/dev/null 2>&1 || (echo "$(RED)Error: helm is not installed or not in PATH$(NC)" && echo "$(CYAN)Please install helm: https://helm.sh/docs/intro/install/$(NC)" && exit 1)
+	@command -v helm >/dev/null 2>&1 || (echo "$(RED)Error: helm is not installed or not in PATH$(NC)" && echo "$(CYAN)Please install helm: https://helm.sh/docs/intro/install/$(NC)" && exit 1)
 	@HELM_VERSION=$$(helm version --short 2>/dev/null | grep -oP 'v\K[0-9]+' | head -1); \
 	if [ -z "$$HELM_VERSION" ]; then \
 		echo "$(RED)Error: Could not determine helm version$(NC)"; \
