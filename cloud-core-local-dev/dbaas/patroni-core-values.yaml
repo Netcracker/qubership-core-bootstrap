@@ -2,7 +2,7 @@ postgresPassword: ${POSTGRES_PASSWORD}
 
 patroni:
   replicas: ${PATRONI_REPLICAS_NUMBER}
-# enable - in case of there is not enough available ndoes
+# enable - in case of there is not enough available nodes
 #  affinity:
 #    podAntiAffinity: {}
   storage:

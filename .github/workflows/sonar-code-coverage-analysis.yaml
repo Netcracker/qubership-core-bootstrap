@@ -23,33 +23,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  check-pr:
-    name: Check if PR exists
-    runs-on: ubuntu-latest
-    outputs:
-        hasOpenPr: ${{ steps.pr.outputs.hasOpenPr }}
-    steps:
-      - name: Check for open PR
-        id: pr
-        uses: Netcracker/qubership-core-infra/.github/actions/check-open-pr@v1.3.1
-
-      - name: Explain routing decision
-        if: ${{ github.event_name == 'push' && steps.pr.outputs.hasOpenPr == 'true' }}
-        run: |
-          {
-            echo "### Router decision"
-            echo ""
-            echo "- Event: \`${{ github.event_name }}\`"
-            echo "- Branch: \`${{ github.head_ref || github.ref_name }}\`"
-            echo "- Open PR detected: **yes**"
-            echo ""
-            echo "Work is delegated to the PR workflow. Skip next steps."
-          } >> "$GITHUB_STEP_SUMMARY"
-  
   sonar-analysis:
     name: Measure code coverage and upload to SonarCloud
-    needs: [ check-pr ]
-    if: ${{ !(github.event_name == 'push' && needs.check-pr.outputs.hasOpenPr == 'true') }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code

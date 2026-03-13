@@ -2,9 +2,11 @@
 kind: Service
 apiVersion: v1
 metadata:
-    name: '{{ .Values.PUBLIC_FB_SERVICE_NAME }}'
+    name: '{{ .Values.PUBLIC_SERVICE_NAME }}'
     annotations:
-        qubership.cloud/start.stage: '1'
+      helm.sh/hook: "post-install, post-upgrade"
+      helm.sh/hook-weight: "110"
+      helm.sh/hook-delete-policy: "before-hook-creation"
 spec:
   ports:
     - name: web
@@ -12,7 +14,7 @@ spec:
       port: 8080
       targetPort: 8080
   selector:
-    name: '{{ .Values.PUBLIC_SERVICE }}'
+    gateway.networking.k8s.io/gateway-name: '{{ .Values.ISTIO_PUBLIC_GATEWAY_NAME }}'
   clusterIP: None
   clusterIPs:
     - None
@@ -26,9 +28,11 @@ spec:
 kind: Service
 apiVersion: v1
 metadata:
-    name: '{{ .Values.PRIVATE_FB_SERVICE_NAME }}'
+    name: '{{ .Values.PRIVATE_SERVICE_NAME }}'
     annotations:
-        qubership.cloud/start.stage: '1'
+      helm.sh/hook: "post-install, post-upgrade"
+      helm.sh/hook-weight: "110"
+      helm.sh/hook-delete-policy: "before-hook-creation"
 spec:
   ports:
     - name: web
@@ -36,7 +40,7 @@ spec:
       port: 8080
       targetPort: 8080
   selector:
-    name: '{{ .Values.PRIVATE_SERVICE }}'
+    gateway.networking.k8s.io/gateway-name: '{{ .Values.ISTIO_PRIVATE_GATEWAY_NAME }}'
   clusterIP: None
   clusterIPs:
     - None

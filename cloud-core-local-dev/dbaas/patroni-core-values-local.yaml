@@ -6,4 +6,7 @@ patroni:
   replicas: ${PATRONI_REPLICAS_NUMBER}
   storage:
     storageClass: ${STORAGE_CLASS}
-    size: 2Gi
+    size: 1Gi
+  securityContext:
+    fsGroup: 26
+    runAsUser: 26
