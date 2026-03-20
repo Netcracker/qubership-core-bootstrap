@@ -1,9 +1,17 @@
 apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway
 metadata:
+  name: {{ .Values.WAYPOINT_NAME }}
   labels:
+    app.kubernetes.io/name: {{ .Values.WAYPOINT_NAME }}
+    app.kubernetes.io/instance: '{{ cat .Values.WAYPOINT_NAME "-" .Values.NAMESPACE | nospace | trunc 63 | trimSuffix "-" }}'
+    app.kubernetes.io/component: '{{ .Values.SERVICE_NAME }}'
+    app.kubernetes.io/version: {{ .Chart.version }}
+    app.kubernetes.io/part-of: 'Cloud-Core'
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/processed-by-operator: 'istiod'
+    app.kubernetes.io/processed-by-operator: 'istiod'
     istio.io/waypoint-for: service
-  name: waypoint
 spec:
   gatewayClassName: istio-waypoint
   listeners:
