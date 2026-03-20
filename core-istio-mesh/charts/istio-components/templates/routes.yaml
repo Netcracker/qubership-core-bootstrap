@@ -13,8 +13,14 @@ metadata:
       {.status.parents[*].conditions[?(@.type=="Accepted")].status} == "False" ||
       {.status.parents[*].conditions[?(@.type=="ResolvedRefs")].status} == "False"
   labels:
-    app.kubernetes.io/name: '{{ .Values.SERVICE_NAME }}'
-    deployment.netcracker.com/sessionId: '{{ .Values.DEPLOYMENT_SESSION_ID }}'
+    app.kubernetes.io/name: '{{ .Values.PRIVATE_GW_ROUTE_NAME }}'
+    app.kubernetes.io/instance: '{{ cat .Values.PRIVATE_GW_ROUTE_NAME "-" .Values.NAMESPACE | nospace | trunc 63 | trimSuffix "-" }}'
+    app.kubernetes.io/component: '{{ .Values.SERVICE_NAME }}'
+    app.kubernetes.io/version: {{ .Chart.version }}
+    app.kubernetes.io/part-of: 'Cloud-Core'
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/processed-by-operator: 'istiod'
+spec:
 spec:
   parentRefs:
   - name: '{{ .Values.ISTIO_PRIVATE_GATEWAY_NAME }}'
@@ -42,8 +48,13 @@ metadata:
       {.status.parents[*].conditions[?(@.type=="Accepted")].status} == "False" ||
       {.status.parents[*].conditions[?(@.type=="ResolvedRefs")].status} == "False"
   labels:
-    app.kubernetes.io/name: '{{ .Values.SERVICE_NAME }}'
-    deployment.netcracker.com/sessionId: '{{ .Values.DEPLOYMENT_SESSION_ID }}'
+    app.kubernetes.io/name: '{{ .Values.PUBLIC_GW_ROUTE_NAME }}'
+    app.kubernetes.io/instance: '{{ cat .Values.PUBLIC_GW_ROUTE_NAME "-" .Values.NAMESPACE | nospace | trunc 63 | trimSuffix "-" }}'
+    app.kubernetes.io/component: '{{ .Values.SERVICE_NAME }}'
+    app.kubernetes.io/version: {{ .Chart.version }}
+    app.kubernetes.io/part-of: 'Cloud-Core'
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/processed-by-operator: 'istiod'
 spec:
   parentRefs:
   - name: '{{ .Values.ISTIO_PUBLIC_GATEWAY_NAME }}'

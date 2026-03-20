@@ -2,9 +2,15 @@
 kind: Service
 apiVersion: v1
 metadata:
-    name: '{{ .Values.PUBLIC_FB_SERVICE_NAME }}'
-    annotations:
-        qubership.cloud/start.stage: '1'
+  name: '{{ .Values.PUBLIC_FB_SERVICE_NAME }}'
+  annotations:
+    qubership.cloud/start.stage: '1'
+  labels:
+    app.kubernetes.io/name: '{{ .Values.PUBLIC_FB_SERVICE_NAME }}'
+    app.kubernetes.io/instance: '{{ cat .Values.PUBLIC_FB_SERVICE_NAME "-" .Values.NAMESPACE | nospace | trunc 63 | trimSuffix "-" }}'
+    app.kubernetes.io/component: '{{ .Values.SERVICE_NAME }}'
+    app.kubernetes.io/part-of: 'Cloud-Core'
+    app.kubernetes.io/managed-by: Helm
 spec:
   ports:
     - name: web
@@ -26,9 +32,15 @@ spec:
 kind: Service
 apiVersion: v1
 metadata:
-    name: '{{ .Values.PRIVATE_FB_SERVICE_NAME }}'
-    annotations:
-        qubership.cloud/start.stage: '1'
+  name: '{{ .Values.PRIVATE_FB_SERVICE_NAME }}'
+  annotations:
+    qubership.cloud/start.stage: '1'
+  labels:
+    app.kubernetes.io/name: '{{ .Values.PRIVATE_FB_SERVICE_NAME }}'
+    app.kubernetes.io/instance: '{{ cat .Values.PRIVATE_FB_SERVICE_NAME "-" .Values.NAMESPACE | nospace | trunc 63 | trimSuffix "-" }}'
+    app.kubernetes.io/component: '{{ .Values.SERVICE_NAME }}'
+    app.kubernetes.io/part-of: 'Cloud-Core'
+    app.kubernetes.io/managed-by: Helm
 spec:
   ports:
     - name: web
