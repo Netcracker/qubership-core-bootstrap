@@ -957,8 +957,12 @@ define run_core_mesh_config_operation
 	set -e; \
 	echo "$(CYAN)--- Using core-mesh-config config file: core-mesh-config/$(MESH_CONFIG_FILE)$(NC)"; \
 	echo "$(CYAN)--- Using Istio namespace: $(ISTIO_NAMESPACE)$(NC)"; \
+	echo "$(CYAN)--- Using core-mesh-config branch: $(CORE_MESH_CONFIG_REPO_BRANCH)$(NC)"; \
 	echo "$(CYAN)--- Enable mesh for namespaces: $(CORE_NAMESPACE)$(NC)"; \
-	if (cd core-mesh-config && '$(MAKE)' $(1) CONFIG_FILE=$(MESH_CONFIG_FILE) ISTIO_NAMESPACE=$(ISTIO_NAMESPACE) MESH_NAMESPACES=$(CORE_NAMESPACE)); then \
+	if (cd core-mesh-config && '$(MAKE)' $(1) CONFIG_FILE=$(MESH_CONFIG_FILE) \
+		ISTIO_NAMESPACE=$(ISTIO_NAMESPACE) \
+		MESH_NAMESPACES=$(CORE_NAMESPACE) \
+		CORE_MESH_CONFIG_REPO_BRANCH=$(CORE_MESH_CONFIG_REPO_BRANCH)); then \
 		echo "$(GREEN)=== Core mesh config $(1) completed successfully$(NC)"; \
 	else \
 		echo "$(RED)Error: Core mesh config $(1) failed$(NC)"; \
@@ -971,10 +975,14 @@ define run_istio_operation
 	set -e; \
 	echo "$(CYAN)--- Using istio config file: istio/$(ISTIO_CONFIG_FILE)$(NC)"; \
 	echo "$(CYAN)--- Using Istio namespace: $(ISTIO_NAMESPACE)$(NC)"; \
-	echo "$(CYAN)--- Enable Istio mesh for namespaces: $(CORE_NAMESPACE)$(NC)"; \
+	echo "$(CYAN)--- Using Istio repo branch: $(ISTIO_REPO_BRANCH)$(NC)"; \
 	SKIP_CRDS=$(if $(filter true,$(INSTALL_CRDS)),false,true); \
 	echo "$(CYAN)--- Using skip crds: $$SKIP_CRDS$(NC)"; \
-	if (cd istio && '$(MAKE)' $(1) CONFIG_FILE=$(ISTIO_CONFIG_FILE) ISTIO_NAMESPACE=$(ISTIO_NAMESPACE) SKIP_CRDS=$$SKIP_CRDS CREATE_NAMESPACE=$(CREATE_NAMESPACE) MESH_NAMESPACES=$(CORE_NAMESPACE)); then \
+	if (cd istio && '$(MAKE)' $(1) CONFIG_FILE=$(ISTIO_CONFIG_FILE) \
+		ISTIO_NAMESPACE=$(ISTIO_NAMESPACE) \
+		SKIP_CRDS=$$SKIP_CRDS \
+		CREATE_NAMESPACE=$(CREATE_NAMESPACE) \
+		ISTIO_REPO_BRANCH=$(ISTIO_REPO_BRANCH)); then \
 		echo "$(GREEN)=== Istio $(1) completed successfully$(NC)"; \
 	else \
 		echo "$(RED)Error: Istio $(1) failed$(NC)"; \

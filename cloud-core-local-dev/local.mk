@@ -17,8 +17,12 @@ MAAS_CONFIG_FILE ?= local.mk
 INSTALL_ISTIO ?= false
 # config file for istio installation - relative path will be resolved upon ./istio folder
 ISTIO_CONFIG_FILE ?= local.mk
+# branch of qubership-istio-distr repository to use
+ISTIO_REPO_BRANCH ?= main
 # config file for core-mesh-config - relative path will be resolved upon ./core-mesh-config folder
 MESH_CONFIG_FILE ?= local.mk
+# branch of qubership-core-mesh-config repository to use
+CORE_MESH_CONFIG_REPO_BRANCH ?= main
 
 # Namespace configuration
 CORE_NAMESPACE ?= core
