@@ -158,7 +158,7 @@ deploy-dependencies: deploy-metrics-server deploy-monitoring deploy-consul deplo
 	@echo "$(GREEN)=== Cloud Core dependencies deployment completed$(NC)"
 	@echo ""
 
-deploy-core: ensure-core-namespace prepare-core-bootstrap deploy-cloud-core-components deploy-core-mesh-config restart-core-operator
+deploy-core: ensure-core-namespace prepare-core-bootstrap deploy-cloud-core-components deploy-core-mesh-config
 	@echo "$(GREEN)=== Cloud Core deployment completed$(NC)"
 	@echo ""
 

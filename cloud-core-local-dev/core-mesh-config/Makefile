@@ -143,6 +143,7 @@ enable: setup-repo
 			if [ -n "$$ns" ]; then \
 				$(call label_namespace_for_mesh,$$ns) \
 				$(call install_mesh_helm,$$ns) \
+				kubectl rollout restart deploy/core-operator -n $$ns; \
 				if [ "$(RUN_SMOKE_TEST)" = "true" ]; then \
 					'$(MAKE)' -C ../istio/test full-test NAMESPACE="$$ns" ISTIO_NAMESPACE="$(ISTIO_NAMESPACE)" || { '$(MAKE)' -C ../istio/test collect-logs NAMESPACE="$$ns" ISTIO_NAMESPACE="$(ISTIO_NAMESPACE)"; exit 1; }; \
 				else \
