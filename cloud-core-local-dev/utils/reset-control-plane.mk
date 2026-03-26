@@ -1,5 +1,5 @@
 .PHONY: reset-control-plane delete-control-plane-database restart-services restart-public-gateway \
-	restart-services-start restart-control-plane check-public-gateway-config-no-mesh-test
+	restart-services-start restart-control-plane restart-core-operator check-public-gateway-config-no-mesh-test
 
 
 # =============================================================================
@@ -45,6 +45,9 @@ restart-services-start:
 
 restart-control-plane:
 	@$(call rollout_restart_and_wait,control-plane)
+
+restart-core-operator:
+	@$(call rollout_restart_and_wait,core-operator)
 
 restart-public-gateway:
 	@$(call rollout_restart_and_wait,public-frontend-gateway)
