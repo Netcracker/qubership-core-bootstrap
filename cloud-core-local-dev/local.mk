@@ -11,12 +11,14 @@ INSTALL_CONSUL ?= true
 INSTALL_DBAAS ?= true
 # config file for dbaas installation - relative path will be resolved upon ./dbaas folder
 DBAAS_CONFIG_FILE ?= local.mk
-INSTALL_MAAS ?= true
+INSTALL_MAAS ?= false
 # config file for maas installation - relative path will be resolved upon ./maas folder
 MAAS_CONFIG_FILE ?= local.mk
 INSTALL_ISTIO ?= false
 # config file for istio installation - relative path will be resolved upon ./istio folder
 ISTIO_CONFIG_FILE ?= local.mk
+# config file for core-mesh-config - relative path will be resolved upon ./core-mesh-config folder
+MESH_CONFIG_FILE ?= local.mk
 
 # Namespace configuration
 CORE_NAMESPACE ?= core
@@ -49,7 +51,7 @@ RABBIT_INSTANCES ?=
 # Core bootstrap configuration
 CORE_BOOTSTRAP_IMAGE ?= ghcr.io/netcracker/core-bootstrap:latest 
 CORE_CONFIG_CONSUL_ENABLED ?= false
-CORE_CONFIG_MAAS_ENABLED ?= true
+CORE_CONFIG_MAAS_ENABLED ?= false
 CORE_CONFIG_MAAS_INTERNAL_ADDRESS ?= http://maas-service.maas:8080
 
 # Components values

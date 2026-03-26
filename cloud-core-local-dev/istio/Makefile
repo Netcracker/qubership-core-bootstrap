@@ -1,4 +1,4 @@
-# Istio Installation Makefile
+# Istio Distribution Installation Makefile
 
 # Include configuration
 CONFIG_FILE ?= local.mk
@@ -18,42 +18,44 @@ NC := \033[0m
 # Conditional helm options
 CREATE_NAMESPACE_OPTION := $(if $(filter true,$(CREATE_NAMESPACE)),--create-namespace,)
 
-# Defaults are provided by `$(CONFIG_FILE)` (and can still be overridden via `make VAR=value`)
-
 .PHONY: help \
 	validate validate-start validate-namespace validate-crds \
 	setup-repo \
-	install install-gateway-api-crds install-istio-deployer enable-istio-mesh \
-	uninstall uninstall-start disable-istio-mesh uninstall-istio \
-	cleanup-crds cleanup-namespace \
-	check-ztunnel-logs
+	install install-gateway-api-crds deploy-qubership-istio \
+	uninstall uninstall-start uninstall-istio \
+	cleanup-crds cleanup-namespace
 
 help:
-	@echo "$(BLUE)=== Istio Installation Makefile ===$(NC)"
+	@echo "$(BLUE)=== Istio Distribution Makefile ===$(NC)"
 	@echo ""
-	@echo "Usage: make <target> [CONFIG_FILE=local.mk] [MESH_NAMESPACES=ns1,ns2]"	
+	@echo "Usage: make <target> [CONFIG_FILE=local.mk]"
 	@echo ""
 	@echo "Targets:"
-	@echo "  install - Validate, deploy Istio, enable mesh"
-	@echo "    validate            - Run validation steps"
-	@echo "    validate-start      - Print validation start message"
-	@echo "    validate-namespace  - Validate namespace (if CREATE_NAMESPACE=false)"
-	@echo "    validate-crds       - Validate Gateway API CRDs (when SKIP_CRDS=true)"
-	@echo "    setup-repo          - Clone/update qubership-istio-distr repository"
+	@echo "  install                  - Validate, clone repo, install Gateway API CRDs, deploy Istio"
+	@echo "    validate               - Run validation steps"
+	@echo "    validate-start         - Print validation start message"
+	@echo "    validate-namespace     - Validate ISTIO_NAMESPACE exists (if CREATE_NAMESPACE=false)"
+	@echo "    validate-crds          - Validate Gateway API CRDs exist (if SKIP_CRDS=true)"
+	@echo "    setup-repo             - Clone/update qubership-istio-distr repository"
 	@echo "    install-gateway-api-crds - Install Gateway API CRDs"
-	@echo "    install-istio-deployer  - Install Istio deployer Helm chart into ISTIO_NAMESPACE"
-	@echo "    enable-istio-mesh   - Enable mesh for namespaces in MESH_NAMESPACES"
+	@echo "    deploy-qubership-istio - Install qubership-istio Helm chart into ISTIO_NAMESPACE"
 	@echo ""
-	@echo "  uninstall - Disable mesh, uninstall Istio, clean up CRDs/namespace"
-	@echo "    uninstall-start   - Print uninstall start message"
-	@echo "    disable-istio-mesh - Disable mesh (uninstall MESH_HELM_RELEASE_NAME, remove labels)"
-	@echo "    uninstall-istio   - Run istioctl uninstall via deployer image"
-	@echo "    cleanup-crds      - Remove Gateway API CRDs (if SKIP_CRDS=false)"
-	@echo "    cleanup-namespace - Remove ISTIO_NAMESPACE (if CREATE_NAMESPACE=true)"
+	@echo "  uninstall                - Uninstall Istio and clean up CRDs/namespace"
+	@echo "    uninstall-start        - Print uninstall start message"
+	@echo "    uninstall-istio        - Uninstall qubership-istio Helm chart"
+	@echo "    cleanup-crds           - Remove Gateway API CRDs (if SKIP_CRDS=false)"
+	@echo "    cleanup-namespace      - Remove ISTIO_NAMESPACE (if CREATE_NAMESPACE=true)"
 	@echo ""
 	@echo "Variables:"
-	@echo "  CONFIG_FILE - configuration file to use. Default value is \"local.mk\"."
-	@echo "  MESH_NAMESPACES - comma-separated list of namespaces to enable mesh on, e.g. \"MESH_NAMESPACES=ns1,ns2\"". Default value is empty.
+	@echo "  CONFIG_FILE          - Configuration file to use (default: local.mk)"
+	@echo "  ISTIO_NAMESPACE      - Namespace to install Istio into (default: istio-system)"
+	@echo "  CREATE_NAMESPACE     - Create ISTIO_NAMESPACE if missing (default: true)"
+	@echo "  SKIP_CRDS            - Skip Gateway API CRD installation (default: false)"
+	@echo "  ISTIO_REPO_URL       - Git URL for qubership-istio-distr"
+	@echo "  ISTIO_REPO_BRANCH    - Branch to use (default: main)"
+	@echo "  ISTIO_HELM_EXTRA_ARGS - Extra helm args for qubership-istio chart"
+	@echo "  GATEWAY_API_VERSION  - Gateway API version to install (default: v1.4.0)"
+	@echo "  GATEWAY_API_CHANNEL  - Gateway API channel (default: standard)"
 
 validate: validate-start validate-namespace validate-crds
 	@echo "$(GREEN)=== Istio validation completed$(NC)";
@@ -90,22 +92,28 @@ validate-crds:
 	fi
 
 setup-repo:
-	@echo "$(YELLOW)--- Cloning Istio repository (qubership-istio-distr)...$(NC)"
+	@echo "$(YELLOW)--- Setting up qubership-istio-distr repository...$(NC)"
 	@mkdir -p $(REPOS_DIR)
 	@if [ -d "$(REPOS_DIR)/qubership-istio-distr" ]; then \
-		echo "Updating qubership-istio-distr..."; \
-		(cd $(REPOS_DIR)/qubership-istio-distr && git pull); \
+		CURRENT_BRANCH=$$(cd $(REPOS_DIR)/qubership-istio-distr && git rev-parse --abbrev-ref HEAD); \
+		if [ "$$CURRENT_BRANCH" != "$(ISTIO_REPO_BRANCH)" ]; then \
+			echo "$(CYAN)--- Switching qubership-istio-distr from $$CURRENT_BRANCH to $(ISTIO_REPO_BRANCH)...$(NC)"; \
+			(cd $(REPOS_DIR)/qubership-istio-distr && git fetch origin && git checkout $(ISTIO_REPO_BRANCH) && git pull); \
+		else \
+			echo "$(CYAN)--- Updating qubership-istio-distr (branch: $(ISTIO_REPO_BRANCH))...$(NC)"; \
+			(cd $(REPOS_DIR)/qubership-istio-distr && git pull); \
+		fi; \
 	else \
-		echo "Cloning qubership-istio-distr..."; \
+		echo "$(CYAN)--- Cloning qubership-istio-distr (branch: $(ISTIO_REPO_BRANCH))...$(NC)"; \
 		git clone --depth 1 -b $(ISTIO_REPO_BRANCH) $(ISTIO_REPO_URL) $(REPOS_DIR)/qubership-istio-distr; \
 	fi
 	@echo ""
 
 install-gateway-api-crds:
 	@if [ "$(SKIP_CRDS)" = "false" ]; then \
-		echo "$(YELLOW)--- Applying Gateway API...$(NC)"; \
+		echo "$(YELLOW)--- Applying Gateway API CRDs ($(GATEWAY_API_VERSION) $(GATEWAY_API_CHANNEL))...$(NC)"; \
 		kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/$(GATEWAY_API_VERSION)/$(GATEWAY_API_CHANNEL)-install.yaml; \
-		echo "" ; \
+		echo ""; \
 		echo "$(GREEN)--- Gateway API CRDs applied$(NC)"; \
 		echo ""; \
 	else \
@@ -113,89 +121,34 @@ install-gateway-api-crds:
 		echo ""; \
 	fi
 
-install: validate validate-crds setup-repo install-gateway-api-crds install-istio-deployer enable-istio-mesh
-
-install-istio-deployer:
-	@echo "SKIP_CRDS: $(SKIP_CRDS)";
+deploy-qubership-istio:
 	@echo "$(BLUE)=== Deploying Istio ($(ISTIO_RELEASE_NAME) Helm chart)...$(NC)"
 	@echo ""
-	@helm upgrade --install $(ISTIO_RELEASE_NAME) $(REPOS_DIR)/qubership-istio-distr/helm-templates/istio-deployer \
+	@helm dependency update $(REPOS_DIR)/qubership-istio-distr/helm-templates/qubership-istio
+	@helm upgrade --install $(ISTIO_RELEASE_NAME) $(REPOS_DIR)/qubership-istio-distr/helm-templates/qubership-istio \
 		--namespace $(ISTIO_NAMESPACE) $(CREATE_NAMESPACE_OPTION) \
-		--set NAMESPACE=$(ISTIO_NAMESPACE) \
-		--set meshConfig.accessLogFile="/dev/stdout" \
+		--set global.istioNamespace=$(ISTIO_NAMESPACE) \
+		--force-conflicts \
 		$(ISTIO_HELM_EXTRA_ARGS)
 	@echo ""
 	@echo "$(GREEN)=== Istio deploy completed$(NC)"
 	@echo ""
 
-
-enable-istio-mesh:
-	@if [ -z "$(MESH_NAMESPACES)" ]; then \
-		echo "$(YELLOW)--- Skipping mesh enablement (MESH_NAMESPACES is empty)...$(NC)"; \
-		echo ""; \
-	else \
-		echo "$(BLUE)=== Enabling mesh for namespaces: $(MESH_NAMESPACES)$(NC)"; \
-		for ns in $$(echo "$(MESH_NAMESPACES)" | tr ',' ' '); do \
-			if [ -n "$$ns" ]; then \
-				echo "$(CYAN)--- Labeling namespace $$ns$(NC)"; \
-				kubectl label namespace "$$ns" istio.io/dataplane-mode=ambient --overwrite; \
-				kubectl label namespace "$$ns" istio.io/use-waypoint=waypoint --overwrite; \
-				if [ -n "$(MESH_HELM_CHART_PATH)" ]; then \
-					echo "$(CYAN)--- Installing $(MESH_HELM_RELEASE_NAME) Helm package in $$ns$(NC)"; \
-					echo "MESH_HELM_EXTRA_ARGS: $(MESH_HELM_EXTRA_ARGS)$(NC)"; \
-					helm dependency build $(MESH_HELM_CHART_PATH); \
-					helm upgrade --install $(MESH_HELM_RELEASE_NAME) $(MESH_HELM_CHART_PATH) \
-						--namespace "$$ns" \
-						$(MESH_HELM_EXTRA_ARGS); \
-					'$(MAKE)' -C test test NAMESPACE="$$ns" ISTIO_NAMESPACE="$(ISTIO_NAMESPACE)" || { '$(MAKE)' -C test collect-logs NAMESPACE="$$ns" ISTIO_NAMESPACE="$(ISTIO_NAMESPACE)"; exit 1; }; \
-				else \
-					echo "$(YELLOW)--- Skipping $(MESH_HELM_RELEASE_NAME) Helm package installation (MESH_HELM_CHART_PATH is empty)...$(NC)"; \
-					echo ""; \
-				fi; \
-				echo ""; \
-			fi; \
-		done; \
-		echo "$(GREEN)=== Mesh enabled for all namespaces$(NC)"; \
-		echo ""; \
-	fi
-
-disable-istio-mesh:
-	@if [ -z "$(MESH_NAMESPACES)" ]; then \
-		echo "$(YELLOW)--- Skipping mesh disabling (MESH_NAMESPACES is empty)...$(NC)"; \
-		echo ""; \
-	else \
-		echo "$(GREEN)=== Disabling mesh for namespaces: $(MESH_NAMESPACES)$(NC)"; \
-		for ns in $$(echo "$(MESH_NAMESPACES)" | tr ',' ' '); do \
-			if [ -n "$$ns" ]; then \
-				echo "$(CYAN)--- Removing mesh labels from namespace $$ns$(NC)"; \
-				kubectl label namespace "$$ns" istio.io/dataplane-mode- --overwrite; \
-				kubectl label namespace "$$ns" istio.io/use-waypoint- --overwrite; \
-				echo "$(CYAN)--- Patching gateway services selectors in namespace $$ns$(NC)"; \
-				kubectl patch service public-gateway-service -n "$$ns" --type='json' -p='[{"op": "replace", "path": "/spec/selector", "value": {"name":"public-frontend-gateway"}}]' || true; \
-				kubectl patch service private-gateway-service -n "$$ns" --type='json' -p='[{"op": "replace", "path": "/spec/selector", "value": {"name":"private-frontend-gateway"}}]' || true; \
-				if [ -n "$(MESH_HELM_CHART_PATH)" ]; then \
-					echo "$(CYAN)--- Uninstalling $(MESH_HELM_RELEASE_NAME) Helm package in $$ns$(NC)"; \
-					helm uninstall $(MESH_HELM_RELEASE_NAME) -n "$$ns" --ignore-not-found=true || true; \
-				fi; \
-				echo "$(GREEN)--- Mesh disabled for namespace $$ns$(NC)"; \
-				echo ""; \
-			fi; \
-		done; \
-		echo "$(GREEN)=== Mesh disabled for all namespaces$(NC)"; \
-		echo ""; \
-	fi
-
-uninstall-istio:
-	@echo "$(YELLOW)--- Uninstalling $(ISTIO_RELEASE_NAME) Helm chart...$(NC)";
-	@helm uninstall $(ISTIO_RELEASE_NAME) -n $(ISTIO_NAMESPACE) --ignore-not-found=true || true;
-	@echo "";
-
-uninstall-start:
-	@echo "$(YELLOW)--- Uninstalling Istio (disabling mesh (uninstall $(MESH_HELM_RELEASE_NAME) Helm package, remove labels), uninstall $(ISTIO_RELEASE_NAME) Helm chart)...$(NC)";
+install: validate setup-repo install-gateway-api-crds deploy-qubership-istio
+	@echo "$(GREEN)=== Istio installation completed$(NC)"
 	@echo ""
 
-uninstall: uninstall-start disable-istio-mesh uninstall-istio cleanup-crds cleanup-namespace
-	@echo "$(GREEN)=== Istio uninstall completed$(NC)";
+uninstall-istio:
+	@echo "$(YELLOW)--- Uninstalling $(ISTIO_RELEASE_NAME) Helm chart...$(NC)"
+	@helm uninstall $(ISTIO_RELEASE_NAME) -n $(ISTIO_NAMESPACE) --ignore-not-found=true || true
+	@echo ""
+
+uninstall-start:
+	@echo "$(YELLOW)--- Uninstalling Istio ($(ISTIO_RELEASE_NAME) Helm chart)...$(NC)"
+	@echo ""
+
+uninstall: uninstall-start uninstall-istio cleanup-crds cleanup-namespace
+	@echo "$(GREEN)=== Istio uninstall completed$(NC)"
 	@echo ""
 
 cleanup-crds:
@@ -211,7 +164,7 @@ cleanup-crds:
 
 cleanup-namespace:
 	@if [ "$(CREATE_NAMESPACE)" = "true" ]; then \
-		echo "$(YELLOW)--- Cleaning up namespace...$(NC)"; \
+		echo "$(YELLOW)--- Cleaning up namespace $(ISTIO_NAMESPACE)...$(NC)"; \
 		kubectl delete namespace $(ISTIO_NAMESPACE) --ignore-not-found=true; \
 		echo "$(GREEN)=== Namespace cleaned up$(NC)"; \
 		echo ""; \

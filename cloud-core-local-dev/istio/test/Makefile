@@ -19,10 +19,10 @@ NC := \033[0m
  LOG_OUTPUT_PATH = $(LOG_OUTPUT_DIR)/$(NAMESPACE)
 
  PUBLIC_GATEWAY_SERVICE = public-gateway-service
- PUBLIC_GATEWAY_DEPLOYMENT = public-gateway-istio
+ PUBLIC_GATEWAY_NAME = public-gateway
  
  PRIVATE_GATEWAY_SERVICE = private-gateway-service
- PRIVATE_GATEWAY_DEPLOYMENT = private-gateway-istio
+ PRIVATE_GATEWAY_NAME = private-gateway
 
 help:
 	@echo "$(BLUE)=== Istio Mesh Test Makefile ===$(NC)"
@@ -68,31 +68,33 @@ validate-input:
 	@echo "$(GREEN)=== Input parameters validated successfully$(NC)"
 	@echo ""
 
-# Validate that the service endpoints belong to the expected deployment
+# Validate that gateway services have selector switched to Istio gateway pods
+# (i.e. selector contains gateway.networking.k8s.io/gateway-name, not the frontend-gateway name label)
 check-gateway-services:
-	@check_service_targets() { \
+	@check_service_selector() { \
 		namespace="$$1"; \
 		service="$$2"; \
-		deployment="$$3"; \
-		echo "$(BLUE)=== Checking service $$service targets deployment $$deployment ===$(NC)"; \
-		PODS=$$(kubectl get endpoints -n "$$namespace" "$$service" -o jsonpath='{.subsets[*].addresses[*].targetRef.name}'); \
-		if [ -z "$$PODS" ]; then \
-			echo "$(RED)Error: No endpoints found for service $$service in $$namespace$(NC)"; \
+		gateway_name="$$3"; \
+		echo "$(BLUE)=== Checking service $$service selector points to Istio gateway ($$gateway_name) ===$(NC)"; \
+		SELECTOR=$$(kubectl get service -n "$$namespace" "$$service" -o jsonpath='{.spec.selector}'); \
+		if [ -z "$$SELECTOR" ]; then \
+			echo "$(RED)Error: service $$service not found in namespace $$namespace$(NC)"; \
 			exit 1; \
 		fi; \
-		for pod in $$PODS; do \
-			rs=$$(kubectl get pod -n "$$namespace" $$pod -o jsonpath='{.metadata.ownerReferences[0].name}'); \
-			dep=$$(kubectl get rs -n "$$namespace" $$rs -o jsonpath='{.metadata.ownerReferences[0].name}'); \
-			if [ "$$dep" != "$$deployment" ]; then \
-				echo "$(RED)Error: Service $$service points to deployment $$dep (expected $$deployment)$(NC)"; \
-				exit 1; \
-			fi; \
-		done; \
-		echo "$(GREEN)=== Service $$service points to deployment $$deployment ===$(NC)"; \
+		GATEWAY_LABEL=$$(kubectl get service -n "$$namespace" "$$service" \
+			-o jsonpath='{.spec.selector.gateway\.networking\.k8s\.io/gateway-name}'); \
+		if [ "$$GATEWAY_LABEL" = "$$gateway_name" ]; then \
+			echo "$(GREEN)=== Service $$service selector is switched to Istio gateway (gateway-name=$$gateway_name) ===$(NC)"; \
+		else \
+			echo "$(RED)Error: Service $$service selector is NOT switched to Istio gateway.$(NC)"; \
+			echo "$(RED)  Expected: gateway.networking.k8s.io/gateway-name=$$gateway_name$(NC)"; \
+			echo "$(RED)  Current selector: $$SELECTOR$(NC)"; \
+			exit 1; \
+		fi; \
 		echo ""; \
 	}; \
-	check_service_targets "$(NAMESPACE)" "$(PUBLIC_GATEWAY_SERVICE)" "$(PUBLIC_GATEWAY_DEPLOYMENT)"; \
-	check_service_targets "$(NAMESPACE)" "$(PRIVATE_GATEWAY_SERVICE)" "$(PRIVATE_GATEWAY_DEPLOYMENT)";
+	check_service_selector "$(NAMESPACE)" "$(PUBLIC_GATEWAY_SERVICE)" "$(PUBLIC_GATEWAY_NAME)"; \
+	check_service_selector "$(NAMESPACE)" "$(PRIVATE_GATEWAY_SERVICE)" "$(PRIVATE_GATEWAY_NAME)";
 
 
 define check_ztunnel_logs

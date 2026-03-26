@@ -17,6 +17,8 @@ MAAS_CONFIG_FILE ?= aws.mk
 INSTALL_ISTIO ?= false
 # config file for istio installation - relative path will be resolved upon ./istio folder
 ISTIO_CONFIG_FILE ?= aws.mk
+# config file for core-mesh-config - relative path will be resolved upon ./core-mesh-config folder
+MESH_CONFIG_FILE ?= aws.mk
 
 # Namespace configuration
 CORE_NAMESPACE ?= core-1-core

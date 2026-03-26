@@ -11,6 +11,7 @@
 	deploy-consul deploy-consul-old deploy-consul-print-start install-consul wait-for-consul check-consul-connectivity \
 	deploy-monitoring deploy-metrics-server \
 	deploy-istio \
+	deploy-core-mesh-config \
 	deploy-dbaas \
 	deploy-maas \
 	prepare-core-bootstrap prepare-core-bootstrap-print-start deploy-cloud-core-configuration \
@@ -30,6 +31,7 @@
 	uninstall-cloud-core-components uninstall-cloud-core-configuration \
 	uninstall-consul uninstall-monitoring uninstall-metrics-server \
 	uninstall-istio \
+	uninstall-core-mesh-config \
 	uninstall-dbaas \
 	uninstall-maas \
 	uninstall-control-plane-db-credentials \
@@ -98,6 +100,7 @@ help:
 	@echo "  deploy-monitoring       # Deploy monitoring operator (if INSTALL_MONITORING=true)"
 	@echo "  deploy-metrics-server   # Deploy metrics server (if INSTALL_METRICS_SERVER=true)"
 	@echo "  deploy-istio            # Deploy Istio via qubership-istio-distr (if INSTALL_ISTIO=true)"
+	@echo "  deploy-core-mesh-config # Enable Istio mesh via core-mesh-config chart (if INSTALL_ISTIO=true)"
 	@echo "  deploy-dbaas            # Deploy DBaaS (if INSTALL_DBAAS=true)"
 	@echo "  deploy-maas             # Deploy MaaS (if INSTALL_MAAS=true)"
 	@echo ""
@@ -118,6 +121,7 @@ help:
 	@echo "  uninstall-monitoring    # Uninstall monitoring (if INSTALL_MONITORING=true)"
 	@echo "  uninstall-metrics-server # Uninstall metrics server (if INSTALL_METRICS_SERVER=true)"
 	@echo "  uninstall-istio         # Uninstall Istio (if INSTALL_ISTIO=true)"
+	@echo "  uninstall-core-mesh-config # Disable Istio mesh, uninstall core-mesh-config chart (if INSTALL_ISTIO=true)"
 	@echo "  uninstall-dbaas         # Uninstall DBaaS (if INSTALL_DBAAS=true)"
 	@echo "  uninstall-maas          # Uninstall MaaS (if INSTALL_MAAS=true)"
 	@echo "  cleanup-crds            # Remove all CRDs (if INSTALL_CRDS=true)"
@@ -127,6 +131,13 @@ help:
 	@echo "  clone-repos             # Clone/update required repositories"
 	@echo "  template-values-files   # Generate values files from config"
 	@echo "  ensure-core-namespace   # Ensure core namespace exists"
+	@echo "  reset-control-plane     # Reset control plane"
+	@echo "  delete-control-plane-database # Delete control plane database"
+	@echo "  restart-services        # Restart all services"
+	@echo "  restart-public-gateway # Check public gateway config consistency"
+	@echo "  restart-services-start # Print restart services start message"
+	@echo "  restart-control-plane # Restart control plane"
+	@echo "  check-public-gateway-config-no-mesh-test # Check public gateway config consistency"
 	@echo ""
 	@echo "$(CYAN)CONFIGURATION FILES:$(NC)"
 	@echo "  local.mk                # Local development configuration (default)"
@@ -143,7 +154,7 @@ install: validate clone-repos template-values-files deploy #mesh-smoke-test
 
 deploy: deploy-dependencies deploy-core
 
-deploy-dependencies: deploy-metrics-server deploy-monitoring deploy-consul deploy-dbaas deploy-maas
+deploy-dependencies: deploy-metrics-server deploy-monitoring deploy-consul deploy-dbaas deploy-maas deploy-istio
 	@echo "$(GREEN)=== Cloud Core dependencies deployment completed$(NC)"
 	@echo ""
 
@@ -407,7 +418,7 @@ deploy-cloud-core-configuration:
 
 # ------------------ cloud core ---------------------------
 
-deploy-cloud-core-components: deploy-cloud-core-print-start deploy-facade-operator deploy-ingress-gateway deploy-istio deploy-control-plane deploy-paas-mediation deploy-dbaas-agent deploy-maas-agent deploy-core-operator deploy-config-server deploy-site-management
+deploy-cloud-core-components: deploy-cloud-core-print-start deploy-facade-operator deploy-ingress-gateway deploy-control-plane deploy-paas-mediation deploy-dbaas-agent deploy-maas-agent deploy-core-operator deploy-config-server deploy-site-management deploy-istio
 	@echo "$(GREEN)=== Cloud Core components deployment completed$(NC)"
 	@echo ""
 
@@ -801,6 +812,36 @@ uninstall-istio:
 	fi
 	@echo ""
 
+# =============================================================================
+# CORE MESH CONFIG
+# =============================================================================
+deploy-core-mesh-config:
+	@echo "$(GREEN)=== Starting core mesh config installation...$(NC)"
+	@echo ""
+	@if [ "$(INSTALL_ISTIO)" = "true" ]; then \
+		$(call run_core_mesh_config_operation,enable); \
+	else \
+		echo "$(CYAN)--- Skipping core mesh config installation (INSTALL_ISTIO=false)...$(NC)"; \
+		echo ""; \
+	fi
+	@echo ""
+
+uninstall-core-mesh-config:
+	@echo "$(GREEN)=== Starting core mesh config uninstallation...$(NC)"
+	@echo ""
+	@if [ "$(INSTALL_ISTIO)" = "true" ]; then \
+		$(call run_core_mesh_config_operation,disable); \
+	else \
+		echo "$(CYAN)--- Skipping core mesh config uninstallation (INSTALL_ISTIO=false)...$(NC)"; \
+		echo ""; \
+	fi
+	@echo ""
+
+
+# =============================================================================
+# Reset control plane targets
+# =============================================================================
+include utils/reset-control-plane.mk
 
 # =============================================================================
 # HELPER FUNCTIONS
@@ -907,6 +948,20 @@ define run_maas_operation
 		echo "$(GREEN)=== MAAS $(1) completed successfully$(NC)"; \
 	else \
 		echo "$(RED)Error: MAAS $(1) failed$(NC)"; \
+		exit 1; \
+	fi
+endef
+
+# Helper function to run core-mesh-config operations
+define run_core_mesh_config_operation
+	set -e; \
+	echo "$(CYAN)--- Using core-mesh-config config file: core-mesh-config/$(MESH_CONFIG_FILE)$(NC)"; \
+	echo "$(CYAN)--- Using Istio namespace: $(ISTIO_NAMESPACE)$(NC)"; \
+	echo "$(CYAN)--- Enable mesh for namespaces: $(CORE_NAMESPACE)$(NC)"; \
+	if (cd core-mesh-config && '$(MAKE)' $(1) CONFIG_FILE=$(MESH_CONFIG_FILE) ISTIO_NAMESPACE=$(ISTIO_NAMESPACE) MESH_NAMESPACES=$(CORE_NAMESPACE)); then \
+		echo "$(GREEN)=== Core mesh config $(1) completed successfully$(NC)"; \
+	else \
+		echo "$(RED)Error: Core mesh config $(1) failed$(NC)"; \
 		exit 1; \
 	fi
 endef
