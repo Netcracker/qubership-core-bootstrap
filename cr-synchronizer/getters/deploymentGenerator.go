@@ -341,7 +341,7 @@ func (ng *DeploymentGenerator) handlePhaseChange(resourceType schema.GroupVersio
 			log.Fatal().Stack().Str("name", resourceName).Str("kind", kind).Err(err).Msg("Can't find or parse message field")
 		}
 		ng.sendEvent(cReason, cMessage, resourceName, kind)
-		log.Fatal().Stack().Str("name", resourceName).Str("kind", kind).Str("phase", phaseField).Msgf(cReason)
+		log.Fatal().Stack().Str("name", resourceName).Str("kind", kind).Str("phase", phaseField).Msgf("%s", cReason)
 		return false
 	case "Updated":
 		log.Info().Str("type", "waiter").Str("name", resourceName).Msg("start setting owner reference on stable phase 'Updated'")
@@ -434,7 +434,7 @@ func (ng *DeploymentGenerator) GenericWaiter(deploymentRes schema.GroupVersionRe
 						log.Fatal().Stack().Str("name", declarativeAsUnstructured.GetName()).Str("kind", declarativeAsUnstructured.GetKind()).Err(err).Msg("Error searching message field")
 					}
 					ng.sendEvent(cReason, cMessage, declarativeAsUnstructured.GetName(), declarativeAsUnstructured.GetKind())
-					log.Fatal().Stack().Str("name", declarativeAsUnstructured.GetName()).Str("kind", declarativeAsUnstructured.GetKind()).Str("phase", phaseField).Msgf(cReason)
+					log.Fatal().Stack().Str("name", declarativeAsUnstructured.GetName()).Str("kind", declarativeAsUnstructured.GetKind()).Str("phase", phaseField).Msgf("%s", cReason)
 				case "Updated":
 					log.Info().Str("type", "waiter").Str("name", declarativeAsUnstructured.GetName()).Msg("start setting owner reference on stable phase 'Updated'")
 					ng.setOwnerRef(deploymentRes, declarativeAsUnstructured.GetName())
