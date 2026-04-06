@@ -87,12 +87,23 @@ func main() {
 
 	redisClient, _ := ratelimitpkg.NewRedisClient(redisAddr, utils.GetEnv("REDIS_PASSWORD", ""), 0)
 
-	metricsService := metrics.NewMetricsCollectorService(redisClient, metricsCollector, 30*time.Second)
-	go metricsService.Start(ctx)
-
 	controller := controller.NewConfigMapController(clientset, redisClient, rateLimitManager)
 
-	apiServer := api.NewServer(redisClient, controller, rateLimitManager)
+    apiServer := api.NewServer(redisClient, controller, rateLimitManager)
+    apiReady := make(chan struct{})
+    go func() {
+        close(apiReady)
+        if err := apiServer.Run(":8082"); err != nil {
+            klog.Errorf("API server error: %v", err)
+            cancel()
+        }
+    }()
+    
+    <-apiReady
+    time.Sleep(100 * time.Millisecond)
+
+	metricsService := metrics.NewMetricsCollectorService(redisClient, metricsCollector, 30*time.Second)
+	go metricsService.Start(ctx)
 
 	klog.Info("RateLimit Operator started successfully")
 

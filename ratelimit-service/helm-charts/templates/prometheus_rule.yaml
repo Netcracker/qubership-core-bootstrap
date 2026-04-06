@@ -1,0 +1,57 @@
+{{- if and .Values.monitoring.enabled .Values.monitoring.prometheusRule.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: ratelimit-service
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: ratelimit-service
+    {{- with .Values.monitoring.prometheusRule.labels }}
+      {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- with .Values.monitoring.prometheusRule.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  groups:
+  - name: ratelimit-service
+    rules:
+    - alert: RateLimitHighRejectionRate
+      expr: |
+        rate(ratelimit_checks_total{result="rejected"}[5m]) / rate(ratelimit_checks_total[5m]) > 0.1
+      for: 5m
+      labels:
+        severity: warning
+        component: ratelimit-service
+      annotations:
+        summary: "High rate limit rejection rate"
+        description: "Rate limit rejection rate is above 10% for the last 5 minutes"
+    - alert: RateLimitViolatingUsersHigh
+      expr: ratelimit_violating_users_total > 10
+      for: 5m
+      labels:
+        severity: warning
+        component: ratelimit-service
+      annotations:
+        summary: "Many users exceeding rate limits"
+        description: "{{`{{ $value }}`}} users are currently exceeding rate limits"
+    - alert: RateLimitServiceDown
+      expr: up{job="ratelimit-service"} == 0
+      for: 1m
+      labels:
+        severity: critical
+        component: ratelimit-service
+      annotations:
+        summary: "RateLimit Service is down"
+        description: "RateLimit Service pod has been down for more than 1 minute"
+    - alert: RateLimitRedisDown
+      expr: rate(ratelimit_redis_operations_total{status="error"}[1m]) > 0
+      for: 1m
+      labels:
+        severity: critical
+        component: ratelimit-service
+      annotations:
+        summary: "Redis connection issues"
+        description: "RateLimit Service cannot connect to Redis"
+{{- end }}

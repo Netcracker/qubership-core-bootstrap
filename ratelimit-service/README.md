@@ -66,12 +66,12 @@ graph TB
 git clone https://github.com/org/ratelimit-service.git
 cd ratelimit-service
 
-# Install the operator
+# Install the service
 helm install ratelimit-service ./helm/ratelimit-service \
   --namespace $NAMESPACE \
   --create-namespace \
-  --set image.repository=$REGISTRY/ratelimit-service \
-  --set image.tag=latest\
+  --set image.repository=ghcr.io/netcracker/ratelimit \
+  --set image.tag=feat-ratelimit-snapshot\
 
 # Verify Installation
 kubectl get pods -n $NAMESPACE -l app=ratelimit-service
@@ -291,8 +291,8 @@ The project includes a Makefile with the following useful targets:
 | Target | Description |
 |--------|-------------|
 | make test-unit | Run unit tests |
-| make test-integration | Run integration tests (requires Redis port‑forward) |
-| make test-e2e | Run E2E tests (operator API only) |
+| make test-integration-all | Run integration tests (requires Redis port‑forward) |
+| make test-integration-e2e | Run E2E tests (operator API only) |
 | make test-cloud-e2e | Run cloud E2E tests (requires deployed operator) |
 | make test-load | Run load tests (requires Gateway port‑forward) |
 | make test-all | Run all tests |

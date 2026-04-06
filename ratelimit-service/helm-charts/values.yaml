@@ -56,7 +56,7 @@ resources:
     cpu: "500m"
 
 envoyFilter:
-  enabled: true
+  enabled: false
   name: gateway-ratelimit
   workloadSelector:
     labels:
@@ -83,6 +83,7 @@ monitoring:
     interval: 30s
     scrapeTimeout: 10s
     labels: {}
+    annotations: {}
   prometheusRule:
     enabled: true
     labels: {}
@@ -118,3 +119,6 @@ monitoring:
           description: "RateLimit Operator cannot connect to Redis"
   grafanaDashboard:
     enabled: true
+
+autoscaling:
+  enabled: false

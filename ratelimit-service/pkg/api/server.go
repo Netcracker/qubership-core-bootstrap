@@ -5,6 +5,7 @@ import (
 	"crypto/subtle"
 	"encoding/json"
 	"net/http"
+	"sync"
 	"time"
 
 	"ratelimit-service/pkg/controller"
@@ -21,6 +22,8 @@ type Server struct {
 	rateLimitManager *ratelimit.RateLimitManager
 	router           *mux.Router
 	apiKey           string
+	ready            bool
+    mu               sync.RWMutex
 }
 
 type ServerConfig struct {
@@ -186,17 +189,16 @@ func (s *Server) healthCheck(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) readinessCheck(w http.ResponseWriter, r *http.Request) {
-	if s.controller == nil {
-		respondWithJSON(w, http.StatusServiceUnavailable, map[string]string{
-			"status": "not ready",
-			"reason": "controller not initialized",
-		})
-		return
-	}
-
-	respondWithJSON(w, http.StatusOK, map[string]string{
-		"status": "ready",
-	})
+    s.mu.RLock()
+    ready := s.ready
+    s.mu.RUnlock()
+    
+    if !ready {
+        http.Error(w, "not ready", http.StatusServiceUnavailable)
+        return
+    }
+    
+    respondWithJSON(w, http.StatusOK, map[string]string{"status": "ready"})
 }
 
 func (s *Server) getUserLimits(w http.ResponseWriter, r *http.Request) {
@@ -252,6 +254,10 @@ func (s *Server) resetUserLimits(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) Run(addr string) error {
+    s.mu.Lock()
+    s.ready = true
+    s.mu.Unlock()
+
 	klog.Infof("API server listening on %s", addr)
 	if s.apiKey != "" {
 		klog.Info("API authentication enabled")

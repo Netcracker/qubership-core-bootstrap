@@ -147,7 +147,7 @@ clean: force
 # end-2-end
 # ============================================
 
-.PHONY: test-e2e test-e2e-integration
+.PHONY: test-e2e test-integration-e2e
 
 test-e2e: force
 	@echo "$(BLUE)Running E2E tests...$(NC)"
@@ -155,7 +155,7 @@ test-e2e: force
 	@go test -v -tags=e2e -timeout $(TEST_TIMEOUT) ./tests/e2e/...
 	@echo "$(GREEN)✓ E2E tests passed!$(NC)"
 
-test-e2e-integration: force start-port-forwards
+test-integration-e2e: force start-port-forwards
 	@echo "$(BLUE)Running E2E integration tests with port-forwards...$(NC)"
 	@go clean -testcache
 	@TEST_REDIS_ADDR=localhost:6379 TEST_RATELIMIT_ADDR=localhost:8081 \
