@@ -110,15 +110,25 @@ func TestCloudE2E_RateLimitThroughGateway(t *testing.T) {
     require.NoError(t, err)
     t.Log("Rate limits reset")
 
-    // 8. After reset, request should be allowed immediately
+    time.Sleep(1 * time.Second)
+
+	// 8. After reset, request should be allowed immediately
     statusCode, err := sendGatewayRequest(gatewayURL, "/test", userID)
     require.NoError(t, err)
     t.Logf("Request after reset: HTTP %d", statusCode)
     assert.Equal(t, 200, statusCode, "Request after reset should be allowed")
-
+    
+    time.Sleep(2 * time.Second)
+    
     // 9. Get violating users AFTER reset (should be empty)
     t.Log("\n=== Getting violating users (after reset) ===")
 
+    violatingUsersAfter, err := getViolatingUsers(operatorURL)
+    require.NoError(t, err)
+    t.Logf("Violating users after reset: %v", violatingUsersAfter)
+    assert.Empty(t, violatingUsersAfter, "Should be no violating users after reset")
+
+	t.Log("\n=== Getting violating users via API (after reset) ===")
     violatingUsersJSONAfter, err := getViolatingUsersRaw(operatorURL)
     require.NoError(t, err)
     t.Logf("Violating users API response after reset:\n%s", violatingUsersJSONAfter)

@@ -217,7 +217,7 @@ func (r *RedisClient) GetViolatingUsers(ctx context.Context) ([]ViolatingUser, e
 
     klog.V(4).Infof("Found %d keys with user_id", len(keys))
     
-    violatingMap := make(map[string]*ViolatingUser)
+    violatingMap := make(map[string]int)
 
     for _, key := range keys {
         parsedKey, err := r.ParseKey(key)
@@ -230,27 +230,33 @@ func (r *RedisClient) GetViolatingUsers(ctx context.Context) ([]ViolatingUser, e
             continue
         }
         
-        count, err := r.getRequestCount(ctx, key)
+        valStr, err := r.client.Get(ctx, key).Result()
         if err != nil {
-            klog.V(4).Infof("Failed to get count for key %s: %v", key, err)
+            count, err := r.client.ZCard(ctx, key).Result()
+            if err == nil {
+                violatingMap[userID] = int(count)
+            }
             continue
+        }
+        
+        var count int
+        if f, err := strconv.ParseFloat(valStr, 64); err == nil {
+            count = int(f)
         }
         
         limit := parsedKey.LimitValue
         if limit > 0 && count >= limit {
-            if _, exists := violatingMap[userID]; !exists {
-                violatingMap[userID] = &ViolatingUser{
-                    UserID:      userID,
-                    Violations:  make([]ViolationDetail, 0),
-                    TotalExceed: count - limit,
-                }
-            }
+            violatingMap[userID] = count - limit
         }
     }
     
     violating := make([]ViolatingUser, 0, len(violatingMap))
-    for _, v := range violatingMap {
-        violating = append(violating, *v)
+    for userID, exceed := range violatingMap {
+        violating = append(violating, ViolatingUser{
+            UserID:      userID,
+            TotalExceed: exceed,
+            Violations:  []ViolationDetail{},
+        })
     }
     
     klog.V(4).Infof("Found %d violating users", len(violating))
