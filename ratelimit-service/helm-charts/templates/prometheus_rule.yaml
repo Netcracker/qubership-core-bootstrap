@@ -19,7 +19,7 @@ spec:
     rules:
     - alert: RateLimitHighRejectionRate
       expr: |
-        rate(ratelimit_checks_total{result="rejected"}[5m]) / rate(ratelimit_checks_total[5m]) > 0.1
+        rate(ratelimit_requests_total{result="rejected"}[5m]) / rate(ratelimit_requests_total[5m]) > 0.1
       for: 5m
       labels:
         severity: warning
@@ -27,15 +27,15 @@ spec:
       annotations:
         summary: "High rate limit rejection rate"
         description: "Rate limit rejection rate is above 10% for the last 5 minutes"
-    - alert: RateLimitViolatingUsersHigh
-      expr: ratelimit_violating_users_total > 10
+    - alert: RateLimitHighRejectionCount
+      expr: increase(ratelimit_rejected_total[5m]) > 100
       for: 5m
       labels:
         severity: warning
         component: ratelimit-service
       annotations:
-        summary: "Many users exceeding rate limits"
-        description: "{{`{{ $value }}`}} users are currently exceeding rate limits"
+        summary: "High number of rejected requests"
+        description: "More than 100 requests were rejected in the last 5 minutes"
     - alert: RateLimitServiceDown
       expr: up{job="ratelimit-service"} == 0
       for: 1m
@@ -46,7 +46,7 @@ spec:
         summary: "RateLimit Service is down"
         description: "RateLimit Service pod has been down for more than 1 minute"
     - alert: RateLimitRedisDown
-      expr: rate(ratelimit_redis_operations_total{status="error"}[1m]) > 0
+      expr: ratelimit_redis_operations_total{status="error"} > 0
       for: 1m
       labels:
         severity: critical

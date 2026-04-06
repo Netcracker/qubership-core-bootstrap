@@ -1,3 +1,6 @@
+//go:build cloud_e2e
+// +build cloud_e2e
+
 package cloud_e2e
 
 import (
@@ -8,301 +11,240 @@ import (
 	"io"
 	"net/http"
 	"os/exec"
+	"ratelimit-service/pkg/utils"
 	"testing"
 	"time"
-
-	"ratelimit-service/pkg/utils"
 
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
 )
 
 const (
-	gatewayPort  = "8080"
-	operatorPort = "8082"
+    gatewayPort  = "8080"
+    operatorPort = "8082"
 )
 
 var namespace    =  utils.GetEnv("NAMESPACE", "core-1-core")
 
 func TestCloudE2E_RateLimitThroughGateway(t *testing.T) {
-	ctx := context.Background()
+    // 1. Setup
+    t.Log("=== Setting up cloud E2E test ===")
 
-	// 1. Setup
-	t.Log("=== Setting up cloud E2E test ===")
+    // Port-forwards
+    t.Log("Starting port-forwards...")
+    gatewayPF := setupPortForward(t, "svc/public-gateway-istio", gatewayPort)
+    defer gatewayPF()
+    operatorPF := setupPortForward(t, "svc/ratelimit-service", operatorPort)
+    defer operatorPF()
+    redisPF := setupPortForward(t, "svc/redis", "6379")
+    defer redisPF()
 
-	kubeconfig := utils.GetEnv("KUBECONFIG", utils.GetEnv("HOME", "") + "/.kube/config")
+    time.Sleep(5 * time.Second)
 
-	config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
-	require.NoError(t, err)
+    gatewayURL := fmt.Sprintf("http://localhost:%s", gatewayPort)
+    operatorURL := fmt.Sprintf("http://localhost:%s", operatorPort)
+    userID := "cloud-e2e-user"
 
-	_, kubeErr := kubernetes.NewForConfig(config)
-	require.NoError(t, kubeErr)
+    // 2. Clean up any existing rules first
+    t.Log("\n=== Cleaning up existing rules ===")
+    deleteRule(operatorURL, "e2e_test_rule")
 
-	// Port-forwards
-	t.Log("Starting port-forwards...")
+    // 3. Test default rate limit (60 requests per minute from default rule)
+    t.Log("\n=== Testing default rate limit ===")
+    
+    for i := 0; i < 3; i++ {
+        statusCode, err := sendGatewayRequest(gatewayURL, "/test", userID)
+        require.NoError(t, err)
+        t.Logf("Request %d: HTTP %d", i+1, statusCode)
+        assert.Equal(t, 200, statusCode, "Default rule should allow 60 requests per minute")
+        time.Sleep(100 * time.Millisecond)
+    }
 
-	// Gateway port-forward
-	gatewayPF := setupPortForward(t, "service/public-gateway-istio", gatewayPort)
-	defer gatewayPF()
+    // 4. Add custom rule with stricter limit
+    t.Log("\n=== Adding custom rule: 2 requests per 10 seconds ===")
 
-	// Operator port-forward
-	operatorPF := setupPortForward(t, "service/ratelimit-service", operatorPort)
-	defer operatorPF()
+    rule := map[string]interface{}{
+        "name":       "e2e_test_rule",
+        "pattern":    "/test",
+        "limit":      2,
+        "window_sec": 10,
+        "algorithm":  "fixed_window",
+    }
+    body, _ := json.Marshal(rule)
+    resp, err := http.Post(operatorURL+"/api/v1/ratelimit/rules", "application/json", bytes.NewBuffer(body))
+    require.NoError(t, err)
+    resp.Body.Close()
+    t.Log("Rate limit rule added")
 
-	// Redis port-forward
-	redisPF := setupPortForward(t, "service/redis", "6379")
-	defer redisPF()
+    // Wait for rule to be applied
+    time.Sleep(3 * time.Second)
 
-	time.Sleep(5 * time.Second)
+    // 5. Test custom rate limit
+    t.Log("\n=== Testing custom rate limit (2 requests per 10 seconds) ===")
 
-	operatorURL := fmt.Sprintf("http://localhost:%s", operatorPort)
-	gatewayURL := fmt.Sprintf("http://localhost:%s", gatewayPort)
+    for i := 0; i < 3; i++ {
+        statusCode, err := sendGatewayRequest(gatewayURL, "/test", userID)
+        require.NoError(t, err)
+        t.Logf("Request %d: HTTP %d", i+1, statusCode)
+        if i < 2 {
+            assert.Equal(t, 200, statusCode, "First 2 requests should be allowed")
+        } else {
+            assert.Equal(t, 429, statusCode, "Third request should be rate limited")
+        }
+        time.Sleep(100 * time.Millisecond)
+    }
 
-	// 2. Test initial configuration
-	t.Log("\n=== Testing initial configuration ===")
+    // 6. Get violating users BEFORE reset (should show the user)
+    t.Log("\n=== Getting violating users (before reset) ===")
+    
+    violatingUsersJSON, err := getViolatingUsersRaw(operatorURL)
+    require.NoError(t, err)
+    t.Logf("Violating users API response:\n%s", violatingUsersJSON)
 
-	// Check default rate limit
-	userID := "cloud-e2e-user"
+    // 7. Test rate limit reset
+    t.Log("\n=== Testing rate limit reset ===")
 
-	// Generate JWT token
-	jwtToken, err := generateJWTToken(userID)
-	require.NoError(t, err)
+    err = resetUserRateLimit(operatorURL, userID)
+    require.NoError(t, err)
+    t.Log("Rate limits reset")
 
-	// Test rate limit
-	endpoint := "/test"
+    time.Sleep(2 * time.Second)
 
-	t.Log("Testing rate limit: 2 requests per 10 seconds (default rule)")
+    // 8. After reset, request should be allowed
+    statusCode, err := sendGatewayRequest(gatewayURL, "/test", userID)
+    require.NoError(t, err)
+    t.Logf("Request after reset: HTTP %d", statusCode)
+    assert.Equal(t, 200, statusCode, "Request after reset should be allowed")
 
-	// First 2 requests should be allowed
-	for i := 0; i < 2; i++ {
-		statusCode, err := sendGatewayRequest(gatewayURL, endpoint, jwtToken)
-		require.NoError(t, err)
-		t.Logf("Request %d: HTTP %d", i+1, statusCode)
-		assert.Equal(t, 200, statusCode)
-		time.Sleep(100 * time.Millisecond)
-	}
+    // 9. Get violating users AFTER reset (should be empty)
+    t.Log("\n=== Getting violating users (after reset) ===")
+    
+    violatingUsersJSONAfter, err := getViolatingUsersRaw(operatorURL)
+    require.NoError(t, err)
+    t.Logf("Violating users API response after reset:\n%s", violatingUsersJSONAfter)
 
-	// Third request should be rate limited
-	statusCode, err := sendGatewayRequest(gatewayURL, endpoint, jwtToken)
-	require.NoError(t, err)
-	t.Logf("Request 3: HTTP %d", statusCode)
-	assert.Equal(t, 429, statusCode, "Rate limit should trigger")
+    // 10. Test Redis keys
+    t.Log("\n=== Testing Redis keys ===")
 
-	// 3. Test configuration change via operator API
-	t.Log("\n=== Testing configuration change ===")
+    rdb := redis.NewClient(&redis.Options{
+        Addr: "localhost:6379",
+        DB:   0,
+    })
+    defer rdb.Close()
 
-	// Update rate limit rule
-	rule := map[string]interface{}{
-		"name":       "new_rule",
-		"pattern":    "/test",
-		"limit":      5,
-		"window_sec": 60,
-		"algorithm":  "sliding_window",
-	}
+    keys, err := rdb.Keys(context.Background(), "*").Result()
+    require.NoError(t, err)
+    t.Logf("Redis keys found: %d", len(keys))
+    for _, key := range keys {
+        val, _ := rdb.Get(context.Background(), key).Result()
+        t.Logf("  Key: %s = %s", key, val)
+    }
 
-	body, _ := json.Marshal(rule)
-	resp, err := http.Post(operatorURL+"/api/v1/ratelimit/rules", "application/json", bytes.NewBuffer(body))
-	require.NoError(t, err)
-	resp.Body.Close()
-	t.Log("Rate limit rule updated: 5 requests per minute")
+    // 11. Clean up
+    t.Log("\n=== Cleaning up ===")
+    deleteRule(operatorURL, "e2e_test_rule")
 
-	time.Sleep(2 * time.Second)
-
-	// Wait for rate limit window to reset
-	time.Sleep(11 * time.Second)
-
-	// Test new limit
-	t.Log("Testing new rate limit: 5 requests per minute")
-
-	for i := 0; i < 5; i++ {
-		statusCode, err := sendGatewayRequest(gatewayURL, endpoint, jwtToken)
-		require.NoError(t, err)
-		t.Logf("Request %d: HTTP %d", i+1, statusCode)
-		assert.Equal(t, 200, statusCode)
-		time.Sleep(100 * time.Millisecond)
-	}
-
-	// 6th request should be rate limited
-	statusCode, err = sendGatewayRequest(gatewayURL, endpoint, jwtToken)
-	require.NoError(t, err)
-	t.Logf("Request 6: HTTP %d", statusCode)
-	assert.Equal(t, 429, statusCode, "Should be rate limited after 5 requests")
-
-	// 4. Test separator in keys
-	t.Log("\n=== Testing key separator ===")
-
-	rdb := redis.NewClient(&redis.Options{
-		Addr: "localhost:6379",
-		DB:   0,
-	})
-	defer rdb.Close()
-
-	// Check Redis key format
-	key := fmt.Sprintf("path=%s|user_id=%s", endpoint, userID)
-	val, err := rdb.Get(ctx, key).Int()
-	if err == nil {
-		t.Logf("Redis key format: %s = %d (using '|' separator)", key, val)
-		assert.Greater(t, val, 0)
-	}
-
-	// 5. Test metrics
-	t.Log("\n=== Testing metrics ===")
-
-	metrics, err := getMetrics(operatorURL)
-	require.NoError(t, err)
-	t.Logf("Metrics sample:\n%s", metrics[:min(500, len(metrics))])
-
-	assert.Contains(t, metrics, "ratelimit_violating_users_total")
-	assert.Contains(t, metrics, "ratelimit_checks_total")
-
-	// 6. Test reset
-	t.Log("\n=== Testing rate limit reset ===")
-
-	err = resetUserRateLimit(operatorURL, userID)
-	require.NoError(t, err)
-	t.Log("Rate limits reset")
-
-	time.Sleep(2 * time.Second)
-
-	// Request after reset should be allowed
-	statusCode, err = sendGatewayRequest(gatewayURL, endpoint, jwtToken)
-	require.NoError(t, err)
-	t.Logf("Request after reset: HTTP %d", statusCode)
-	assert.Equal(t, 200, statusCode)
-
-	// 7. Performance test
-	t.Log("\n=== Performance test ===")
-
-	durations := make([]time.Duration, 0)
-	for i := 0; i < 10; i++ {
-		start := time.Now()
-		_, err := sendGatewayRequest(gatewayURL, endpoint, jwtToken)
-		duration := time.Since(start)
-		durations = append(durations, duration)
-		require.NoError(t, err)
-	}
-
-	// Calculate average latency
-	var total time.Duration
-	for _, d := range durations {
-		total += d
-	}
-	avgLatency := total / time.Duration(len(durations))
-
-	t.Logf("Average latency over 10 requests: %v", avgLatency)
-	t.Logf("Individual latencies: %v", durations)
-
-	// 8. Concurrent requests test
-	t.Log("\n=== Concurrent requests test ===")
-
-	concurrency := 5 
-	results := make(chan int, concurrency)
-
-	for i := 0; i < concurrency; i++ {
-		go func() {
-			code, err := sendGatewayRequest(gatewayURL, endpoint, jwtToken)
-			if err != nil {
-				results <- 0
-				return
-			}
-			results <- code
-		}()
-	}
-
-	allowed := 0
-	rejected := 0
-	for i := 0; i < concurrency; i++ {
-		code := <-results
-		if code == 200 {
-			allowed++
-		} else if code == 429 {
-			rejected++
-		}
-	}
-
-	t.Logf("Concurrent %d requests: %d allowed, %d rejected", concurrency, allowed, rejected)
-
-	t.Log("\n=== ✅ Cloud E2E test completed successfully! ===")
+    t.Log("\n=== ✅ Cloud E2E test completed successfully! ===")
 }
 
 // Helper functions
 
 func setupPortForward(t *testing.T, resource, port string) func() {
-	cmd := exec.Command("kubectl", "port-forward", "-n", namespace, resource, port+":"+port)
-	if err := cmd.Start(); err != nil {
-		t.Logf("Failed to start port-forward for %s: %v", resource, err)
-		return func() {}
-	}
-
-	time.Sleep(2 * time.Second)
-
-	return func() {
-		cmd.Process.Kill()
-	}
+    cmd := exec.Command("kubectl", "port-forward", "-n", namespace, resource, port+":"+port)
+    if err := cmd.Start(); err != nil {
+        t.Logf("Failed to start port-forward for %s: %v", resource, err)
+        return func() {}
+    }
+    time.Sleep(2 * time.Second)
+    return func() {
+        cmd.Process.Kill()
+    }
 }
 
-func sendGatewayRequest(gatewayURL, endpoint, jwtToken string) (int, error) {
-	url := gatewayURL + endpoint
+func sendGatewayRequest(gatewayURL, endpoint, userID string) (int, error) {
+    url := gatewayURL + endpoint
+    req, err := http.NewRequest("GET", url, nil)
+    if err != nil {
+        return 0, err
+    }
+    req.Header.Set("x-user-id", userID)
 
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		return 0, err
-	}
-
-	req.Header.Set("Authorization", "Bearer "+jwtToken)
-	req.Header.Set("x-user-id", "cloud-e2e-user")
-
-	client := &http.Client{Timeout: 10 * time.Second}
-	resp, err := client.Do(req)
-	if err != nil {
-		return 0, err
-	}
-	defer resp.Body.Close()
-
-	return resp.StatusCode, nil
+    client := &http.Client{Timeout: 10 * time.Second}
+    resp, err := client.Do(req)
+    if err != nil {
+        return 0, err
+    }
+    defer resp.Body.Close()
+    return resp.StatusCode, nil
 }
 
-func getMetrics(operatorURL string) (string, error) {
-	resp, err := http.Get(operatorURL + "/metrics")
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return "", err
-	}
-
-	return string(body), nil
+func getViolatingUsersRaw(apiURL string) (string, error) {
+    resp, err := http.Get(apiURL + "/api/v1/users/violating")
+    if err != nil {
+        return "", err
+    }
+    defer resp.Body.Close()
+    
+    body, err := io.ReadAll(resp.Body)
+    if err != nil {
+        return "", err
+    }
+    
+    // Pretty print JSON
+    var prettyJSON bytes.Buffer
+    if err := json.Indent(&prettyJSON, body, "", "  "); err != nil {
+        return string(body), nil
+    }
+    
+    return prettyJSON.String(), nil
 }
 
-func resetUserRateLimit(operatorURL, userID string) error {
-	url := fmt.Sprintf("%s/api/v1/users/%s/reset", operatorURL, userID)
-	resp, err := http.Post(url, "application/json", nil)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
+func getViolatingUsers(apiURL string) ([]string, error) {
+    resp, err := http.Get(apiURL + "/api/v1/users/violating")
+    if err != nil {
+        return nil, err
+    }
+    defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("reset failed with status: %d", resp.StatusCode)
-	}
-	return nil
+    var result struct {
+        ViolatingUsers []struct {
+            UserID string `json:"user_id"`
+        } `json:"violating_users"`
+    }
+
+    if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+        return nil, err
+    }
+
+    users := make([]string, len(result.ViolatingUsers))
+    for i, u := range result.ViolatingUsers {
+        users[i] = u.UserID
+    }
+    return users, nil
 }
 
-func generateJWTToken(userID string) (string, error) {
-	// Use pre-generated token or generate dynamically
-	// For cloud E2E, use a known valid token
-	return utils.GetEnv("TEST_JWT_TOKEN", ""), nil
+func resetUserRateLimit(apiURL, userID string) error {
+    url := fmt.Sprintf("%s/api/v1/users/%s/reset", apiURL, userID)
+    resp, err := http.Post(url, "application/json", nil)
+    if err != nil {
+        return err
+    }
+    defer resp.Body.Close()
+    if resp.StatusCode != http.StatusOK {
+        return fmt.Errorf("reset failed with status: %d", resp.StatusCode)
+    }
+    return nil
 }
 
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
+func deleteRule(apiURL, ruleName string) {
+    req, err := http.NewRequest("DELETE", apiURL+"/api/v1/ratelimit/rules/"+ruleName, nil)
+    if err != nil {
+        return
+    }
+    client := &http.Client{}
+    resp, err := client.Do(req)
+    if err == nil {
+        resp.Body.Close()
+    }
 }

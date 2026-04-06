@@ -72,32 +72,45 @@ func (r *RedisClient) BuildKey(components map[string]string) string {
 }
 
 func (r *RedisClient) ParseKey(key string) (*LimitKey, error) {
-	limitKey := &LimitKey{
-		FullKey:    key,
-		Components: make(map[string]string),
-	}
-
-	parts := strings.Split(key, r.config.Separator)
-
-	for _, part := range parts {
-		kv := strings.SplitN(part, "=", 2)
-		if len(kv) == 2 {
-			limitKey.Components[kv[0]] = kv[1]
-		}
-	}
-
-	limit, unit, err := r.findLimit(limitKey.Components)
+    limitKey := &LimitKey{
+        FullKey:    key,
+        Components: make(map[string]string),
+    }
+    
+    // Remove "rate:" prefix if present
+    if strings.HasPrefix(key, "rate:") {
+        key = strings.TrimPrefix(key, "rate:")
+    }
+    
+    // Remove domain prefix if present
+    if strings.HasPrefix(key, r.config.Domain+"_") {
+        limitKey.Domain = r.config.Domain
+        key = strings.TrimPrefix(key, r.config.Domain+"_")
+    }
+    
+    // Split by separator
+    parts := strings.Split(key, r.config.Separator)
+    
+    for _, part := range parts {
+        kv := strings.SplitN(part, "=", 2)
+        if len(kv) == 2 {
+            limitKey.Components[kv[0]] = kv[1]
+        }
+    }
+    
+    // Find limit from config
+    limit, unit, err := r.findLimit(limitKey.Components)
 	if err != nil {
 		limit, unit, err = r.findGlobalLimit()
-		if err != nil {
-			return nil, fmt.Errorf("failed to find limit for key %s: %w", key, err)
+    if err != nil {
+        return nil, fmt.Errorf("failed to find limit for key %s: %w", key, err)
 		}
-	}
-	limitKey.LimitValue = limit
-	limitKey.Unit = unit
-	limitKey.TTL = r.getTTLForUnit(unit)
-
-	return limitKey, nil
+    }
+    limitKey.LimitValue = limit
+    limitKey.Unit = unit
+    limitKey.TTL = r.getTTLForUnit(unit)
+    
+    return limitKey, nil
 }
 
 func (r *RedisClient) findLimit(components map[string]string) (int, string, error) {
@@ -185,60 +198,66 @@ func (r *RedisClient) GetUserRateLimitInfo(ctx context.Context, userID string) (
 }
 
 func (r *RedisClient) GetViolatingUsers(ctx context.Context) ([]ViolatingUser, error) {
-	keys, err := r.client.Keys(ctx, "*user_id=*").Result()
-	if err != nil {
-		return nil, err
-	}
+    keys, err := r.client.Keys(ctx, "*user_id*").Result()
+    if err != nil {
+        return nil, err
+    }
 
-	klog.V(4).Infof("Found %d keys with user_id", len(keys))
+    klog.V(4).Infof("Found %d keys with user_id", len(keys))
+    
+    violatingMap := make(map[string]*ViolatingUser)
 
-	violatingMap := make(map[string]*ViolatingUser)
-
-	for _, key := range keys {
-		val, err := r.client.Get(ctx, key).Int()
-		if err != nil {
-			continue
-		}
-
-		parsedKey, err := r.ParseKey(key)
-		if err != nil {
-			klog.V(4).Infof("Failed to parse key %s: %v", key, err)
-			continue
-		}
-
-		userID, hasUser := parsedKey.Components["user_id"]
-		if !hasUser {
-			continue
-		}
-
-		if val >= parsedKey.LimitValue {
-			if _, exists := violatingMap[userID]; !exists {
-				violatingMap[userID] = &ViolatingUser{
-					UserID:      userID,
-					Violations:  make([]ViolationDetail, 0),
-					TotalExceed: 0,
-				}
-			}
-
-			violatingMap[userID].Violations = append(violatingMap[userID].Violations, ViolationDetail{
-				Key:        key,
-				Current:    val,
-				Limit:      parsedKey.LimitValue,
-				ExceededBy: val - parsedKey.LimitValue,
-				Unit:       parsedKey.Unit,
-				Components: parsedKey.Components,
-			})
-			violatingMap[userID].TotalExceed += val - parsedKey.LimitValue
-		}
-	}
-
-	violating := make([]ViolatingUser, 0, len(violatingMap))
-	for _, v := range violatingMap {
-		violating = append(violating, *v)
-	}
-
-	klog.V(4).Infof("Found %d violating users", len(violating))
-	return violating, nil
+    for _, key := range keys {
+        val, err := r.client.Get(ctx, key).Int()
+        if err != nil {
+            klog.V(4).Infof("Failed to get value for key %s: %v", key, err)
+            continue
+        }
+        
+        // Parse key to extract components
+        parsedKey, err := r.ParseKey(key)
+        if err != nil {
+            klog.V(4).Infof("Failed to parse key %s: %v", key, err)
+            continue
+        }
+        
+        userID, hasUser := parsedKey.Components["user_id"]
+        if !hasUser {
+            continue
+        }
+        
+        limit := parsedKey.LimitValue
+        
+        klog.V(4).Infof("Key: %s, User: %s, Current: %d, Limit: %d", key, userID, val, limit)
+        
+        if val >= limit {
+            if _, exists := violatingMap[userID]; !exists {
+                violatingMap[userID] = &ViolatingUser{
+                    UserID:      userID,
+                    Violations:  make([]ViolationDetail, 0),
+                    TotalExceed: 0,
+                }
+            }
+            
+            violatingMap[userID].Violations = append(violatingMap[userID].Violations, ViolationDetail{
+                Key:        key,
+                Current:    val,
+                Limit:      limit,
+                ExceededBy: val - limit,
+                Unit:       parsedKey.Unit,
+                Components: parsedKey.Components,
+            })
+            violatingMap[userID].TotalExceed += val - limit
+        }
+    }
+    
+    violating := make([]ViolatingUser, 0, len(violatingMap))
+    for _, v := range violatingMap {
+        violating = append(violating, *v)
+    }
+    
+    klog.V(4).Infof("Found %d violating users", len(violating))
+    return violating, nil
 }
 
 func (r *RedisClient) GetAllStatistics(ctx context.Context) (*Statistics, error) {
