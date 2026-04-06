@@ -42,15 +42,21 @@ func NewRateLimitManager(limiter *Limiter) *RateLimitManager {
 }
 
 func (m *RateLimitManager) AddRule(rule *Rule) {
-	if m == nil {
-		return
-	}
-	if rule.Pattern != "" {
-		rule.Regex = regexp.MustCompile(rule.Pattern)
-	}
-	m.rules.Store(rule.Name, rule)
-	klog.Infof("Added rate limit rule: %s (limit: %d/%s, pattern: %s, algorithm: %s)",
-		rule.Name, rule.Limit, rule.Window, rule.Pattern, rule.Algorithm)
+    if m == nil {
+        return
+    }
+    if rule.Pattern != "" {
+        rule.Regex = regexp.MustCompile(rule.Pattern)
+    }
+    m.rules.Store(rule.Name, rule)
+    klog.Infof("Added rate limit rule: %s (limit: %d/%s, pattern: %s, algorithm: %s)", 
+        rule.Name, rule.Limit, rule.Window, rule.Pattern, rule.Algorithm)
+    
+    m.rules.Range(func(k, v interface{}) bool {
+        r := v.(*Rule)
+        klog.Infof("  Active rule: %s -> pattern: %s", r.Name, r.Pattern)
+        return true
+    })
 }
 
 func (m *RateLimitManager) RemoveRule(name string) {
@@ -62,38 +68,34 @@ func (m *RateLimitManager) RemoveRule(name string) {
 }
 
 func (m *RateLimitManager) GetRule(key string) *Rule {
-	if m == nil {
-		return nil
-	}
-	var matched *Rule
-	m.rules.Range(func(k, v interface{}) bool {
-		rule := v.(*Rule)
-		if rule.Regex != nil && rule.Regex.MatchString(key) {
-			matched = rule
-			return false
-		}
-		return true
-	})
-
-	if matched == nil {
-		return m.defaultRule
-	}
-	return matched
+    var matched *Rule
+    m.rules.Range(func(k, v interface{}) bool {
+        rule := v.(*Rule)
+        if rule.Pattern != "" {
+            if strings.Contains(key, rule.Pattern) {
+                matched = rule
+                return false
+            }
+        }
+        return true
+    })
+    
+    if matched != nil {
+        return matched
+    }
+    return m.defaultRule
 }
 
 func (m *RateLimitManager) Check(ctx context.Context, key string) (*Result, error) {
-	if m == nil || m.limiter == nil {
-		return &Result{Allowed: true}, nil
-	}
-	rule := m.GetRule(key)
-	if rule == nil {
-		return &Result{Allowed: true}, nil
-	}
-
-	klog.V(4).Infof("Checking rate limit for key=%s with rule=%s, limit=%d, window=%v, algorithm=%s",
-		key, rule.Name, rule.Limit, rule.Window, rule.Algorithm)
-
-	return m.limiter.AllowWithAlgorithm(ctx, key, rule.Limit, rule.Window, rule.Algorithm)
+    if m == nil || m.limiter == nil {
+        return &Result{Allowed: true}, nil
+    }
+    rule := m.GetRule(key)
+    
+    klog.Infof("Check: key=%s, matched rule=%s (limit=%d, pattern=%s)", 
+        key, rule.Name, rule.Limit, rule.Pattern)
+    
+    return m.limiter.AllowWithAlgorithm(ctx, key, rule.Limit, rule.Window, rule.Algorithm)
 }
 
 func (m *RateLimitManager) CheckWithComponents(ctx context.Context, components map[string]string, separator string) (*Result, error) {
