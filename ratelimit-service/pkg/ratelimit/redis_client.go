@@ -210,49 +210,21 @@ func (r *RedisClient) GetUserRateLimitInfo(ctx context.Context, userID string) (
 }
 
 func (r *RedisClient) GetViolatingUsers(ctx context.Context) ([]ViolatingUser, error) {
-    keys, err := r.client.Keys(ctx, "*user_id*").Result()
+    keys, err := r.client.Keys(ctx, "violation:*").Result()
     if err != nil {
         return nil, err
     }
 
-    klog.V(4).Infof("Found %d keys with user_id", len(keys))
-    
-    violatingMap := make(map[string]int)
-
+    violating := make([]ViolatingUser, 0, len(keys))
     for _, key := range keys {
-        parsedKey, err := r.ParseKey(key)
-        if err != nil {
-            continue
-        }
+        userID := strings.TrimPrefix(key, "violation:")
+        ttl, _ := r.client.TTL(ctx, key).Result()
         
-        userID, hasUser := parsedKey.Components["user_id"]
-        if !hasUser {
-            continue
-        }
-        
-        valStr, err := r.client.Get(ctx, key).Result()
-        if err != nil {
-            continue
-        }
-        
-        var count int
-        if f, err := strconv.ParseFloat(valStr, 64); err == nil {
-            count = int(f)
-        }
-        
-        // Ignore unrealistically large values (they are timestamps, not counters)
-        limit := parsedKey.LimitValue
-        if limit > 0 && count > 0 && count < 1000000 && count >= limit {
-            violatingMap[userID] = count - limit
-        }
-    }
-    
-    violating := make([]ViolatingUser, 0, len(violatingMap))
-    for userID, exceed := range violatingMap {
         violating = append(violating, ViolatingUser{
             UserID:      userID,
-            TotalExceed: exceed,
-            Violations:  []ViolationDetail{},
+            TotalExceed: 1,
+            LastSeen:    time.Now(),
+            TTL:         ttl,
         })
     }
     
@@ -330,6 +302,11 @@ func (r *RedisClient) ResetUserRateLimit(ctx context.Context, userID string) err
     keys, err := r.client.Keys(ctx, pattern).Result()
     if err != nil {
         return err
+    }
+    
+    violationKey := fmt.Sprintf("violation:%s", userID)
+    if err := r.client.Del(ctx, violationKey).Err(); err != nil {
+        klog.Errorf("Failed to delete violation key %s: %v", violationKey, err)
     }
     
     for _, key := range keys {
@@ -423,8 +400,10 @@ type LimitStat struct {
 
 type ViolatingUser struct {
     UserID      string            `json:"user_id"`
-    Violations  []ViolationDetail `json:"violations"`
+    Violations  []ViolationDetail `json:"violations,omitempty"`
     TotalExceed int               `json:"total_exceed"`
+    LastSeen    time.Time         `json:"last_seen,omitempty"`
+    TTL         time.Duration     `json:"ttl,omitempty"`
 }
 
 type ViolationDetail struct {

@@ -3,6 +3,7 @@ package ratelimit
 import (
     "context"
     "fmt"
+    "strings"
     "time"
 
     "github.com/go-redis/redis_rate/v10"
@@ -91,6 +92,19 @@ func (l *Limiter) AllowWithAlgorithm(ctx context.Context, key string, limit int,
         RetryAfter:     res.RetryAfter,
     }
 
+    if !result.Allowed {
+        userID := extractUserIDFromKey(key)
+        if userID != "" {
+            violationKey := fmt.Sprintf("violation:%s", userID)
+            if err := l.redis.Set(ctx, violationKey, "1", window).Err(); err != nil {
+                klog.Errorf("Failed to record violation for user %s: %v", userID, err)
+            } else {
+                klog.V(4).Infof("Recorded violation for user: %s", userID)
+            }
+        }
+    }
+
+
     if l.metrics != nil {
         l.metrics.RecordRateLimit(key, result.Allowed, result.Current, limit)
     }
@@ -124,4 +138,14 @@ func (l *Limiter) Reset(ctx context.Context, key string) error {
     
     klog.V(4).Infof("Reset rate limiter for key: %s", key)
     return nil
+}
+
+func extractUserIDFromKey(key string) string {
+    parts := strings.Split(key, "|")
+    for _, part := range parts {
+        if strings.HasPrefix(part, "user_id=") {
+            return strings.TrimPrefix(part, "user_id=")
+        }
+    }
+    return ""
 }
