@@ -230,11 +230,20 @@ func (r *RedisClient) GetViolatingUsers(ctx context.Context) ([]ViolatingUser, e
             continue
         }
         
-        if _, exists := violatingMap[userID]; !exists {
-            violatingMap[userID] = &ViolatingUser{
-                UserID:      userID,
-                Violations:  make([]ViolationDetail, 0),
-                TotalExceed: 1,
+        count, err := r.getRequestCount(ctx, key)
+        if err != nil {
+            klog.V(4).Infof("Failed to get count for key %s: %v", key, err)
+            continue
+        }
+        
+        limit := parsedKey.LimitValue
+        if limit > 0 && count >= limit {
+            if _, exists := violatingMap[userID]; !exists {
+                violatingMap[userID] = &ViolatingUser{
+                    UserID:      userID,
+                    Violations:  make([]ViolationDetail, 0),
+                    TotalExceed: count - limit,
+                }
             }
         }
     }
@@ -246,6 +255,25 @@ func (r *RedisClient) GetViolatingUsers(ctx context.Context) ([]ViolatingUser, e
     
     klog.V(4).Infof("Found %d violating users", len(violating))
     return violating, nil
+}
+
+func (r *RedisClient) getRequestCount(ctx context.Context, key string) (int, error) {
+    count, err := r.client.ZCard(ctx, key).Result()
+    if err == nil {
+        return int(count), nil
+    }
+    
+    val, err := r.client.Get(ctx, key).Int()
+    if err == nil {
+        return val, nil
+    }
+    
+    val, err = r.client.HGet(ctx, key, "tokens").Int()
+    if err == nil {
+        return 0, nil
+    }
+    
+    return 0, fmt.Errorf("unknown key type")
 }
 
 func (r *RedisClient) GetAllStatistics(ctx context.Context) (*Statistics, error) {
