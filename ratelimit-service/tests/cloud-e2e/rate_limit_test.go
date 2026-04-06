@@ -5,6 +5,7 @@ package cloud_e2e
 
 import (
     "bytes"
+	"strings"
     "context"
     "encoding/json"
     "fmt"
@@ -49,6 +50,8 @@ func TestCloudE2E_RateLimitThroughGateway(t *testing.T) {
     // 2. Clean up any existing rules first
     t.Log("\n=== Cleaning up existing rules ===")
     deleteRule(operatorURL, "e2e_test_rule")
+	t.Log("\n=== Cleaning up existing keys for cloud-e2e-user ===")
+	cleanupRedisKeys("cloud-e2e-user")
 
     // 3. Test default rate limit (60 requests per minute from default rule)
     t.Log("\n=== Testing default rate limit ===")
@@ -255,5 +258,21 @@ func deleteRule(apiURL, ruleName string) {
     resp, err := client.Do(req)
     if err == nil {
         resp.Body.Close()
+    }
+}
+
+
+func cleanupRedisKeys(userID string) {
+    cmd := exec.Command("kubectl", "exec", "-n", namespace, "deployment/redis", "--",
+        "redis-cli", "KEYS", "*user_id*")
+    output, _ := cmd.Output()
+    keys := strings.Split(string(output), "\n")
+    
+    for _, key := range keys {
+        if key != "" {
+            delCmd := exec.Command("kubectl", "exec", "-n",  namespace, "deployment/redis", "--",
+                "redis-cli", "DEL", key)
+            delCmd.Run()
+        }
     }
 }

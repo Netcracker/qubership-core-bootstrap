@@ -232,10 +232,6 @@ func (r *RedisClient) GetViolatingUsers(ctx context.Context) ([]ViolatingUser, e
         
         valStr, err := r.client.Get(ctx, key).Result()
         if err != nil {
-            count, err := r.client.ZCard(ctx, key).Result()
-            if err == nil {
-                violatingMap[userID] = int(count)
-            }
             continue
         }
         
@@ -244,8 +240,9 @@ func (r *RedisClient) GetViolatingUsers(ctx context.Context) ([]ViolatingUser, e
             count = int(f)
         }
         
+        // Ignore unrealistically large values (they are timestamps, not counters)
         limit := parsedKey.LimitValue
-        if limit > 0 && count >= limit {
+        if limit > 0 && count > 0 && count < 1000000 && count >= limit {
             violatingMap[userID] = count - limit
         }
     }
