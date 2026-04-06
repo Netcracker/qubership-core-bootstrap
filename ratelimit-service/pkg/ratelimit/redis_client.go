@@ -341,12 +341,15 @@ func (r *RedisClient) ResetUserRateLimit(ctx context.Context, userID string) err
             continue
         }
         
+        if err := r.client.Del(ctx, key+":tokens").Err(); err != nil {
+        }
+        
         cleanKey := strings.TrimPrefix(key, "rate:")
         if err := r.limiter.Reset(ctx, cleanKey); err != nil {
             klog.Errorf("Failed to reset limiter for key %s: %v", cleanKey, err)
         }
         
-        klog.V(4).Infof("Reset key: %s", key)
+        klog.V(4).Infof("Deleted key: %s", key)
     }
     
     klog.Infof("Reset rate limits for user: %s, deleted %d keys", userID, len(keys))
