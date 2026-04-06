@@ -115,6 +115,14 @@ func (m *DefaultMetricsCollector) UpdateRateLimitMetrics(violatingCount int, act
     m.totalRateLimitsActive.Set(float64(activeLimitsCount))
 }
 
+func (m *DefaultMetricsCollector) UpdateViolatingUsers(count int) {
+    m.totalViolatingUsers.Set(float64(count))
+}
+
+func (m *DefaultMetricsCollector) UpdateActiveLimits(count int) {
+    m.totalRateLimitsActive.Set(float64(count))
+}
+
 func (m *DefaultMetricsCollector) RecordRateLimitCheck(key string, allowed bool, limit int) {
     result := "allowed"
     if !allowed {

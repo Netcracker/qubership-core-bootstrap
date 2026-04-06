@@ -12,6 +12,7 @@ import (
 
 type Limiter struct {
     limiter *redis_rate.Limiter
+    redis   *redis.Client
     metrics MetricsRecorder
 }
 
@@ -39,6 +40,7 @@ const (
 func NewLimiter(rdb *redis.Client, metrics MetricsRecorder) *Limiter {
     return &Limiter{
         limiter: redis_rate.NewLimiter(rdb),
+        redis:   rdb,
         metrics: metrics,
     }
 }
@@ -55,14 +57,12 @@ func (l *Limiter) AllowWithAlgorithm(ctx context.Context, key string, limit int,
     var rate redis_rate.Limit
     switch algo {
     case AlgorithmFixedWindow:
-
         rate = redis_rate.Limit{
             Rate:   limit,
             Burst:  limit,
             Period: window,
         }
     case AlgorithmTokenBucket:
-
         rate = redis_rate.Limit{
             Rate:   limit,
             Burst:  limit,
@@ -84,7 +84,7 @@ func (l *Limiter) AllowWithAlgorithm(ctx context.Context, key string, limit int,
 
     result := &Result{
         Allowed:        res.Allowed > 0,
-        Current:        int(res.Remaining),
+        Current:        limit - int(res.Remaining),
         Limit:          limit,
         Window:         window,
         LimitRemaining: int(res.Remaining),
@@ -103,5 +103,25 @@ func (l *Limiter) AllowWithAlgorithm(ctx context.Context, key string, limit int,
 }
 
 func (l *Limiter) Reset(ctx context.Context, key string) error {
-    return l.limiter.Reset(ctx, key)
+    patterns := []string{
+        key,                                // fixed window
+        key + ":tokens",                    // token bucket
+        key + ":rate",                      // sliding window rate
+        key + ":burst",                     // burst limit
+        key + ":period",                    // period
+        key + ":last_access",               // last access time
+    }
+    
+    for _, k := range patterns {
+        if err := l.redis.Del(ctx, k).Err(); err != nil && err != redis.Nil {
+            return fmt.Errorf("failed to delete key %s: %w", k, err)
+        }
+    }
+    
+    if err := l.redis.Del(ctx, key).Err(); err != nil && err != redis.Nil {
+        return err
+    }
+    
+    klog.V(4).Infof("Reset rate limiter for key: %s", key)
+    return nil
 }

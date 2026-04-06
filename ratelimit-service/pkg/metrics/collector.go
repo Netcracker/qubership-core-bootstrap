@@ -64,6 +64,7 @@ func (s *MetricsCollectorService) collectMetrics(ctx context.Context) {
         s.metrics.RecordConfigReload(false)
         return
     }
+	s.metrics.UpdateViolatingUsers(len(violating))
 
     stats, err := s.redisClient.GetAllStatistics(ctx)
     if err != nil {

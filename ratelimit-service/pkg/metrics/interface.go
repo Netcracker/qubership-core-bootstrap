@@ -5,6 +5,8 @@ import "github.com/prometheus/client_golang/prometheus"
 type MetricsCollector interface {
     // Rate limit metrics
     UpdateRateLimitMetrics(violatingCount int, activeLimitsCount int)
+	UpdateViolatingUsers(count int)
+    UpdateActiveLimits(count int)
     RecordRateLimitCheck(key string, allowed bool, limit int)
     RecordRateLimitReset(key string)
 
