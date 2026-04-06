@@ -1,0 +1,26 @@
+{{- if and .Values.monitoring.enabled .Values.monitoring.podMonitor.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: ratelimit
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: ratelimit
+    {{- toYaml .Values.monitoring.podMonitor.labels | nindent 4 }}
+  {{- with .Values.monitoring.podMonitor.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  selector:
+    matchLabels:
+      app: ratelimit
+  podMetricsEndpoints:
+  - port: metrics
+    interval: {{ .Values.monitoring.podMonitor.interval }}
+    scrapeTimeout: {{ .Values.monitoring.podMonitor.scrapeTimeout }}
+    path: /metrics
+  namespaceSelector:
+    matchNames:
+    - {{ .Values.namespace }}
+{{- end }}

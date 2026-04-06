@@ -1,0 +1,19 @@
+{{- if and .Values.monitoring.enabled .Values.monitoring.prometheusRule.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: ratelimit
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: ratelimit
+    {{- toYaml .Values.monitoring.prometheusRule.labels | nindent 4 }}
+  {{- with .Values.monitoring.prometheusRule.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  groups:
+  - name: ratelimit
+    rules:
+    {{- toYaml .Values.monitoring.prometheusRule.rules | nindent 4 }}
+{{- end }}
