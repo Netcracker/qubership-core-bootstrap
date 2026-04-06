@@ -49,7 +49,7 @@ func TestCloudE2E_RateLimitThroughGateway(t *testing.T) {
 	defer gatewayPF()
 
 	// Operator port-forward
-	operatorPF := setupPortForward(t, "service/ratelimit-api", operatorPort)
+	operatorPF := setupPortForward(t, "service/ratelimit-service", operatorPort)
 	defer operatorPF()
 
 	// Redis port-forward

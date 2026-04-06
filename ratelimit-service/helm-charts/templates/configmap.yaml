@@ -4,7 +4,6 @@ metadata:
   name: ratelimit-config
   labels:
     app: ratelimit
-    {{- include "ratelimit-service.labels" . | nindent 4 }}
 data:
   config.yaml: |
     domain: {{ .Values.config.domain | default "auth_limit" }}

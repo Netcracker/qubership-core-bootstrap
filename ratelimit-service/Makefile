@@ -168,13 +168,11 @@ test-integration-e2e: force start-port-forwards
 # ============================================
 
 cloud-test-port-forward:
-	@echo "$(BLUE)Starting port-forwards...$(NC)"
-	@-pkill -f "kubectl port-forward.*public-gateway" 2>/dev/null || true
-	@-pkill -f "kubectl port-forward.*ratelimit" 2>/dev/null || true
-	@-pkill -f "kubectl port-forward.*redis" 2>/dev/null || true
-	@kubectl port-forward -n $(NAMESPACE) service/public-gateway-istio 8080:8080 > /tmp/gateway_pf.log 2>&1 & echo $$! > /tmp/gateway_pf.pid
-	@kubectl port-forward -n $(NAMESPACE) service/ratelimit-api 8082:8082 > /tmp/operator_pf.log 2>&1 & echo $$! > /tmp/operator_pf.pid
-	@kubectl port-forward -n $(NAMESPACE) service/redis 6379:6379 > /tmp/redis_pf.log 2>&1 & echo $$! > /tmp/redis_pf.pid
+	@echo "$(BLUE)Starting port-forwards for cloud tests...$(NC)"
+	@-pkill -f "kubectl port-forward" 2>/dev/null || true
+	@kubectl port-forward -n $(NAMESPACE) svc/public-gateway-istio 8080:8080 > /tmp/gateway_pf.log 2>&1 & echo $$! > /tmp/gateway_pf.pid
+	@kubectl port-forward -n $(NAMESPACE) svc/ratelimit-service 8082:8082 > /tmp/operator_pf.log 2>&1 & echo $$! > /tmp/operator_pf.pid
+	@kubectl port-forward -n $(NAMESPACE) svc/redis 6379:6379 > /tmp/redis_pf.log 2>&1 & echo $$! > /tmp/redis_pf.pid
 	@sleep 5
 	@echo "$(GREEN)✓ Port-forwards started (Gateway:8080, Operator:8082, Redis:6379)$(NC)"
 

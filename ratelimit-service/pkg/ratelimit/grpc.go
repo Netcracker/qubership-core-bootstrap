@@ -22,10 +22,20 @@ func NewGRPCServer(manager *RateLimitManager) *GRPCServer {
 }
 
 func (s *GRPCServer) ShouldRateLimit(ctx context.Context, req *pb.RateLimitRequest) (*pb.RateLimitResponse, error) {
-    // Build key from request domain and descriptors
+    // Build key from request
     key := buildKeyFromRequest(req)
     
     klog.V(4).Infof("gRPC rate limit request: domain=%s, key=%s", req.Domain, key)
+    klog.V(5).Infof("gRPC request details: descriptors=%+v", req.Descriptors)
+    
+    // Get matching rule
+    rule := s.manager.GetRule(key)
+    if rule != nil {
+        klog.V(4).Infof("Matched rule: name=%s, limit=%d, window=%v, algorithm=%s", 
+            rule.Name, rule.Limit, rule.Window, rule.Algorithm)
+    } else {
+        klog.V(4).Infof("No matching rule found for key=%s, using default", key)
+    }
     
     result, err := s.manager.Check(ctx, key)
     if err != nil {
@@ -35,9 +45,13 @@ func (s *GRPCServer) ShouldRateLimit(ctx context.Context, req *pb.RateLimitReque
         }, nil
     }
     
+    klog.V(4).Infof("Rate limit result: allowed=%v, current=%d, limit=%d, window=%v", 
+        result.Allowed, result.Current, result.Limit, result.Window)
+    
     code := pb.RateLimitResponse_OK
     if !result.Allowed {
         code = pb.RateLimitResponse_OVER_LIMIT
+        klog.V(4).Infof("Rate limit exceeded for key=%s", key)
     }
     
     return &pb.RateLimitResponse{
@@ -47,12 +61,16 @@ func (s *GRPCServer) ShouldRateLimit(ctx context.Context, req *pb.RateLimitReque
 }
 
 func buildKeyFromRequest(req *pb.RateLimitRequest) string {
-    // Build key from domain and descriptors
     parts := []string{"domain=" + req.Domain}
+    seen := make(map[string]bool)
     
     for _, desc := range req.Descriptors {
         for _, entry := range desc.Entries {
-            parts = append(parts, entry.Key+"="+entry.Value)
+            // Avoid duplicate keys
+            if !seen[entry.Key] {
+                seen[entry.Key] = true
+                parts = append(parts, entry.Key+"="+entry.Value)
+            }
         }
     }
     return strings.Join(parts, "|")

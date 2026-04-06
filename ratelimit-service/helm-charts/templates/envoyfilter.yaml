@@ -30,7 +30,7 @@ spec:
             - endpoint:
                 address:
                   socket_address:
-                    address: ratelimit-api.{{ .Values.namespace }}.svc.cluster.local
+                    address: ratelimit-service.{{ .Values.namespace }}.svc.cluster.local
                     port_value: {{ .Values.grpc.port }}
 
   # Rate limit filter - simplified match
