@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -161,40 +162,51 @@ func (r *RedisClient) getTTLForUnit(unit string) time.Duration {
 }
 
 func (r *RedisClient) GetUserRateLimitInfo(ctx context.Context, userID string) (*UserRateLimitInfo, error) {
-	pattern := fmt.Sprintf("*user_id=%s*", userID)
-	keys, err := r.client.Keys(ctx, pattern).Result()
-	if err != nil {
-		return nil, err
-	}
+    pattern := fmt.Sprintf("*user_id=%s*", userID)
+    keys, err := r.client.Keys(ctx, pattern).Result()
+    if err != nil {
+        return nil, err
+    }
 
-	info := &UserRateLimitInfo{
-		UserID: userID,
-		Limits: make([]LimitInfo, 0),
-	}
+    info := &UserRateLimitInfo{
+        UserID: userID,
+        Limits: make([]LimitInfo, 0),
+    }
 
-	for _, key := range keys {
-		val, err := r.client.Get(ctx, key).Int()
-		if err != nil {
-			continue
-		}
+    for _, key := range keys {
+        // Try to get value
+        var current int
+        valStr, err := r.client.Get(ctx, key).Result()
+        if err == nil {
+            if i, err := strconv.Atoi(valStr); err == nil {
+                current = i
+            } else if f, err := strconv.ParseFloat(valStr, 64); err == nil {
+                current = int(f)
+            }
+        } else {
+            // Try HGET for token bucket
+            valStr, err = r.client.HGet(ctx, key, "tokens").Result()
+            if err == nil {
+                if f, err := strconv.ParseFloat(valStr, 64); err == nil {
+                    current = int(f)
+                }
+            }
+        }
+        
+        ttl, _ := r.client.TTL(ctx, key).Result()
+        parsedKey, _ := r.ParseKey(key)
+        
+        info.Limits = append(info.Limits, LimitInfo{
+            Key:        key,
+            Current:    current,
+            TTL:        ttl,
+            LimitValue: parsedKey.LimitValue,
+            Unit:       parsedKey.Unit,
+            Components: parsedKey.Components,
+        })
+    }
 
-		ttl, _ := r.client.TTL(ctx, key).Result()
-		parsedKey, err := r.ParseKey(key)
-		if err != nil {
-			continue
-		}
-
-		info.Limits = append(info.Limits, LimitInfo{
-			Key:        key,
-			Current:    val,
-			TTL:        ttl,
-			LimitValue: parsedKey.LimitValue,
-			Unit:       parsedKey.Unit,
-			Components: parsedKey.Components,
-		})
-	}
-
-	return info, nil
+    return info, nil
 }
 
 func (r *RedisClient) GetViolatingUsers(ctx context.Context) ([]ViolatingUser, error) {
@@ -208,13 +220,37 @@ func (r *RedisClient) GetViolatingUsers(ctx context.Context) ([]ViolatingUser, e
     violatingMap := make(map[string]*ViolatingUser)
 
     for _, key := range keys {
-        val, err := r.client.Get(ctx, key).Int()
-        if err != nil {
-            klog.V(4).Infof("Failed to get value for key %s: %v", key, err)
-            continue
+        var current int
+        
+        // Try to get as string (for simple counters)
+        valStr, err := r.client.Get(ctx, key).Result()
+        if err == nil {
+            // Try to parse as int
+            if i, err := strconv.Atoi(valStr); err == nil {
+                current = i
+            } else {
+                // Try to parse as float and round
+                if f, err := strconv.ParseFloat(valStr, 64); err == nil {
+                    current = int(f)
+                } else {
+                    klog.V(4).Infof("Could not parse value for key %s: %s", key, valStr)
+                    continue
+                }
+            }
+        } else {
+            // Try HGET for token bucket keys
+            valStr, err = r.client.HGet(ctx, key, "tokens").Result()
+            if err == nil {
+                if f, err := strconv.ParseFloat(valStr, 64); err == nil {
+                    current = int(f)
+                }
+            } else {
+                klog.V(4).Infof("Could not get value for key %s", key)
+                continue
+            }
         }
         
-        // Parse key to extract components
+        // Parse key to extract user_id
         parsedKey, err := r.ParseKey(key)
         if err != nil {
             klog.V(4).Infof("Failed to parse key %s: %v", key, err)
@@ -226,11 +262,15 @@ func (r *RedisClient) GetViolatingUsers(ctx context.Context) ([]ViolatingUser, e
             continue
         }
         
+        // Get limit from parsed key
         limit := parsedKey.LimitValue
+        if limit == 0 {
+            continue
+        }
         
-        klog.V(4).Infof("Key: %s, User: %s, Current: %d, Limit: %d", key, userID, val, limit)
+        klog.V(4).Infof("Key: %s, User: %s, Current: %d, Limit: %d", key, userID, current, limit)
         
-        if val >= limit {
+        if current >= limit {
             if _, exists := violatingMap[userID]; !exists {
                 violatingMap[userID] = &ViolatingUser{
                     UserID:      userID,
@@ -241,13 +281,13 @@ func (r *RedisClient) GetViolatingUsers(ctx context.Context) ([]ViolatingUser, e
             
             violatingMap[userID].Violations = append(violatingMap[userID].Violations, ViolationDetail{
                 Key:        key,
-                Current:    val,
+                Current:    current,
                 Limit:      limit,
-                ExceededBy: val - limit,
+                ExceededBy: current - limit,
                 Unit:       parsedKey.Unit,
                 Components: parsedKey.Components,
             })
-            violatingMap[userID].TotalExceed += val - limit
+            violatingMap[userID].TotalExceed += current - limit
         }
     }
     
