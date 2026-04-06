@@ -31,18 +31,12 @@ spec:
                 address:
                   socket_address:
                     address: ratelimit-api.{{ .Values.namespace }}.svc.cluster.local
-                    port_value: {{ .Values.api.port }}
+                    port_value: {{ .Values.grpc.port }}
 
-  # Rate limit filter
+  # Rate limit filter - simplified match
   - applyTo: HTTP_FILTER
     match:
       context: GATEWAY
-      listener:
-        filterChain:
-          filter:
-            name: "envoy.filters.network.http_connection_manager"
-          subFilter:
-            name: "envoy.filters.http.router"
     patch:
       operation: INSERT_BEFORE
       value:
@@ -79,8 +73,4 @@ spec:
               - request_headers:
                   header_name: ":path"
                   descriptor_key: path
-            - actions:
-              - request_headers:
-                  header_name: "x-user-id"
-                  descriptor_key: user_id
 {{- end }}

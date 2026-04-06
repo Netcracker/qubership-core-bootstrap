@@ -30,10 +30,13 @@ spec:
         ports:
         - containerPort: {{ .Values.api.port }}
           name: api
-          protocol: TCP
         - containerPort: {{ .Values.metrics.port }}
           name: metrics
-          protocol: TCP
+        - containerPort: 8081
+          name: grpc
+        env:
+        - name: GRPC_PORT
+          value: "8081"
         env:
         - name: REDIS_ADDR
           value: {{ .Values.config.redis.addr | quote }}

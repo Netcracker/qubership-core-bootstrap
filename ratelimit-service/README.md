@@ -293,7 +293,7 @@ The project includes a Makefile with the following useful targets:
 | make test-unit | Run unit tests |
 | make test-integration-all | Run integration tests (requires Redis port‑forward) |
 | make test-integration-e2e | Run E2E tests (operator API only) |
-| make test-cloud-e2e | Run cloud E2E tests (requires deployed operator) |
+| make test-cloud-e2e | Run cloud E2E tests (requires deployed service) |
 | make test-load | Run load tests (requires Gateway port‑forward) |
 | make test-all | Run all tests |
 | make deploy | Deploy to cloud using Helm |

@@ -144,7 +144,7 @@ clean: force
 	@echo "$(GREEN)✓ Clean completed!$(NC)"
 
 # ============================================
-# end-2-end
+# Local E2E Tests
 # ============================================
 
 .PHONY: test-e2e test-integration-e2e
@@ -162,3 +162,43 @@ test-integration-e2e: force start-port-forwards
 		go test -v -tags=e2e -timeout $(TEST_TIMEOUT) ./tests/e2e/...
 	@$(MAKE) stop-port-forwards
 	@echo "$(GREEN)✓ E2E integration tests passed!$(NC)"
+
+# ============================================
+# Cloud E2E Tests
+# ============================================
+
+cloud-test-port-forward:
+	@echo "$(BLUE)Starting port-forwards...$(NC)"
+	@-pkill -f "kubectl port-forward.*public-gateway" 2>/dev/null || true
+	@-pkill -f "kubectl port-forward.*ratelimit" 2>/dev/null || true
+	@-pkill -f "kubectl port-forward.*redis" 2>/dev/null || true
+	@kubectl port-forward -n $(NAMESPACE) service/public-gateway-istio 8080:8080 > /tmp/gateway_pf.log 2>&1 & echo $$! > /tmp/gateway_pf.pid
+	@kubectl port-forward -n $(NAMESPACE) service/ratelimit-api 8082:8082 > /tmp/operator_pf.log 2>&1 & echo $$! > /tmp/operator_pf.pid
+	@kubectl port-forward -n $(NAMESPACE) service/redis 6379:6379 > /tmp/redis_pf.log 2>&1 & echo $$! > /tmp/redis_pf.pid
+	@sleep 5
+	@echo "$(GREEN)✓ Port-forwards started (Gateway:8080, Operator:8082, Redis:6379)$(NC)"
+
+stop-cloud-test-port-forward:
+	@echo "$(BLUE)Stopping port-forwards...$(NC)"
+	@-kill $$(cat /tmp/gateway_pf.pid 2>/dev/null) 2>/dev/null || true
+	@-kill $$(cat /tmp/operator_pf.pid 2>/dev/null) 2>/dev/null || true
+	@-kill $$(cat /tmp/redis_pf.pid 2>/dev/null) 2>/dev/null || true
+	@-rm -f /tmp/gateway_pf.pid /tmp/operator_pf.pid /tmp/redis_pf.pid
+	@echo "$(GREEN)✓ Port-forwards stopped$(NC)"
+
+
+test-cloud-e2e: cloud-test-port-forward
+	@echo "$(BLUE)Running cloud E2E tests...$(NC)"
+	@go clean -testcache
+	@TEST_JWT_TOKEN=$(TEST_JWT_TOKEN) \
+		go test -v -tags=cloud_e2e -timeout $(TEST_TIMEOUT) ./tests/cloud-e2e/...
+	@$(MAKE) stop-cloud-test-port-forward
+	@echo "$(GREEN)✓ Cloud E2E tests passed$(NC)"
+
+test-cloud-e2e-performance: cloud-test-port-forward
+	@echo "$(BLUE)Running cloud E2E performance tests...$(NC)"
+	@go clean -testcache
+	@TEST_JWT_TOKEN=$(TEST_JWT_TOKEN) \
+		go test -v -tags=cloud_e2e -run TestCloudE2E_Performance -timeout $(TEST_TIMEOUT) ./tests/cloud-e2e/...
+	@$(MAKE) stop-cloud-test-port-forward
+	@echo "$(GREEN)✓ Performance tests passed$(NC)"

@@ -14,28 +14,32 @@ config:
     password: ""
     db: 0
   separator: "|"
-  domain: auth_limit
+  domain: "auth_limit"
   rateLimits:
     default:
       limit: 60
-      window: 1m
+      window: "minute" 
       algorithm: sliding_window
     rules:
       - name: api_strict
         pattern: "/api/v1/.*"
         limit: 10
-        window: 1m
+        window: "minute"
         algorithm: sliding_window
-      - name: health_check
+      - name: burst_allowed
         pattern: "/health"
         limit: 100
-        window: 1s
+        window: "second"
         algorithm: token_bucket
       - name: test_endpoint
         pattern: "/test"
         limit: 2
-        window: 10s
+        window: "second"
         algorithm: fixed_window
+
+
+grpc:
+  port: 8081
 
 api:
   port: 8082
@@ -56,7 +60,7 @@ resources:
     cpu: "500m"
 
 envoyFilter:
-  enabled: false
+  enabled: true
   name: gateway-ratelimit
   workloadSelector:
     labels:

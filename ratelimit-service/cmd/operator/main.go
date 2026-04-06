@@ -85,6 +85,14 @@ func main() {
 
 	klog.Info("Rate limiter initialized with rules")
 
+	grpcPort := utils.GetEnv("GRPC_PORT", "8081")
+
+	grpcServer, err := ratelimitpkg.StartGRPCServer(grpcPort, rateLimitManager)
+	if err != nil {
+		klog.Fatalf("Failed to start gRPC server: %v", err)
+	}
+	defer grpcServer.GracefulStop()
+
 	redisClient, _ := ratelimitpkg.NewRedisClient(redisAddr, utils.GetEnv("REDIS_PASSWORD", ""), 0)
 
 	controller := controller.NewConfigMapController(clientset, redisClient, rateLimitManager)

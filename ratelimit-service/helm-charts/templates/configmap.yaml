@@ -4,26 +4,27 @@ metadata:
   name: ratelimit-config
   labels:
     app: ratelimit
+    {{- include "ratelimit-service.labels" . | nindent 4 }}
 data:
   config.yaml: |
-    domain: {{ .Values.config.domain | quote }}
-    separator: {{ .Values.config.separator | quote }}
+    domain: {{ .Values.config.domain | default "auth_limit" }}
+    separator: {{ .Values.config.separator | default "|" }}
     descriptors:
       {{- if .Values.config.rateLimits.default }}
       - key: ""
         rate_limit:
-          unit: {{ .Values.config.rateLimits.default.window | replace "s" "" | replace "m" "" | replace "h" "" | replace "d" "" }}
-          requests_per_unit: {{ .Values.config.rateLimits.default.limit }}
+          unit: {{ .Values.config.rateLimits.default.window | default "minute" }}
+          requests_per_unit: {{ .Values.config.rateLimits.default.limit | default 60 }}
       {{- end }}
       {{- range .Values.config.rateLimits.rules }}
       - key: path
         value: {{ .pattern | quote }}
         rate_limit:
-          unit: {{ .window | replace "s" "" | replace "m" "" | replace "h" "" | replace "d" "" }}
+          unit: {{ .window | default "minute" }}
           requests_per_unit: {{ .limit }}
         descriptors:
         - key: user_id
           rate_limit:
-            unit: {{ .window | replace "s" "" | replace "m" "" | replace "h" "" | replace "d" "" }}
+            unit: {{ .window | default "minute" }}
             requests_per_unit: {{ .limit }}
       {{- end }}
