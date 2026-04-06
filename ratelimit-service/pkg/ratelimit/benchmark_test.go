@@ -1,12 +1,12 @@
 package ratelimit
 
 import (
-	"context"
-	"testing"
-	"time"
+    "context"
+    "testing"
+    "time"
 
-	"github.com/alicebob/miniredis/v2"
-	"github.com/redis/go-redis/v9"
+    "github.com/alicebob/miniredis/v2"
+    "github.com/redis/go-redis/v9"
 )
 
 func setupBenchmark(b *testing.B) (*Limiter, func()) {

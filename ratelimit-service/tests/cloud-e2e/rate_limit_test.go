@@ -4,20 +4,20 @@
 package cloud_e2e
 
 import (
-	"bytes"
-	"context"
-	"encoding/json"
-	"fmt"
-	"io"
-	"net/http"
-	"os/exec"
-	"ratelimit-service/pkg/utils"
-	"testing"
-	"time"
+    "bytes"
+    "context"
+    "encoding/json"
+    "fmt"
+    "io"
+    "net/http"
+    "os/exec"
+    "ratelimit-service/pkg/utils"
+    "testing"
+    "time"
 
-	"github.com/redis/go-redis/v9"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+    "github.com/redis/go-redis/v9"
+    "github.com/stretchr/testify/assert"
+    "github.com/stretchr/testify/require"
 )
 
 const (
@@ -25,7 +25,7 @@ const (
     operatorPort = "8082"
 )
 
-var namespace    =  utils.GetEnv("NAMESPACE", "core-1-core")
+var namespace = utils.GetEnv("NAMESPACE", "core-1-core")
 
 func TestCloudE2E_RateLimitThroughGateway(t *testing.T) {
     // 1. Setup
@@ -52,7 +52,7 @@ func TestCloudE2E_RateLimitThroughGateway(t *testing.T) {
 
     // 3. Test default rate limit (60 requests per minute from default rule)
     t.Log("\n=== Testing default rate limit ===")
-    
+
     for i := 0; i < 3; i++ {
         statusCode, err := sendGatewayRequest(gatewayURL, "/test", userID)
         require.NoError(t, err)
@@ -62,15 +62,16 @@ func TestCloudE2E_RateLimitThroughGateway(t *testing.T) {
     }
 
     // 4. Add custom rule with stricter limit
-    t.Log("\n=== Adding custom rule: 2 requests per 10 seconds ===")
+    t.Log("\n=== Adding custom rule: 2 requests per 60 seconds ===")
 
     rule := map[string]interface{}{
         "name":       "e2e_test_rule",
         "pattern":    "/test",
         "limit":      2,
-        "window_sec": 10,
+        "window_sec": 60,
         "algorithm":  "fixed_window",
     }
+
     body, _ := json.Marshal(rule)
     resp, err := http.Post(operatorURL+"/api/v1/ratelimit/rules", "application/json", bytes.NewBuffer(body))
     require.NoError(t, err)
@@ -97,7 +98,7 @@ func TestCloudE2E_RateLimitThroughGateway(t *testing.T) {
 
     // 6. Get violating users BEFORE reset (should show the user)
     t.Log("\n=== Getting violating users (before reset) ===")
-    
+
     violatingUsersJSON, err := getViolatingUsersRaw(operatorURL)
     require.NoError(t, err)
     t.Logf("Violating users API response:\n%s", violatingUsersJSON)
@@ -109,9 +110,7 @@ func TestCloudE2E_RateLimitThroughGateway(t *testing.T) {
     require.NoError(t, err)
     t.Log("Rate limits reset")
 
-    time.Sleep(2 * time.Second)
-
-    // 8. After reset, request should be allowed
+    // 8. After reset, request should be allowed immediately
     statusCode, err := sendGatewayRequest(gatewayURL, "/test", userID)
     require.NoError(t, err)
     t.Logf("Request after reset: HTTP %d", statusCode)
@@ -119,7 +118,7 @@ func TestCloudE2E_RateLimitThroughGateway(t *testing.T) {
 
     // 9. Get violating users AFTER reset (should be empty)
     t.Log("\n=== Getting violating users (after reset) ===")
-    
+
     violatingUsersJSONAfter, err := getViolatingUsersRaw(operatorURL)
     require.NoError(t, err)
     t.Logf("Violating users API response after reset:\n%s", violatingUsersJSONAfter)
@@ -185,18 +184,18 @@ func getViolatingUsersRaw(apiURL string) (string, error) {
         return "", err
     }
     defer resp.Body.Close()
-    
+
     body, err := io.ReadAll(resp.Body)
     if err != nil {
         return "", err
     }
-    
+
     // Pretty print JSON
     var prettyJSON bytes.Buffer
     if err := json.Indent(&prettyJSON, body, "", "  "); err != nil {
         return string(body), nil
     }
-    
+
     return prettyJSON.String(), nil
 }
 

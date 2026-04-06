@@ -3,31 +3,31 @@ package ratelimit
 import "time"
 
 type Config struct {
-	Domain      string                `yaml:"domain"`
-	Separator   string                `yaml:"separator"`
-	Descriptors []RateLimitDescriptor `yaml:"descriptors"`
+    Domain      string                `yaml:"domain"`
+    Separator   string                `yaml:"separator"`
+    Descriptors []RateLimitDescriptor `yaml:"descriptors"`
 }
 
 type RateLimitDescriptor struct {
-	Key         string                `yaml:"key"`
-	Value       string                `yaml:"value,omitempty"`
-	RateLimit   *RateLimitValue       `yaml:"rate_limit,omitempty"`
-	Descriptors []RateLimitDescriptor `yaml:"descriptors,omitempty"`
+    Key         string                `yaml:"key"`
+    Value       string                `yaml:"value,omitempty"`
+    RateLimit   *RateLimitValue       `yaml:"rate_limit,omitempty"`
+    Descriptors []RateLimitDescriptor `yaml:"descriptors,omitempty"`
 }
 
 type RateLimitValue struct {
-	Unit            string `yaml:"unit"`
-	RequestsPerUnit int    `yaml:"requests_per_unit"`
+    Unit            string `yaml:"unit"`
+    RequestsPerUnit int    `yaml:"requests_per_unit"`
 }
 
 type LimitKey struct {
-	FullKey    string
-	Domain     string
-	Components map[string]string
-	Timestamp  int64
-	LimitValue int
-	Unit       string
-	TTL        time.Duration
+    FullKey    string
+    Domain     string
+    Components map[string]string
+    Timestamp  int64
+    LimitValue int
+    Unit       string
+    TTL        time.Duration
 }
 
 func GetDefaultConfig() *Config {

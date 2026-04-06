@@ -11,8 +11,8 @@ import (
 	"ratelimit-service/pkg/api"
 	"ratelimit-service/pkg/controller"
 	"ratelimit-service/pkg/metrics"
-	"ratelimit-service/pkg/utils"
 	ratelimitpkg "ratelimit-service/pkg/ratelimit"
+	"ratelimit-service/pkg/utils"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/redis/go-redis/v9"
@@ -97,18 +97,18 @@ func main() {
 
 	controller := controller.NewConfigMapController(clientset, redisClient, rateLimitManager)
 
-    apiServer := api.NewServer(redisClient, controller, rateLimitManager)
-    apiReady := make(chan struct{})
-    go func() {
-        close(apiReady)
-        if err := apiServer.Run(":8082"); err != nil {
-            klog.Errorf("API server error: %v", err)
-            cancel()
-        }
-    }()
-    
-    <-apiReady
-    time.Sleep(100 * time.Millisecond)
+	apiServer := api.NewServer(redisClient, controller, rateLimitManager)
+	apiReady := make(chan struct{})
+	go func() {
+		close(apiReady)
+		if err := apiServer.Run(":8082"); err != nil {
+			klog.Errorf("API server error: %v", err)
+			cancel()
+		}
+	}()
+
+	<-apiReady
+	time.Sleep(100 * time.Millisecond)
 
 	metricsService := metrics.NewMetricsCollectorService(redisClient, metricsCollector, 30*time.Second)
 	go metricsService.Start(ctx)
