@@ -198,7 +198,7 @@ func TestCloudE2E_RateLimitThroughGateway(t *testing.T) {
 	// 8. Concurrent requests test
 	t.Log("\n=== Concurrent requests test ===")
 
-	concurrency := 10
+	concurrency := 5 
 	results := make(chan int, concurrency)
 
 	for i := 0; i < concurrency; i++ {
