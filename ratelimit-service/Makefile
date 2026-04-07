@@ -173,6 +173,7 @@ cloud-test-port-forward:
 	@kubectl port-forward -n $(NAMESPACE) svc/public-gateway-istio 8080:8080 > /tmp/gateway_pf.log 2>&1 & echo $$! > /tmp/gateway_pf.pid
 	@kubectl port-forward -n $(NAMESPACE) svc/ratelimit-service 8082:8082 > /tmp/operator_pf.log 2>&1 & echo $$! > /tmp/operator_pf.pid
 	@kubectl port-forward -n $(NAMESPACE) svc/redis 6379:6379 > /tmp/redis_pf.log 2>&1 & echo $$! > /tmp/redis_pf.pid
+	@kubectl port-forward -n $(NAMESPACE) svc/ratelimit-service 9090:9090 > /tmp/metrics_pf.log 2>&1 & echo $$! > /tmp/metrics_pf.pid
 	@sleep 5
 	@echo "$(GREEN)✓ Port-forwards started (Gateway:8080, Operator:8082, Redis:6379)$(NC)"
 
@@ -181,7 +182,8 @@ stop-cloud-test-port-forward:
 	@-kill $$(cat /tmp/gateway_pf.pid 2>/dev/null) 2>/dev/null || true
 	@-kill $$(cat /tmp/operator_pf.pid 2>/dev/null) 2>/dev/null || true
 	@-kill $$(cat /tmp/redis_pf.pid 2>/dev/null) 2>/dev/null || true
-	@-rm -f /tmp/gateway_pf.pid /tmp/operator_pf.pid /tmp/redis_pf.pid
+	@-kill $$(cat /tmp/metrics_pf.pid 2>/dev/null) 2>/dev/null || true
+	@-rm -f /tmp/gateway_pf.pid /tmp/operator_pf.pid /tmp/redis_pf.pid /tmp/metrics_pf.pid
 	@echo "$(GREEN)✓ Port-forwards stopped$(NC)"
 
 

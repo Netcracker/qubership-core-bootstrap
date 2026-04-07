@@ -97,6 +97,7 @@ func main() {
 
 	controller := controller.NewConfigMapController(clientset, redisClient, rateLimitManager)
 
+	go metrics.startMetricsServer(":9090", metricsCollector.GetRegistry())
 	apiServer := api.NewServer(redisClient, controller, rateLimitManager)
 	apiReady := make(chan struct{})
 	go func() {

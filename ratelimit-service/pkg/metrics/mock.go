@@ -4,35 +4,41 @@ import "github.com/prometheus/client_golang/prometheus"
 
 type MockMetricsCollector struct {
     // Rate limit metrics
-    UpdateRateLimitMetricsCalled  bool
+    UpdateRateLimitMetricsCalled bool
     UpdateRateLimitViolatingCount int
     UpdateRateLimitActiveCount    int
-
-    RecordRateLimitCheckCalled  bool
-    RecordRateLimitCheckKey     string
+    
+    UpdateViolatingUsersCalled bool
+    UpdateViolatingUsersCount   int
+    
+    UpdateActiveLimitsCalled bool
+    UpdateActiveLimitsCount   int
+    
+    RecordRateLimitCheckCalled bool
+    RecordRateLimitCheckKey    string
     RecordRateLimitCheckAllowed bool
-
-    RecordRateLimitCalled  bool
-    RecordRateLimitKey     string
+    
+    RecordRateLimitCalled bool
+    RecordRateLimitKey    string
     RecordRateLimitAllowed bool
     RecordRateLimitCurrent int
     RecordRateLimitLimit   int
-
+    
     RecordRateLimitResetCalled bool
     RecordRateLimitResetKey    string
-
+    
     RecordAPIRequestCalled   bool
     RecordAPIRequestEndpoint string
     RecordAPIRequestMethod   string
     RecordAPIRequestStatus   string
     RecordAPIRequestDuration float64
-
+    
     RecordRedisOperationCalled bool
     RecordRedisOperationOp     string
     RecordRedisOperationStatus string
     RecordRedisOperationDur    float64
-
-    RecordConfigReloadCalled  bool
+    
+    RecordConfigReloadCalled bool
     RecordConfigReloadSuccess bool
 }
 
@@ -44,6 +50,16 @@ func (m *MockMetricsCollector) UpdateRateLimitMetrics(violatingCount int, active
     m.UpdateRateLimitMetricsCalled = true
     m.UpdateRateLimitViolatingCount = violatingCount
     m.UpdateRateLimitActiveCount = activeLimitsCount
+}
+
+func (m *MockMetricsCollector) UpdateViolatingUsers(count int) {
+    m.UpdateViolatingUsersCalled = true
+    m.UpdateViolatingUsersCount = count
+}
+
+func (m *MockMetricsCollector) UpdateActiveLimits(count int) {
+    m.UpdateActiveLimitsCalled = true
+    m.UpdateActiveLimitsCount = count
 }
 
 func (m *MockMetricsCollector) RecordRateLimitCheck(key string, allowed bool, limit int) {
@@ -91,6 +107,8 @@ func (m *MockMetricsCollector) GetRegistry() *prometheus.Registry {
 
 func (m *MockMetricsCollector) Reset() {
     m.UpdateRateLimitMetricsCalled = false
+    m.UpdateViolatingUsersCalled = false
+    m.UpdateActiveLimitsCalled = false
     m.RecordRateLimitCheckCalled = false
     m.RecordRateLimitCalled = false
     m.RecordRateLimitResetCalled = false

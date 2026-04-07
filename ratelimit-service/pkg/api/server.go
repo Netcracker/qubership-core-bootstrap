@@ -13,7 +13,6 @@ import (
     "ratelimit-service/pkg/utils"
 
     "github.com/gorilla/mux"
-    "github.com/prometheus/client_golang/prometheus/promhttp"
     "k8s.io/klog/v2"
 )
 
@@ -63,7 +62,6 @@ func (s *Server) setupRoutes() {
     s.router.HandleFunc("/api/v1/users/{user_id}/limits", s.authenticate(s.getUserLimits)).Methods("GET")
     s.router.HandleFunc("/api/v1/users/violating", s.authenticate(s.getViolatingUsers)).Methods("GET")
     s.router.HandleFunc("/api/v1/statistics", s.authenticate(s.getStatistics)).Methods("GET")
-    s.router.Handle("/metrics", promhttp.Handler())
 
     // Rate limit management endpoints
     s.router.HandleFunc("/api/v1/ratelimit/check", s.authenticate(s.checkRateLimit)).Methods("POST")

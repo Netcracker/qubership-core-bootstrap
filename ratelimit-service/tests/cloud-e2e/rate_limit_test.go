@@ -24,6 +24,7 @@ import (
 const (
     gatewayPort  = "8080"
     operatorPort = "8082"
+	metricsPort  = "9090"
 )
 
 var namespace = utils.GetEnv("NAMESPACE", "core-1-core")
@@ -40,11 +41,14 @@ func TestCloudE2E_RateLimitThroughGateway(t *testing.T) {
     defer operatorPF()
     redisPF := setupPortForward(t, "svc/redis", "6379")
     defer redisPF()
+	metricsPF := setupPortForward(t, "svc/ratelimit-service", metricsPort) 
+	defer metricsPF()
 
     time.Sleep(5 * time.Second)
 
     gatewayURL := fmt.Sprintf("http://localhost:%s", gatewayPort)
     operatorURL := fmt.Sprintf("http://localhost:%s", operatorPort)
+	metricsURL := fmt.Sprintf("http://localhost:%s", metricsPort)
     userID := "cloud-e2e-user"
 
     // 2. Clean up any existing rules first
@@ -153,7 +157,14 @@ func TestCloudE2E_RateLimitThroughGateway(t *testing.T) {
         t.Logf("  Key: %s = %s", key, val)
     }
 
-    // 11. Clean up
+	// 11. Prometheus metrics
+    t.Log("\n=== Testing metrics ===")
+    
+    metrics, err := getMetrics(metricsURL)
+    require.NoError(t, err)
+    t.Logf("Metrics sample:\n%s", metrics[:min(500, len(metrics))])
+
+    // 12. Clean up
     t.Log("\n=== Cleaning up ===")
     deleteRule(operatorURL, "e2e_test_rule")
 
@@ -275,4 +286,35 @@ func cleanupRedisKeys(userID string) {
             delCmd.Run()
         }
     }
+}
+
+func getMetrics(apiURL string) (string, error) {
+    metricsURL := fmt.Sprintf("http://localhost:%s/metrics", metricsPort)
+    resp, err := http.Get(metricsURL)
+    if err != nil {
+        return "", err
+    }
+    defer resp.Body.Close()
+    
+    body, err := io.ReadAll(resp.Body)
+    if err != nil {
+        return "", err
+    }
+    
+    lines := strings.Split(string(body), "\n")
+    var ourMetrics []string
+    
+    for _, line := range lines {
+        if strings.Contains(line, "ratelimit_") {
+            ourMetrics = append(ourMetrics, line)
+        }
+    }
+    
+    if len(ourMetrics) == 0 {
+        return "No rate limit metrics found", nil
+    }
+    
+    return "=== RateLimit Metrics ===\n" + 
+           strings.Join(ourMetrics, "\n") + 
+           "\n=== End Metrics ===", nil
 }
