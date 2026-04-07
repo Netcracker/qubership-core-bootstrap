@@ -7,6 +7,7 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
+	"net/http"
 
 	"ratelimit-service/pkg/api"
 	"ratelimit-service/pkg/controller"
@@ -14,12 +15,14 @@ import (
 	ratelimitpkg "ratelimit-service/pkg/ratelimit"
 	"ratelimit-service/pkg/utils"
 
-	"github.com/prometheus/client_golang/prometheus"
 	"github.com/redis/go-redis/v9"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
+
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 func main() {
@@ -98,6 +101,7 @@ func main() {
 	controller := controller.NewConfigMapController(clientset, redisClient, rateLimitManager)
 
 	go startMetricsServer(":9090", metricsCollector.GetRegistry())
+
 	apiServer := api.NewServer(redisClient, controller, rateLimitManager)
 	apiReady := make(chan struct{})
 	go func() {
