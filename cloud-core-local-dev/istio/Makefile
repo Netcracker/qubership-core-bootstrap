@@ -36,7 +36,7 @@ help:
 	@echo "    validate-start         - Print validation start message"
 	@echo "    validate-namespace     - Validate ISTIO_NAMESPACE exists (if CREATE_NAMESPACE=false)"
 	@echo "    validate-crds          - Validate Gateway API CRDs exist (if SKIP_CRDS=true)"
-	@echo "    setup-repo             - Clone/update qubership-istio-distr repository"
+	@echo "    setup-repo             - Clone/update qubership-istio repository"
 	@echo "    install-gateway-api-crds - Install Gateway API CRDs"
 	@echo "    deploy-qubership-istio - Install qubership-istio Helm chart into ISTIO_NAMESPACE"
 	@echo ""
@@ -51,7 +51,7 @@ help:
 	@echo "  ISTIO_NAMESPACE      - Namespace to install Istio into (default: istio-system)"
 	@echo "  CREATE_NAMESPACE     - Create ISTIO_NAMESPACE if missing (default: true)"
 	@echo "  SKIP_CRDS            - Skip Gateway API CRD installation (default: false)"
-	@echo "  ISTIO_REPO_URL       - Git URL for qubership-istio-distr"
+	@echo "  ISTIO_REPO_URL       - Git URL for qubership-istio"
 	@echo "  ISTIO_REPO_BRANCH    - Branch to use (default: main)"
 	@echo "  ISTIO_HELM_EXTRA_ARGS - Extra helm args for qubership-istio chart"
 	@echo "  GATEWAY_API_VERSION  - Gateway API version to install (default: v1.4.0)"
@@ -92,20 +92,20 @@ validate-crds:
 	fi
 
 setup-repo:
-	@echo "$(YELLOW)--- Setting up qubership-istio-distr repository...$(NC)"
+	@echo "$(YELLOW)--- Setting up qubership-istio repository...$(NC)"
 	@mkdir -p $(REPOS_DIR)
-	@if [ -d "$(REPOS_DIR)/qubership-istio-distr" ]; then \
-		CURRENT_BRANCH=$$(cd $(REPOS_DIR)/qubership-istio-distr && git rev-parse --abbrev-ref HEAD); \
+	@if [ -d "$(REPOS_DIR)/qubership-istio" ]; then \
+		CURRENT_BRANCH=$$(cd $(REPOS_DIR)/qubership-istio && git rev-parse --abbrev-ref HEAD); \
 		if [ "$$CURRENT_BRANCH" != "$(ISTIO_REPO_BRANCH)" ]; then \
-			echo "$(CYAN)--- Switching qubership-istio-distr from $$CURRENT_BRANCH to $(ISTIO_REPO_BRANCH)...$(NC)"; \
-			(cd $(REPOS_DIR)/qubership-istio-distr && git fetch origin && git checkout $(ISTIO_REPO_BRANCH) && git pull); \
+			echo "$(CYAN)--- Switching qubership-istio from $$CURRENT_BRANCH to $(ISTIO_REPO_BRANCH)...$(NC)"; \
+			(cd $(REPOS_DIR)/qubership-istio && git fetch origin && git checkout $(ISTIO_REPO_BRANCH) && git pull); \
 		else \
-			echo "$(CYAN)--- Updating qubership-istio-distr (branch: $(ISTIO_REPO_BRANCH))...$(NC)"; \
-			(cd $(REPOS_DIR)/qubership-istio-distr && git pull); \
+			echo "$(CYAN)--- Updating qubership-istio (branch: $(ISTIO_REPO_BRANCH))...$(NC)"; \
+			(cd $(REPOS_DIR)/qubership-istio && git pull); \
 		fi; \
 	else \
-		echo "$(CYAN)--- Cloning qubership-istio-distr (branch: $(ISTIO_REPO_BRANCH))...$(NC)"; \
-		git clone --depth 1 -b $(ISTIO_REPO_BRANCH) $(ISTIO_REPO_URL) $(REPOS_DIR)/qubership-istio-distr; \
+		echo "$(CYAN)--- Cloning qubership-istio (branch: $(ISTIO_REPO_BRANCH))...$(NC)"; \
+		git clone -b $(ISTIO_REPO_BRANCH) $(ISTIO_REPO_URL) $(REPOS_DIR)/qubership-istio; \
 	fi
 	@echo ""
 
@@ -124,8 +124,8 @@ install-gateway-api-crds:
 deploy-qubership-istio:
 	@echo "$(BLUE)=== Deploying Istio ($(ISTIO_RELEASE_NAME) Helm chart)...$(NC)"
 	@echo ""
-	@helm dependency update $(REPOS_DIR)/qubership-istio-distr/helm-templates/qubership-istio
-	@helm upgrade --install $(ISTIO_RELEASE_NAME) $(REPOS_DIR)/qubership-istio-distr/helm-templates/qubership-istio \
+	@helm dependency update $(REPOS_DIR)/qubership-istio/helm-templates/qubership-istio
+	@helm upgrade --install $(ISTIO_RELEASE_NAME) $(REPOS_DIR)/qubership-istio/helm-templates/qubership-istio \
 		--namespace $(ISTIO_NAMESPACE) $(CREATE_NAMESPACE_OPTION) \
 		--set global.istioNamespace=$(ISTIO_NAMESPACE) \
 		--force-conflicts \

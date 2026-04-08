@@ -70,6 +70,7 @@ define install_mesh_helm
 	echo "$(CYAN)--- Installing $(MESH_HELM_RELEASE_NAME) Helm package in $(1)$(NC)"; \
 	echo "MESH_HELM_EXTRA_ARGS: $(MESH_HELM_EXTRA_ARGS)"; \
 	helm upgrade --install $(MESH_HELM_RELEASE_NAME) $(REPOS_DIR)/qubership-core-mesh-config/ \
+		-f $(REPOS_DIR)/qubership-core-mesh-config/resource-profiles/dev.yaml \
 		--namespace "$(1)" \
 		--set deploy_feature_flags.core.serviceMeshType=ISTIO \
 		--wait \
@@ -100,7 +101,7 @@ setup-repo:
 		fi; \
 	else \
 		echo "$(CYAN)--- Cloning qubership-core-mesh-config (branch: $(CORE_MESH_CONFIG_REPO_BRANCH))...$(NC)"; \
-		git clone --depth 1 -b $(CORE_MESH_CONFIG_REPO_BRANCH) $(CORE_MESH_CONFIG_REPO_URL) $(REPOS_DIR)/qubership-core-mesh-config; \
+		git clone -b $(CORE_MESH_CONFIG_REPO_BRANCH) $(CORE_MESH_CONFIG_REPO_URL) $(REPOS_DIR)/qubership-core-mesh-config; \
 	fi
 	@echo ""
 
@@ -143,7 +144,6 @@ enable: setup-repo
 			if [ -n "$$ns" ]; then \
 				$(call label_namespace_for_mesh,$$ns) \
 				$(call install_mesh_helm,$$ns) \
-				kubectl rollout restart deploy/core-operator -n $$ns; \
 				if [ "$(RUN_SMOKE_TEST)" = "true" ]; then \
 					'$(MAKE)' -C ../istio/test full-test NAMESPACE="$$ns" ISTIO_NAMESPACE="$(ISTIO_NAMESPACE)" || { '$(MAKE)' -C ../istio/test collect-logs NAMESPACE="$$ns" ISTIO_NAMESPACE="$(ISTIO_NAMESPACE)"; exit 1; }; \
 				else \
