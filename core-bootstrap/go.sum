@@ -81,6 +81,8 @@ github.com/netcracker/qubership-core-lib-go/v3 v3.7.1 h1:bo8jKD4DF/M3+SVDX0tOG8x
 github.com/netcracker/qubership-core-lib-go/v3 v3.7.1/go.mod h1:tXcabbpYNAvm4sSU2i95mRsQo76mvUqJgbX0lMgtF1U=
 github.com/netcracker/qubership-core-lib-go/v3 v3.7.3 h1:getPT9H0ScPmqzjGWsdMmGCH0PoAgcK6R3YBRKuCv0A=
 github.com/netcracker/qubership-core-lib-go/v3 v3.7.3/go.mod h1:hXkQiLAe+o3ZvtKEDJTnKmlDxi7XkMseSf1UUVTzZeg=
+github.com/netcracker/qubership-core-lib-go/v3 v3.8.0 h1:hDzflmqo5xmZmBjlmzYQp5gawDheKnuSJfiV1ED2DIo=
+github.com/netcracker/qubership-core-lib-go/v3 v3.8.0/go.mod h1:REJ6332XpbP4n20tnCrkJ2iNxgzoo0H6SEf5NHIKRvg=
 github.com/onsi/ginkgo/v2 v2.27.2 h1:LzwLj0b89qtIy6SSASkzlNvX6WktqurSHwkk2ipF/Ns=
 github.com/onsi/ginkgo/v2 v2.27.2/go.mod h1:ArE1D/XhNXBXCBkKOLkbsb2c81dQHCRcF5zwn/ykDRo=
 github.com/onsi/gomega v1.38.2 h1:eZCjf2xjZAqe+LeWvKb5weQ+NcPwX84kqJ0cZNxok2A=
