@@ -22,6 +22,12 @@ type DefaultMetricsCollector struct {
     // Redis metrics
     redisOperationsTotal   *prometheus.CounterVec
     redisOperationDuration *prometheus.HistogramVec
+    
+    redisKeysTotal      prometheus.Gauge
+    redisMemoryBytes    prometheus.Gauge
+    redisConnectedClients prometheus.Gauge
+    redisLatency        *prometheus.HistogramVec
+    redisHitRate        prometheus.Gauge
 
     // Config metrics
     configReloadsTotal      prometheus.Counter
@@ -90,6 +96,37 @@ func NewDefaultMetricsCollector() *DefaultMetricsCollector {
     }, []string{"operation"})
     registry.MustRegister(redisOperationDuration)
 
+    redisKeysTotal := prometheus.NewGauge(prometheus.GaugeOpts{
+        Name: "ratelimit_redis_keys_total",
+        Help: "Total number of Redis keys used by rate limiter",
+    })
+    registry.MustRegister(redisKeysTotal)
+
+    redisMemoryBytes := prometheus.NewGauge(prometheus.GaugeOpts{
+        Name: "ratelimit_redis_memory_bytes",
+        Help: "Redis memory usage in bytes",
+    })
+    registry.MustRegister(redisMemoryBytes)
+
+    redisConnectedClients := prometheus.NewGauge(prometheus.GaugeOpts{
+        Name: "ratelimit_redis_connected_clients",
+        Help: "Number of connected Redis clients",
+    })
+    registry.MustRegister(redisConnectedClients)
+
+    redisLatency := prometheus.NewHistogramVec(prometheus.HistogramOpts{
+        Name:    "ratelimit_redis_latency_milliseconds",
+        Help:    "Redis operation latency in milliseconds",
+        Buckets: []float64{0.1, 0.5, 1, 2, 5, 10, 20, 50, 100},
+    }, []string{"operation"})
+    registry.MustRegister(redisLatency)
+
+    redisHitRate := prometheus.NewGauge(prometheus.GaugeOpts{
+        Name: "ratelimit_redis_hit_rate",
+        Help: "Redis cache hit rate (0-1)",
+    })
+    registry.MustRegister(redisHitRate)
+
     // Config metrics
     configReloadsTotal := prometheus.NewCounter(prometheus.CounterOpts{
         Name: "ratelimit_config_reloads_total",
@@ -114,6 +151,11 @@ func NewDefaultMetricsCollector() *DefaultMetricsCollector {
         apiRequestDuration:      apiRequestDuration,
         redisOperationsTotal:    redisOperationsTotal,
         redisOperationDuration:  redisOperationDuration,
+        redisKeysTotal:          redisKeysTotal,
+        redisMemoryBytes:        redisMemoryBytes,
+        redisConnectedClients:   redisConnectedClients,
+        redisLatency:            redisLatency,
+        redisHitRate:            redisHitRate,
         configReloadsTotal:      configReloadsTotal,
         configReloadErrorsTotal: configReloadErrorsTotal,
     }
@@ -173,7 +215,6 @@ func (m *DefaultMetricsCollector) GetRegistry() *prometheus.Registry {
     return m.registry
 }
 
-// RecordRateLimit implements ratelimit.MetricsRecorder interface
 func (m *DefaultMetricsCollector) RecordRateLimit(key string, allowed bool, current int, limit int) {
     result := "allowed"
     if !allowed {
@@ -183,6 +224,26 @@ func (m *DefaultMetricsCollector) RecordRateLimit(key string, allowed bool, curr
     
     path := extractPathFromKey(key)
     m.RecordRateLimitRequest(path, allowed)
+}
+
+func (m *DefaultMetricsCollector) UpdateRedisKeysCount(count int) {
+    m.redisKeysTotal.Set(float64(count))
+}
+
+func (m *DefaultMetricsCollector) UpdateRedisMemoryUsage(bytes int64) {
+    m.redisMemoryBytes.Set(float64(bytes))
+}
+
+func (m *DefaultMetricsCollector) UpdateRedisConnectedClients(count int) {
+    m.redisConnectedClients.Set(float64(count))
+}
+
+func (m *DefaultMetricsCollector) RecordRedisLatency(operation string, latencyMs float64) {
+    m.redisLatency.WithLabelValues(operation).Observe(latencyMs)
+}
+
+func (m *DefaultMetricsCollector) UpdateRedisHitRate(rate float64) {
+    m.redisHitRate.Set(rate)
 }
 
 func extractPathFromKey(key string) string {

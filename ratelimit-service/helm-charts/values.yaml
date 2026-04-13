@@ -36,7 +36,16 @@ config:
         limit: 2
         window: "second"
         algorithm: fixed_window
-
+      - name: test_endpoint_fixed
+        pattern: "/fixed"
+        limit: 2
+        window: "second"
+        algorithm: fixed_window
+      - name: test_endpoint_sliding
+        pattern: "/sliding"
+        limit: 2
+        window: "second"
+        algorithm: sliding_window
 
 grpc:
   port: 8081

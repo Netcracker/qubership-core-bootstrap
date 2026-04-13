@@ -149,6 +149,61 @@ func (c *RedisClient) ResetUserRateLimit(ctx context.Context, userID string) err
     return nil
 }
 
+func (c *RedisClient) GetRedisStats(ctx context.Context) (map[string]interface{}, error) {
+    // Get Redis INFO
+    info, err := c.client.Info(ctx, "memory", "stats", "clients").Result()
+    if err != nil {
+        return nil, err
+    }
+    
+    stats := make(map[string]interface{})
+    
+    // Parse Redis INFO output
+    lines := strings.Split(info, "\n")
+    for _, line := range lines {
+        if strings.Contains(line, ":") && !strings.HasPrefix(line, "#") {
+            parts := strings.SplitN(line, ":", 2)
+            if len(parts) == 2 {
+                key := strings.TrimSpace(parts[0])
+                value := strings.TrimSpace(parts[1])
+                
+                switch key {
+                case "used_memory":
+                    var mem int64
+                    fmt.Sscanf(value, "%d", &mem)
+                    stats["used_memory"] = mem
+                case "connected_clients":
+                    var clients int
+                    fmt.Sscanf(value, "%d", &clients)
+                    stats["connected_clients"] = clients
+                case "keyspace_hits", "keyspace_misses":
+                    var val int64
+                    fmt.Sscanf(value, "%d", &val)
+                    stats[key] = val
+                }
+            }
+        }
+    }
+    
+    // Get total keys count for rate limit keys only
+    keys, err := c.client.Keys(ctx, "ratelimit:*").Result()
+    if err == nil {
+        stats["total_keys"] = len(keys)
+    }
+    
+    // Calculate hit rate
+    hits, _ := stats["keyspace_hits"].(int64)
+    misses, _ := stats["keyspace_misses"].(int64)
+    total := hits + misses
+    if total > 0 {
+        stats["hit_rate"] = float64(hits) / float64(total)
+    } else {
+        stats["hit_rate"] = 0.0
+    }
+    
+    return stats, nil
+}
+
 // extractUserIDFromKey extracts user ID from Redis key
 func extractUserIDFromKey(key string) string {
     // Key format: ratelimit:rule_name:path=/test|user_id=xxx

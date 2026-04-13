@@ -20,6 +20,7 @@ type LocalOperator struct {
     redisClient      *ratelimit.RedisClient
     rateLimitManager *ratelimit.RateLimitManager
     metricsService   *metrics.MetricsCollectorService
+    metricsServer    *metrics.MetricsServer 
     metricsCollector metrics.MetricsCollector
     cancel           context.CancelFunc
 }
@@ -43,19 +44,18 @@ func NewLocalOperator(kubeconfigPath string) (*LocalOperator, error) {
         return nil, err
     }
 
-    // Create rate limit manager with Redis client
+    // Create rate limit manager
     rateLimitManager := ratelimit.NewRateLimitManager(redisClient)
-    
-    // Set manager in Redis client (to avoid circular dependency)
     redisClient.SetManager(rateLimitManager)
 
     // Add default rule for testing
     if err := rateLimitManager.AddRule(&ratelimit.Rule{
         Name:      "api_strict",
-        Pattern:   ".*/test.*",  // Valid regex pattern
+        Pattern:   ".*/test.*",
         Limit:     2,
         Window:    10 * time.Second,
         Algorithm: ratelimit.FixedWindow,
+        Priority:  50,
     }); err != nil {
         klog.Warningf("Failed to add default rule: %v", err)
     }
@@ -66,6 +66,9 @@ func NewLocalOperator(kubeconfigPath string) (*LocalOperator, error) {
 
     // Create metrics service
     metricsService := metrics.NewMetricsCollectorService(redisClient, metricsCollector, 5*time.Second)
+
+    // Create metrics HTTP server
+    metricsServer := metrics.NewMetricsServer(metricsCollector, "9090")
 
     // Create controller
     controller := controller.NewConfigMapController(clientset, redisClient, rateLimitManager)
@@ -79,6 +82,7 @@ func NewLocalOperator(kubeconfigPath string) (*LocalOperator, error) {
         redisClient:      redisClient,
         rateLimitManager: rateLimitManager,
         metricsService:   metricsService,
+        metricsServer:    metricsServer,
         metricsCollector: metricsCollector,
     }, nil
 }
@@ -87,8 +91,13 @@ func (op *LocalOperator) Start(ctx context.Context, port string) error {
     ctx, cancel := context.WithCancel(ctx)
     op.cancel = cancel
 
-    // Start metrics service
+    // Start metrics collection service
     go op.metricsService.Start(ctx)
+
+    // Start metrics HTTP server
+    if err := op.metricsServer.Start(); err != nil {
+        klog.Warningf("Failed to start metrics server: %v", err)
+    }
 
     // Start controller
     go op.controller.Run(ctx)
@@ -114,6 +123,9 @@ func (op *LocalOperator) Stop() {
     if op.metricsService != nil {
         op.metricsService.Stop()
     }
+    if op.metricsServer != nil {
+        op.metricsServer.Stop()
+    }
     if op.controller != nil {
         op.controller.Stop()
     }
@@ -124,5 +136,5 @@ func (op *LocalOperator) Stop() {
 }
 
 func (op *LocalOperator) GetURL() string {
-    return "http://localhost:8082"
+    return "http://localhost:8083"
 }

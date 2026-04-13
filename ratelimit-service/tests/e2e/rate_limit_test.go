@@ -379,3 +379,15 @@ func buildKeyForTest(components map[string]string, separator string) string {
     }
     return result
 }
+
+func deleteRule(apiURL, ruleName string) {
+    req, err := http.NewRequest("DELETE", apiURL+"/api/v1/ratelimit/rules/"+ruleName, nil)
+    if err != nil {
+        return
+    }
+    client := &http.Client{}
+    resp, err := client.Do(req)
+    if err == nil {
+        resp.Body.Close()
+    }
+}

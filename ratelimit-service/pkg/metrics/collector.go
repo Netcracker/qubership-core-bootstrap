@@ -58,6 +58,7 @@ func (s *MetricsCollectorService) Stop() {
 func (s *MetricsCollectorService) collectMetrics(ctx context.Context) {
     start := time.Now()
 
+    // Get violating users
     violating, err := s.redisClient.GetViolatingUsers(ctx)
     if err != nil {
         klog.Errorf("Failed to get violating users: %v", err)
@@ -68,6 +69,7 @@ func (s *MetricsCollectorService) collectMetrics(ctx context.Context) {
     violatingCount := len(violating)
     s.metrics.UpdateViolatingUsers(violatingCount)
 
+    // Get statistics
     stats, err := s.redisClient.GetAllStatistics(ctx)
     if err != nil {
         klog.Errorf("Failed to get statistics: %v", err)
@@ -76,14 +78,30 @@ func (s *MetricsCollectorService) collectMetrics(ctx context.Context) {
     }
 
     // Extract total keys count from stats map
-    totalKeys := 0
-    if stats != nil {
-        totalKeys = len(stats)
+    totalKeys := len(stats)
+    s.metrics.UpdateRateLimitMetrics(violatingCount, totalKeys)
+    
+    // NEW: Get Redis stats for monitoring
+    redisStats, err := s.redisClient.GetRedisStats(ctx)
+    if err != nil {
+        klog.Warningf("Failed to get Redis stats: %v", err)
+    } else {
+        if mem, ok := redisStats["used_memory"].(int64); ok {
+            s.metrics.UpdateRedisMemoryUsage(mem)
+        }
+        if clients, ok := redisStats["connected_clients"].(int); ok {
+            s.metrics.UpdateRedisConnectedClients(clients)
+        }
+        if keys, ok := redisStats["total_keys"].(int); ok {
+            s.metrics.UpdateRedisKeysCount(keys)
+        }
+        if hitRate, ok := redisStats["hit_rate"].(float64); ok {
+            s.metrics.UpdateRedisHitRate(hitRate)
+        }
     }
     
-    s.metrics.UpdateRateLimitMetrics(violatingCount, totalKeys)
     s.metrics.RecordRedisOperation("collect", "success", time.Since(start).Seconds())
 
-    klog.V(4).Infof("Metrics updated: %d violating users, %d active limits",
-        violatingCount, totalKeys)
+    klog.V(4).Infof("Metrics updated: %d violating users, %d active limits, %d Redis keys",
+        violatingCount, totalKeys, totalKeys)
 }

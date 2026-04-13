@@ -27,6 +27,7 @@ func main() {
     redisAddr := utils.GetEnv("REDIS_ADDR", "localhost:6379")
     apiPort := utils.GetEnv("API_PORT", "8082")
     grpcPort := utils.GetEnv("GRPC_PORT", "8081")
+    metricsPort := utils.GetEnv("METRICS_PORT", "9090")
     namespace := utils.GetEnv("NAMESPACE", "core-1-core")
 
     // Create Redis client
@@ -47,23 +48,35 @@ func main() {
         Limit:     60,
         Window:    time.Minute,
         Algorithm: ratelimit.FixedWindow,
-        Priority:  0,
+        Priority:  50,
     }
 
     if err := rateLimitManager.AddRule(defaultRule); err != nil {
         klog.Warningf("Failed to add default rule: %v", err)
     }
 
+    // Create metrics collector
+    metricsCollector := metrics.NewDefaultMetricsCollector()
+    metrics.SetGlobalMetrics(metricsCollector)
+
+    // Start metrics HTTP server for Prometheus scraping
+    metricsServer := metrics.NewMetricsServer(metricsCollector, metricsPort)
+    if err := metricsServer.Start(); err != nil {
+        klog.Fatalf("Failed to start metrics server: %v", err)
+    }
+    defer metricsServer.Stop()
+
+    // Create metrics collector service (periodically collects Redis stats)
+    metricsService := metrics.NewMetricsCollectorService(redisClient, metricsCollector, 30*time.Second)
+
     // Create Kubernetes client
     var clientset *kubernetes.Clientset
     var config *rest.Config
     
-    // Try in-cluster config first (when running in Kubernetes)
+    // Try in-cluster config first
     config, err = rest.InClusterConfig()
     if err != nil {
-        // Fall back to kubeconfig for local development
         klog.Warningf("Failed to get in-cluster config: %v, falling back to kubeconfig", err)
-        
         kubeconfig := utils.GetEnv("KUBECONFIG", utils.GetEnv("HOME", "")+"/.kube/config")
         config, err = clientcmd.BuildConfigFromFlags("", kubeconfig)
         if err != nil {
@@ -79,12 +92,7 @@ func main() {
     klog.Info("Kubernetes client created successfully")
     klog.Infof("Using namespace: %s", namespace)
 
-    // Create metrics collector
-    metricsCollector := metrics.NewDefaultMetricsCollector()
-    metrics.SetGlobalMetrics(metricsCollector)
-    metricsService := metrics.NewMetricsCollectorService(redisClient, metricsCollector, 30*time.Second)
-
-    // Create controller with namespace
+    // Create controller
     configMapController := controller.NewConfigMapController(clientset, redisClient, rateLimitManager)
 
     // Create API server
@@ -97,24 +105,32 @@ func main() {
     }
     defer grpcServer.GracefulStop()
 
-    // Start services
+    // Start all services
     ctx, cancel := context.WithCancel(context.Background())
     defer cancel()
 
+    // Start metrics collection service (periodic Redis stats)
     go metricsService.Start(ctx)
+
+    // Start ConfigMap controller
     go configMapController.Run(ctx)
+
+    // Start API server
     go func() {
         if err := apiServer.Run(":" + apiPort); err != nil {
             klog.Errorf("API server error: %v", err)
         }
     }()
 
-    klog.Infof("All services started:")
-    klog.Infof("  - HTTP API: port %s", apiPort)
-    klog.Infof("  - gRPC API: port %s (for Envoy integration)", grpcPort)
+    klog.Infof("========================================")
+    klog.Infof("All services started successfully:")
+    klog.Infof("  - HTTP API: http://localhost:%s", apiPort)
+    klog.Infof("  - gRPC API: localhost:%s (for Envoy)", grpcPort)
+    klog.Infof("  - Metrics API: http://localhost:%s/metrics", metricsPort)
     klog.Infof("  - Redis: %s", redisAddr)
-    klog.Infof("  - Metrics collector: running")
-    klog.Infof("  - ConfigMap controller: enabled (watching %s namespace)", namespace)
+    klog.Infof("  - Metrics collector: running (interval: 30s)")
+    klog.Infof("  - ConfigMap controller: watching namespace '%s'", namespace)
+    klog.Infof("========================================")
 
     // Wait for shutdown signal
     sigCh := make(chan os.Signal, 1)

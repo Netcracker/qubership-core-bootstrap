@@ -16,12 +16,18 @@ type MetricsCollector interface {
 
     // Redis metrics
     RecordRedisOperation(operation, status string, duration float64)
+    
+    // NEW: Redis metrics for monitoring
+    UpdateRedisKeysCount(count int)
+    UpdateRedisMemoryUsage(bytes int64)
+    UpdateRedisConnectedClients(count int)
+    RecordRedisLatency(operation string, latencyMs float64)
+    UpdateRedisHitRate(rate float64)
 
     // Config metrics
     RecordConfigReload(success bool)
 
     GetRegistry() *prometheus.Registry
 
-    // RecordRateLimit implements ratelimit.MetricsRecorder
     RecordRateLimit(key string, allowed bool, current int, limit int)
 }
