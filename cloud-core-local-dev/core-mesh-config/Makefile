@@ -70,8 +70,9 @@ define install_mesh_helm
 	echo "$(CYAN)--- Installing $(MESH_HELM_RELEASE_NAME) Helm package in $(1)$(NC)"; \
 	echo "MESH_HELM_EXTRA_ARGS: $(MESH_HELM_EXTRA_ARGS)"; \
 	helm upgrade --install $(MESH_HELM_RELEASE_NAME) $(REPOS_DIR)/qubership-core-mesh-config/ \
+		-f $(REPOS_DIR)/qubership-core-mesh-config/resource-profiles/dev.yaml \
 		--namespace "$(1)" \
-		--set deploy_feature_flags.core.serviceMeshType=ISTIO \
+		--set SERVICE_MESH_TYPE=Istio \
 		--wait \
 		$(MESH_HELM_EXTRA_ARGS);
 endef
