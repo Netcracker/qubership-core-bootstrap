@@ -15,6 +15,7 @@ import (
     "ratelimit-service/pkg/utils"
 
     "k8s.io/client-go/kubernetes"
+    "k8s.io/client-go/rest"
     "k8s.io/client-go/tools/clientcmd"
     "k8s.io/klog/v2"
 )
@@ -23,10 +24,10 @@ func main() {
     klog.InitFlags(nil)
     flag.Parse()
 
-    kubeconfig := utils.GetEnv("KUBECONFIG", utils.GetEnv("HOME", "")+"/.kube/config")
     redisAddr := utils.GetEnv("REDIS_ADDR", "localhost:6379")
     apiPort := utils.GetEnv("API_PORT", "8082")
-    grpcPort := utils.GetEnv("GRPC_PORT", "8081")  // Add gRPC port configuration
+    grpcPort := utils.GetEnv("GRPC_PORT", "8081")
+    namespace := utils.GetEnv("NAMESPACE", "core-1-core")
 
     // Create Redis client
     redisClient, err := ratelimit.NewRedisClient(redisAddr, "", 0)
@@ -53,23 +54,37 @@ func main() {
         klog.Warningf("Failed to add default rule: %v", err)
     }
 
-    // Create k8s client
-    config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
+    // Create Kubernetes client
+    var clientset *kubernetes.Clientset
+    var config *rest.Config
+    
+    // Try in-cluster config first (when running in Kubernetes)
+    config, err = rest.InClusterConfig()
     if err != nil {
-        klog.Fatalf("Failed to build kubeconfig: %v", err)
+        // Fall back to kubeconfig for local development
+        klog.Warningf("Failed to get in-cluster config: %v, falling back to kubeconfig", err)
+        
+        kubeconfig := utils.GetEnv("KUBECONFIG", utils.GetEnv("HOME", "")+"/.kube/config")
+        config, err = clientcmd.BuildConfigFromFlags("", kubeconfig)
+        if err != nil {
+            klog.Fatalf("Failed to build kubeconfig: %v", err)
+        }
     }
-
-    clientset, err := kubernetes.NewForConfig(config)
+    
+    clientset, err = kubernetes.NewForConfig(config)
     if err != nil {
         klog.Fatalf("Failed to create k8s client: %v", err)
     }
+    
+    klog.Info("Kubernetes client created successfully")
+    klog.Infof("Using namespace: %s", namespace)
 
     // Create metrics collector
     metricsCollector := metrics.NewDefaultMetricsCollector()
     metrics.SetGlobalMetrics(metricsCollector)
     metricsService := metrics.NewMetricsCollectorService(redisClient, metricsCollector, 30*time.Second)
 
-    // Create controller
+    // Create controller with namespace
     configMapController := controller.NewConfigMapController(clientset, redisClient, rateLimitManager)
 
     // Create API server
@@ -99,6 +114,7 @@ func main() {
     klog.Infof("  - gRPC API: port %s (for Envoy integration)", grpcPort)
     klog.Infof("  - Redis: %s", redisAddr)
     klog.Infof("  - Metrics collector: running")
+    klog.Infof("  - ConfigMap controller: enabled (watching %s namespace)", namespace)
 
     // Wait for shutdown signal
     sigCh := make(chan os.Signal, 1)

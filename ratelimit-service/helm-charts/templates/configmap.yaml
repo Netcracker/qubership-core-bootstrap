@@ -4,6 +4,7 @@ metadata:
   name: ratelimit-config
   labels:
     app: ratelimit
+    rate-limit-config: "true"
 data:
   config.yaml: |
     domain: {{ .Values.config.domain | default "auth_limit" }}

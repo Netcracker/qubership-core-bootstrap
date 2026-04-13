@@ -5,7 +5,7 @@ namespace: core-1-core
 
 image:
   repository: ghcr.io/netcracker/ratelimit
-  tag: feat-ratelimit-20260407102549-18
+  tag: feat-ratelimit-snapshot
   pullPolicy: IfNotPresent
 
 config:
