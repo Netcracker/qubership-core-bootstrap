@@ -7,6 +7,7 @@ import (
     "net/http"
     "sync"
     "time"
+	"fmt"
 
     "ratelimit-service/pkg/controller"
     "ratelimit-service/pkg/ratelimit"
@@ -69,7 +70,6 @@ func (s *Server) setupRoutes() {
     s.router.HandleFunc("/api/v1/ratelimit/rules", s.authenticate(s.addRule)).Methods("POST")
     s.router.HandleFunc("/api/v1/ratelimit/rules/{name}", s.authenticate(s.deleteRule)).Methods("DELETE")
 
-    // Management endpoints
     s.router.HandleFunc("/api/v1/users/{user_id}/reset", s.authenticate(s.resetUserLimits)).Methods("POST")
     s.router.HandleFunc("/api/v1/config/reload", s.authenticate(s.reloadConfig)).Methods("POST")
 
@@ -78,39 +78,81 @@ func (s *Server) setupRoutes() {
 }
 
 func (s *Server) getRules(w http.ResponseWriter, r *http.Request) {
-
-    respondWithJSON(w, http.StatusOK, map[string]string{
-        "message": "Rules endpoint - returns all rate limit rules",
+    rules := s.rateLimitManager.GetAllRules()
+    
+    if rules == nil {
+        rules = []*ratelimit.Rule{}
+    }
+    
+    respondWithJSON(w, http.StatusOK, map[string]interface{}{
+        "rules": rules,
+        "count": len(rules),
     })
 }
 
 func (s *Server) addRule(w http.ResponseWriter, r *http.Request) {
-    var rule struct {
+    var ruleReq struct {
         Name      string `json:"name"`
         Pattern   string `json:"pattern"`
         Limit     int    `json:"limit"`
         WindowSec int    `json:"window_sec"`
         Algorithm string `json:"algorithm"`
+        Priority  int    `json:"priority"`
     }
 
-    if err := json.NewDecoder(r.Body).Decode(&rule); err != nil {
-        http.Error(w, "Invalid request body", http.StatusBadRequest)
+    if err := json.NewDecoder(r.Body).Decode(&ruleReq); err != nil {
+        http.Error(w, "Invalid request body: "+err.Error(), http.StatusBadRequest)
         return
     }
 
-    newRule := &ratelimit.Rule{
-        Name:      rule.Name,
-        Pattern:   rule.Pattern,
-        Limit:     rule.Limit,
-        Window:    time.Duration(rule.WindowSec) * time.Second,
-        Algorithm: ratelimit.Algorithm(rule.Algorithm),
+    if ruleReq.Name == "" {
+        http.Error(w, "rule name is required", http.StatusBadRequest)
+        return
+    }
+    if ruleReq.Pattern == "" {
+        http.Error(w, "pattern is required", http.StatusBadRequest)
+        return
+    }
+    if ruleReq.Limit <= 0 {
+        http.Error(w, "limit must be greater than 0", http.StatusBadRequest)
+        return
+    }
+    if ruleReq.WindowSec <= 0 {
+        http.Error(w, "window_sec must be greater than 0", http.StatusBadRequest)
+        return
     }
 
-    s.rateLimitManager.AddRule(newRule)
+    if err := ratelimit.ValidatePattern(ruleReq.Pattern); err != nil {
+        http.Error(w, fmt.Sprintf("Invalid pattern: %v", err), http.StatusBadRequest)
+        return
+    }
 
-    respondWithJSON(w, http.StatusCreated, map[string]string{
+    priority := ruleReq.Priority
+    if priority == 0 {
+        priority = 50
+    }
+
+    newRule := &ratelimit.Rule{
+        Name:      ruleReq.Name,
+        Pattern:   ruleReq.Pattern,
+        Limit:     ruleReq.Limit,
+        Window:    time.Duration(ruleReq.WindowSec) * time.Second,
+        Algorithm: ratelimit.Algorithm(ruleReq.Algorithm),
+        Priority:  priority,
+    }
+
+    if err := s.rateLimitManager.AddRule(newRule); err != nil {
+        http.Error(w, "Failed to add rule: "+err.Error(), http.StatusInternalServerError)
+        return
+    }
+
+    klog.Infof("Rate limit rule added: %s (pattern: %s, limit: %d, window: %ds, priority: %d)", 
+        ruleReq.Name, ruleReq.Pattern, ruleReq.Limit, ruleReq.WindowSec, priority)
+
+    respondWithJSON(w, http.StatusCreated, map[string]interface{}{
         "status":  "success",
-        "message": "Rule " + rule.Name + " added",
+        "message": "Rule " + ruleReq.Name + " added successfully",
+        "rule":    newRule,
     })
 }
 
@@ -118,11 +160,16 @@ func (s *Server) deleteRule(w http.ResponseWriter, r *http.Request) {
     vars := mux.Vars(r)
     name := vars["name"]
 
-    s.rateLimitManager.RemoveRule(name)
+    if err := s.rateLimitManager.RemoveRule(name); err != nil {
+        http.Error(w, "Failed to delete rule: "+err.Error(), http.StatusNotFound)
+        return
+    }
+
+    klog.Infof("Rate limit rule deleted: %s", name)
 
     respondWithJSON(w, http.StatusOK, map[string]string{
         "status":  "success",
-        "message": "Rule " + name + " deleted",
+        "message": "Rule " + name + " deleted successfully",
     })
 }
 

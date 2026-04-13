@@ -2,12 +2,14 @@ apiVersion: networking.istio.io/v1alpha3
 kind: EnvoyFilter
 metadata:
   name: gateway-ratelimit
+  labels:
+    app: ratelimit
 spec:
   workloadSelector:
     labels:
       gateway.networking.k8s.io/gateway-name: public-gateway
   configPatches:
-
+  # Cluster for rate limit service
   - applyTo: CLUSTER
     patch:
       operation: ADD
@@ -27,19 +29,13 @@ spec:
             - endpoint:
                 address:
                   socket_address:
-                    address: ratelimit.core-1-core.svc.cluster.local
+                    address: ratelimit-service.core-1-core.svc.cluster.local
                     port_value: 8081
 
-
+  # Rate limit filter - simplified match
   - applyTo: HTTP_FILTER
     match:
       context: GATEWAY
-      listener:
-        filterChain:
-          filter:
-            name: "envoy.filters.network.http_connection_manager"
-          subFilter:
-            name: "envoy.filters.http.router"
     patch:
       operation: INSERT_BEFORE
       value:
@@ -53,7 +49,7 @@ spec:
               envoy_grpc:
                 cluster_name: ratelimit_cluster
 
-
+  # Rate limit actions
   - applyTo: HTTP_ROUTE
     match:
       context: GATEWAY
@@ -65,41 +61,14 @@ spec:
             "@type": type.googleapis.com/envoy.extensions.filters.http.ratelimit.v3.RateLimitPerRoute
             domain: auth_limit
             rate_limits:
-
-              - actions:
-                - request_headers:
-                    header_name: "x-user-id"
-                    descriptor_key: user_id
-                limit:
-                  requests_per_unit: 60
-                  unit: MINUTE
-              
-
-              - actions:
-                - request_headers:
-                    header_name: ":path"
-                    descriptor_key: path
-                limit:
-                  requests_per_unit: 100
-                  unit: SECOND
-              
-
-              - actions:
-                - request_headers:
-                    header_name: ":path"
-                    descriptor_key: path
-                - request_headers:
-                    header_name: "x-user-id"
-                    descriptor_key: user_id
-                limit:
-                  requests_per_unit: 30
-                  unit: MINUTE
-              
-
-              - actions:
-                - source_cluster:
-                    header_name: "x-forwarded-for"
-                    descriptor_key: source_ip
-                limit:
-                  requests_per_unit: 200
-                  unit: MINUTE
+            - actions:
+              - request_headers:
+                  header_name: ":path"
+                  descriptor_key: path
+              - request_headers:
+                  header_name: "x-user-id"
+                  descriptor_key: user_id
+            - actions:
+              - request_headers:
+                  header_name: ":path"
+                  descriptor_key: path

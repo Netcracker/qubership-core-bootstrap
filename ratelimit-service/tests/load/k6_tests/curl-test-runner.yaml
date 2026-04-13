@@ -1,0 +1,36 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: curl-test-runner
+  labels:
+    app: curl-test-runner
+spec:
+  containers:
+  - name: curl
+    image: curlimages/curl:latest
+    command:
+      - /bin/sh
+      - -c
+      - |
+        echo "=== Curl Test Runner Ready ==="
+        echo "Available tests:"
+        echo "  gateway-distribution.sh [requests]"
+        echo "  accuracy-test.sh"
+        echo "  algorithm-compare.sh"
+        echo ""
+        tail -f /dev/null
+    volumeMounts:
+    - name: scripts
+      mountPath: /scripts
+    resources:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "256Mi"
+        cpu: "200m"
+  volumes:
+  - name: scripts
+    configMap:
+      name: demo-test-scripts
+      defaultMode: 0755

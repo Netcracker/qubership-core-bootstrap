@@ -28,16 +28,8 @@ func (s *GRPCServer) ShouldRateLimit(ctx context.Context, req *pb.RateLimitReque
     klog.V(4).Infof("gRPC rate limit request: domain=%s, key=%s", req.Domain, key)
     klog.V(5).Infof("gRPC request details: descriptors=%+v", req.Descriptors)
     
-    // Get matching rule
-    rule := s.manager.GetRule(key)
-    if rule != nil {
-        klog.V(4).Infof("Matched rule: name=%s, limit=%d, window=%v, algorithm=%s", 
-            rule.Name, rule.Limit, rule.Window, rule.Algorithm)
-    } else {
-        klog.V(4).Infof("No matching rule found for key=%s, using default", key)
-    }
-    
-    result, err := s.manager.Check(ctx, key)
+    // Check rate limit using manager
+    allowed, current, err := s.manager.Check(ctx, key)
     if err != nil {
         klog.Errorf("gRPC rate limit check failed: %v", err)
         return &pb.RateLimitResponse{
@@ -45,13 +37,21 @@ func (s *GRPCServer) ShouldRateLimit(ctx context.Context, req *pb.RateLimitReque
         }, nil
     }
     
-    klog.V(4).Infof("Rate limit result: allowed=%v, current=%d, limit=%d, window=%v", 
-        result.Allowed, result.Current, result.Limit, result.Window)
+    // Get matching rule for logging
+    rule, _ := s.manager.GetRule(key)
+    if rule != nil {
+        klog.V(4).Infof("Matched rule: name=%s, limit=%d, window=%v, algorithm=%s", 
+            rule.Name, rule.Limit, rule.Window, rule.Algorithm)
+        klog.V(4).Infof("Rate limit result: allowed=%v, current=%d, limit=%d", 
+            allowed, current, rule.Limit)
+    } else {
+        klog.V(4).Infof("No matching rule found for key=%s, using default (allow all)", key)
+    }
     
     code := pb.RateLimitResponse_OK
-    if !result.Allowed {
+    if !allowed {
         code = pb.RateLimitResponse_OVER_LIMIT
-        klog.V(4).Infof("Rate limit exceeded for key=%s", key)
+        klog.V(4).Infof("Rate limit exceeded for key=%s (current=%d)", key, current)
     }
     
     return &pb.RateLimitResponse{

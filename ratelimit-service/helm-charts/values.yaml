@@ -4,8 +4,8 @@ replicaCount: 1
 namespace: core-1-core
 
 image:
-  repository: ratelimit
-  tag: latest
+  repository: ghcr.io/netcracker/ratelimit
+  tag: feat-ratelimit-20260407102549-18
   pullPolicy: IfNotPresent
 
 config:

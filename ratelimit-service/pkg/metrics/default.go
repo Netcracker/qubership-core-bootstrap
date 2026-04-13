@@ -2,6 +2,7 @@ package metrics
 
 import (
     "github.com/prometheus/client_golang/prometheus"
+	"strings"
 )
 
 type DefaultMetricsCollector struct {
@@ -12,6 +13,7 @@ type DefaultMetricsCollector struct {
     totalViolatingUsers   prometheus.Gauge
     rateLimitChecksTotal  *prometheus.CounterVec
     rateLimitResetsTotal  prometheus.Counter
+    requestsTotal         *prometheus.CounterVec
 
     // API metrics
     apiRequestsTotal   *prometheus.CounterVec
@@ -53,6 +55,12 @@ func NewDefaultMetricsCollector() *DefaultMetricsCollector {
         Help: "Total number of rate limit resets",
     })
     registry.MustRegister(rateLimitResetsTotal)
+
+    requestsTotal := prometheus.NewCounterVec(prometheus.CounterOpts{
+        Name: "ratelimit_requests_total",
+        Help: "Total number of rate limit requests",
+    }, []string{"result", "path"})
+    registry.MustRegister(requestsTotal)
 
     // API metrics
     apiRequestsTotal := prometheus.NewCounterVec(prometheus.CounterOpts{
@@ -101,6 +109,7 @@ func NewDefaultMetricsCollector() *DefaultMetricsCollector {
         totalViolatingUsers:     totalViolatingUsers,
         rateLimitChecksTotal:    rateLimitChecksTotal,
         rateLimitResetsTotal:    rateLimitResetsTotal,
+        requestsTotal:           requestsTotal,
         apiRequestsTotal:        apiRequestsTotal,
         apiRequestDuration:      apiRequestDuration,
         redisOperationsTotal:    redisOperationsTotal,
@@ -129,6 +138,14 @@ func (m *DefaultMetricsCollector) RecordRateLimitCheck(key string, allowed bool,
         result = "rejected"
     }
     m.rateLimitChecksTotal.WithLabelValues(key, result).Inc()
+}
+
+func (m *DefaultMetricsCollector) RecordRateLimitRequest(path string, allowed bool) {
+    result := "allowed"
+    if !allowed {
+        result = "rejected"
+    }
+    m.requestsTotal.WithLabelValues(result, path).Inc()
 }
 
 func (m *DefaultMetricsCollector) RecordRateLimitReset(key string) {
@@ -163,4 +180,16 @@ func (m *DefaultMetricsCollector) RecordRateLimit(key string, allowed bool, curr
         result = "rejected"
     }
     m.rateLimitChecksTotal.WithLabelValues(key, result).Inc()
+    
+    path := extractPathFromKey(key)
+    m.RecordRateLimitRequest(path, allowed)
+}
+
+func extractPathFromKey(key string) string {
+    for _, part := range strings.Split(key, "|") {
+        if strings.HasPrefix(part, "path=") {
+            return strings.TrimPrefix(part, "path=")
+        }
+    }
+    return "unknown"
 }

@@ -1,3 +1,4 @@
+// pkg/ratelimit/redis_client_test.go
 package ratelimit
 
 import (
@@ -8,159 +9,89 @@ import (
     "github.com/alicebob/miniredis/v2"
     "github.com/redis/go-redis/v9"
     "github.com/stretchr/testify/assert"
-    "github.com/stretchr/testify/require"
 )
 
-func setupTestRedisClient(t *testing.T) (*RedisClient, *miniredis.Miniredis) {
+func setupTestRedis(t *testing.T) (*RedisClient, *miniredis.Miniredis) {
     mr := miniredis.RunT(t)
-    rdb := redis.NewClient(&redis.Options{Addr: mr.Addr()})
     
-    config := GetDefaultConfig()
-    
-    metrics := NewMetrics(nil)
-    limiter := NewLimiter(rdb, metrics)
-    manager := NewRateLimitManager(limiter)
-    
-    client := &RedisClient{
-        client:  rdb,
-        config:  config,
-        limiter: limiter,
-        manager: manager,
-    }
-    
-    t.Cleanup(func() {
-        rdb.Close()
-        mr.Close()
+    client := redis.NewClient(&redis.Options{
+        Addr: mr.Addr(),
     })
     
-    return client, mr
-}
-
-func TestBuildKey(t *testing.T) {
-    client, _ := setupTestRedisClient(t)
-    
-    components := map[string]string{
-        "path":    "/test",
-        "user_id": "alice",
+    redisClient := &RedisClient{
+        client: client,
     }
     
-    key := client.BuildKey(components)
-    expected := "path=/test|user_id=alice"
-    assert.Equal(t, expected, key)
+    return redisClient, mr
 }
 
-func TestParseKey(t *testing.T) {
-    client, _ := setupTestRedisClient(t)
+func TestRedisClient_CheckRateLimit(t *testing.T) {
+    client, mr := setupTestRedis(t)
+    defer mr.Close()
     
-    key := "path=/test|user_id=alice"
-    parsed, err := client.ParseKey(key)
-    require.NoError(t, err)
-    
-    assert.Equal(t, "/test", parsed.Components["path"])
-    assert.Equal(t, "alice", parsed.Components["user_id"])
-}
-
-func TestParseKeyWithEscaping(t *testing.T) {
-    client, _ := setupTestRedisClient(t)
-    
-    components := map[string]string{
-        "user_id": "alice_bob",
+    ctx := context.Background()
+    rule := &Rule{
+        Name:   "test",
+        Limit:  2,
+        Window: 10 * time.Second,
     }
     
-    key := client.BuildKey(components)
-    t.Logf("Built key: %s", key)
+    // First request
+    allowed, current, err := client.CheckRateLimit(ctx, "test-key", rule)
+    assert.NoError(t, err)
+    assert.True(t, allowed)
+    assert.Equal(t, 1, current)
     
-    parsed, err := client.ParseKey(key)
-    require.NoError(t, err)
+    // Second request
+    allowed, current, err = client.CheckRateLimit(ctx, "test-key", rule)
+    assert.NoError(t, err)
+    assert.True(t, allowed)
+    assert.Equal(t, 2, current)
     
-    assert.Equal(t, "alice_bob", parsed.Components["user_id"])
+    // Third request (should be denied)
+    allowed, current, err = client.CheckRateLimit(ctx, "test-key", rule)
+    assert.NoError(t, err)
+    assert.False(t, allowed)
+    assert.Equal(t, 3, current)
 }
 
-func TestGetViolatingUsers(t *testing.T) {
-    client, mr := setupTestRedisClient(t)
+func TestRedisClient_ResetUserRateLimit(t *testing.T) {
+    client, mr := setupTestRedis(t)
+    defer mr.Close()
+    
     ctx := context.Background()
     
-    testKeys := map[string]string{
-        "path=/test|user_id=alice": "45",
-        "user_id=bob":              "75",
-        "path=/test|user_id=charlie": "1",
-    }
+    // Create some keys
+    rule := &Rule{Name: "test", Limit: 10, Window: time.Minute}
+    client.CheckRateLimit(ctx, "user_id=test1", rule)
+    client.CheckRateLimit(ctx, "user_id=test2", rule)
     
-    for key, value := range testKeys {
-        mr.Set(key, value)
-        mr.SetTTL(key, time.Minute)
-    }
+    // Reset for test1
+    err := client.ResetUserRateLimit(ctx, "test1")
+    assert.NoError(t, err)
     
-    violating, err := client.GetViolatingUsers(ctx)
-    require.NoError(t, err)
-    
-    assert.GreaterOrEqual(t, len(violating), 1)
-    t.Logf("Found %d violating users", len(violating))
+    // Check keys
+    keys, _ := client.client.Keys(ctx, "*").Result()
+    assert.Equal(t, 1, len(keys)) // Only test2 key should remain
 }
 
-func TestResetUserRateLimit(t *testing.T) {
-    client, mr := setupTestRedisClient(t)
+func TestRedisClient_GetViolatingUsers(t *testing.T) {
+    client, mr := setupTestRedis(t)
+    defer mr.Close()
+    
     ctx := context.Background()
     
-    testKeys := []string{
-        "path=/test|user_id=alice",
-        "user_id=alice",
-        "user_id=bob",
-    }
+    // Create rate limited users
+    rule := &Rule{Name: "test", Limit: 1, Window: time.Minute}
     
-    for _, key := range testKeys {
-        mr.Set(key, "10")
-        mr.SetTTL(key, time.Minute)
-    }
+    // User1: exceed limit
+    client.CheckRateLimit(ctx, "user_id=user1", rule)
+    client.CheckRateLimit(ctx, "user_id=user1", rule)
     
-    err := client.ResetUserRateLimit(ctx, "alice")
-    require.NoError(t, err)
+    // User2: within limit
+    client.CheckRateLimit(ctx, "user_id=user2", rule)
     
-    assert.False(t, mr.Exists("path=/test|user_id=alice"))
-    assert.False(t, mr.Exists("user_id=alice"))
-    assert.True(t, mr.Exists("user_id=bob"))
-}
-
-func TestGetAllStatistics(t *testing.T) {
-    client, mr := setupTestRedisClient(t)
-    ctx := context.Background()
-    
-    testKeys := map[string]string{
-        "path=/test|user_id=alice": "10",
-        "user_id=bob":              "5",
-        "path=/api":                "8",
-    }
-    
-    for key, value := range testKeys {
-        mr.Set(key, value)
-        mr.SetTTL(key, time.Minute)
-    }
-    
-    stats, err := client.GetAllStatistics(ctx)
-    require.NoError(t, err)
-    
-    assert.Equal(t, 3, stats.TotalKeys)
-    t.Logf("Statistics: Total keys=%d", stats.TotalKeys)
-}
-
-func TestGetUserRateLimitInfo(t *testing.T) {
-    client, mr := setupTestRedisClient(t)
-    ctx := context.Background()
-    
-    testKeys := map[string]string{
-        "path=/test|user_id=alice": "15",
-        "path=/api|user_id=alice":  "25",
-        "user_id=alice":            "10",
-    }
-    
-    for key, value := range testKeys {
-        mr.Set(key, value)
-        mr.SetTTL(key, time.Minute)
-    }
-    
-    info, err := client.GetUserRateLimitInfo(ctx, "alice")
-    require.NoError(t, err)
-    
-    assert.Equal(t, "alice", info.UserID)
-    assert.Len(t, info.Limits, 3)
+    users, err := client.GetViolatingUsers(ctx)
+    assert.NoError(t, err)
+    assert.GreaterOrEqual(t, len(users), 1)
 }

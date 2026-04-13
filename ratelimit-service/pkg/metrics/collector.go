@@ -64,7 +64,9 @@ func (s *MetricsCollectorService) collectMetrics(ctx context.Context) {
         s.metrics.RecordConfigReload(false)
         return
     }
-	s.metrics.UpdateViolatingUsers(len(violating))
+    
+    violatingCount := len(violating)
+    s.metrics.UpdateViolatingUsers(violatingCount)
 
     stats, err := s.redisClient.GetAllStatistics(ctx)
     if err != nil {
@@ -73,9 +75,15 @@ func (s *MetricsCollectorService) collectMetrics(ctx context.Context) {
         return
     }
 
-    s.metrics.UpdateRateLimitMetrics(len(violating), stats.TotalKeys)
+    // Extract total keys count from stats map
+    totalKeys := 0
+    if stats != nil {
+        totalKeys = len(stats)
+    }
+    
+    s.metrics.UpdateRateLimitMetrics(violatingCount, totalKeys)
     s.metrics.RecordRedisOperation("collect", "success", time.Since(start).Seconds())
 
     klog.V(4).Infof("Metrics updated: %d violating users, %d active limits",
-        len(violating), stats.TotalKeys)
+        violatingCount, totalKeys)
 }

@@ -50,6 +50,15 @@ func (l *Limiter) Allow(ctx context.Context, key string, limit int, window time.
     return l.AllowWithAlgorithm(ctx, key, limit, window, AlgorithmSlidingWindow)
 }
 
+func extractPathFromKey(key string) string {
+    for _, part := range strings.Split(key, "|") {
+        if strings.HasPrefix(part, "path=") {
+            return strings.TrimPrefix(part, "path=")
+        }
+    }
+    return "unknown"
+}
+
 func (l *Limiter) AllowWithAlgorithm(ctx context.Context, key string, limit int, window time.Duration, algo Algorithm) (*Result, error) {
     if limit <= 0 {
         return &Result{Allowed: true, Limit: limit, Current: 0, Window: window}, nil
@@ -103,7 +112,6 @@ func (l *Limiter) AllowWithAlgorithm(ctx context.Context, key string, limit int,
             }
         }
     }
-
 
     if l.metrics != nil {
         l.metrics.RecordRateLimit(key, result.Allowed, result.Current, limit)

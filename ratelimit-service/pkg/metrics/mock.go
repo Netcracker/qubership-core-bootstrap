@@ -17,15 +17,20 @@ type MockMetricsCollector struct {
     RecordRateLimitCheckCalled bool
     RecordRateLimitCheckKey    string
     RecordRateLimitCheckAllowed bool
+    RecordRateLimitCheckLimit   int
+    
+    RecordRateLimitResetCalled bool
+    RecordRateLimitResetKey    string
+    
+    RecordRateLimitRequestCalled bool
+    RecordRateLimitRequestPath   string
+    RecordRateLimitRequestAllowed bool
     
     RecordRateLimitCalled bool
     RecordRateLimitKey    string
     RecordRateLimitAllowed bool
     RecordRateLimitCurrent int
     RecordRateLimitLimit   int
-    
-    RecordRateLimitResetCalled bool
-    RecordRateLimitResetKey    string
     
     RecordAPIRequestCalled   bool
     RecordAPIRequestEndpoint string
@@ -66,19 +71,18 @@ func (m *MockMetricsCollector) RecordRateLimitCheck(key string, allowed bool, li
     m.RecordRateLimitCheckCalled = true
     m.RecordRateLimitCheckKey = key
     m.RecordRateLimitCheckAllowed = allowed
-}
-
-func (m *MockMetricsCollector) RecordRateLimit(key string, allowed bool, current int, limit int) {
-    m.RecordRateLimitCalled = true
-    m.RecordRateLimitKey = key
-    m.RecordRateLimitAllowed = allowed
-    m.RecordRateLimitCurrent = current
-    m.RecordRateLimitLimit = limit
+    m.RecordRateLimitCheckLimit = limit
 }
 
 func (m *MockMetricsCollector) RecordRateLimitReset(key string) {
     m.RecordRateLimitResetCalled = true
     m.RecordRateLimitResetKey = key
+}
+
+func (m *MockMetricsCollector) RecordRateLimitRequest(path string, allowed bool) {
+    m.RecordRateLimitRequestCalled = true
+    m.RecordRateLimitRequestPath = path
+    m.RecordRateLimitRequestAllowed = allowed
 }
 
 func (m *MockMetricsCollector) RecordAPIRequest(endpoint, method, status string, duration float64) {
@@ -101,6 +105,14 @@ func (m *MockMetricsCollector) RecordConfigReload(success bool) {
     m.RecordConfigReloadSuccess = success
 }
 
+func (m *MockMetricsCollector) RecordRateLimit(key string, allowed bool, current int, limit int) {
+    m.RecordRateLimitCalled = true
+    m.RecordRateLimitKey = key
+    m.RecordRateLimitAllowed = allowed
+    m.RecordRateLimitCurrent = current
+    m.RecordRateLimitLimit = limit
+}
+
 func (m *MockMetricsCollector) GetRegistry() *prometheus.Registry {
     return prometheus.NewRegistry()
 }
@@ -110,8 +122,9 @@ func (m *MockMetricsCollector) Reset() {
     m.UpdateViolatingUsersCalled = false
     m.UpdateActiveLimitsCalled = false
     m.RecordRateLimitCheckCalled = false
-    m.RecordRateLimitCalled = false
     m.RecordRateLimitResetCalled = false
+    m.RecordRateLimitRequestCalled = false
+    m.RecordRateLimitCalled = false
     m.RecordAPIRequestCalled = false
     m.RecordRedisOperationCalled = false
     m.RecordConfigReloadCalled = false

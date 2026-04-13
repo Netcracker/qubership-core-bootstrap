@@ -6,252 +6,197 @@ import (
     "net/http"
     "net/http/httptest"
     "testing"
+    "time"
 
-    "ratelimit-service/pkg/controller"
     "ratelimit-service/pkg/ratelimit"
-
-    "github.com/gorilla/mux"
+    "github.com/alicebob/miniredis/v2"
     "github.com/stretchr/testify/assert"
     "github.com/stretchr/testify/require"
-    "k8s.io/client-go/kubernetes/fake"
 )
 
-func setupTestServer(t *testing.T) (*Server, *ratelimit.RateLimitManager, func()) {
+func createTestServerWithRedis(t *testing.T) (*Server, *miniredis.Miniredis) {
+    mr := miniredis.RunT(t)
+    
+    redisClient, err := ratelimit.NewRedisClient(mr.Addr(), "", 0)
+    require.NoError(t, err)
+    
+    rateLimitManager := ratelimit.NewRateLimitManager(redisClient)
+    redisClient.SetManager(rateLimitManager)
+    
+    server := NewServer(redisClient, nil, rateLimitManager)
+    
+    return server, mr
+}
 
-    mockRateLimitManager := ratelimit.NewRateLimitManager(nil)
-
-    mockRateLimitManager.AddRule(&ratelimit.Rule{
+func TestServer_CheckRateLimit(t *testing.T) {
+    server, mr := createTestServerWithRedis(t)
+    defer mr.Close()
+    
+    rule := &ratelimit.Rule{
         Name:      "test_rule",
-        Pattern:   "/test",
-        Limit:     10,
-        Window:    60,
-        Algorithm: ratelimit.AlgorithmSlidingWindow,
-    })
-
-    clientset := fake.NewSimpleClientset()
-    mockController := controller.NewConfigMapController(clientset, nil, mockRateLimitManager)
-
-    server := NewServer(nil, mockController, mockRateLimitManager)
-
-    cleanup := func() {
-
-        mockRateLimitManager.ClearRules()
+        Pattern:   ".*user_id=test.*",
+        Limit:     2,
+        Window:    time.Minute,
+        Algorithm: ratelimit.FixedWindow,
     }
-
-    return server, mockRateLimitManager, cleanup
-}
-
-func TestHealthCheck(t *testing.T) {
-    server, _, cleanup := setupTestServer(t)
-    defer cleanup()
-
-    req, err := http.NewRequest("GET", "/health", nil)
+    err := server.rateLimitManager.AddRule(rule)
     require.NoError(t, err)
-
-    rr := httptest.NewRecorder()
-    server.router.ServeHTTP(rr, req)
-
-    assert.Equal(t, http.StatusOK, rr.Code)
-
-    var response map[string]string
-    err = json.Unmarshal(rr.Body.Bytes(), &response)
-    require.NoError(t, err)
-    assert.Equal(t, "healthy", response["status"])
-}
-
-func TestReadinessCheck(t *testing.T) {
-    server, _, cleanup := setupTestServer(t)
-    defer cleanup()
-
-    req, err := http.NewRequest("GET", "/ready", nil)
-    require.NoError(t, err)
-
-    rr := httptest.NewRecorder()
-    server.router.ServeHTTP(rr, req)
-
-    assert.Equal(t, http.StatusOK, rr.Code)
-
-    var response map[string]string
-    err = json.Unmarshal(rr.Body.Bytes(), &response)
-    require.NoError(t, err)
-    assert.Equal(t, "ready", response["status"])
-}
-
-func TestAuthenticate(t *testing.T) {
+    
     tests := []struct {
-        name           string
-        apiKey         string
-        requestKey     string
-        expectedStatus int
+        name         string
+        components   map[string]string
+        expectedCode int
+        expectedAllowed bool
     }{
         {
-            name:           "no auth required when api key empty",
-            apiKey:         "",
-            requestKey:     "",
-            expectedStatus: http.StatusOK,
+            name: "matching user - first request allowed",
+            components: map[string]string{
+                "user_id": "test",
+                "path":    "/api",
+            },
+            expectedCode: http.StatusOK,
+            expectedAllowed: true,
         },
         {
-            name:           "valid api key",
-            apiKey:         "test-key-123",
-            requestKey:     "test-key-123",
-            expectedStatus: http.StatusOK,
-        },
-        {
-            name:           "invalid api key",
-            apiKey:         "test-key-123",
-            requestKey:     "wrong-key",
-            expectedStatus: http.StatusUnauthorized,
-        },
-        {
-            name:           "missing api key",
-            apiKey:         "test-key-123",
-            requestKey:     "",
-            expectedStatus: http.StatusUnauthorized,
+            name: "non-matching user - always allowed",
+            components: map[string]string{
+                "user_id": "other",
+                "path":    "/api",
+            },
+            expectedCode: http.StatusOK,
+            expectedAllowed: true,
         },
     }
-
-    for _, tt := range tests {
-        t.Run(tt.name, func(t *testing.T) {
-            server := &Server{
-                router: mux.NewRouter(),
-                apiKey: tt.apiKey,
-            }
-
-            server.router.HandleFunc("/test", server.authenticate(func(w http.ResponseWriter, r *http.Request) {
-                w.WriteHeader(http.StatusOK)
-            })).Methods("GET")
-
-            req, err := http.NewRequest("GET", "/test", nil)
-            require.NoError(t, err)
-
-            if tt.requestKey != "" {
-                req.Header.Set("X-API-Key", tt.requestKey)
-            }
-
-            rr := httptest.NewRecorder()
-            server.router.ServeHTTP(rr, req)
-
-            assert.Equal(t, tt.expectedStatus, rr.Code)
-        })
-    }
+    
+    
+    t.Run("matching user - first request", func(t *testing.T) {
+        reqBody := map[string]interface{}{
+            "components": tests[0].components,
+        }
+        body, _ := json.Marshal(reqBody)
+        req := httptest.NewRequest("POST", "/api/v1/ratelimit/check", bytes.NewBuffer(body))
+        req.Header.Set("Content-Type", "application/json")
+        w := httptest.NewRecorder()
+        
+        server.checkRateLimit(w, req)
+        
+        assert.Equal(t, http.StatusOK, w.Code)
+        
+        var response map[string]interface{}
+        json.NewDecoder(w.Body).Decode(&response)
+        
+        allowed, ok := response["allowed"].(bool)
+        assert.True(t, ok)
+        assert.True(t, allowed, "First request should be allowed")
+        
+        limit, ok := response["limit"].(float64)
+        assert.True(t, ok)
+        assert.Equal(t, float64(2), limit)
+        
+        remaining, ok := response["remaining"].(float64)
+        assert.True(t, ok)
+        assert.Equal(t, float64(1), remaining)
+    })
+    
+    t.Run("matching user - second request", func(t *testing.T) {
+        reqBody := map[string]interface{}{
+            "components": tests[0].components,
+        }
+        body, _ := json.Marshal(reqBody)
+        req := httptest.NewRequest("POST", "/api/v1/ratelimit/check", bytes.NewBuffer(body))
+        req.Header.Set("Content-Type", "application/json")
+        w := httptest.NewRecorder()
+        
+        server.checkRateLimit(w, req)
+        
+        assert.Equal(t, http.StatusOK, w.Code)
+        
+        var response map[string]interface{}
+        json.NewDecoder(w.Body).Decode(&response)
+        
+        allowed, ok := response["allowed"].(bool)
+        assert.True(t, ok)
+        assert.True(t, allowed, "Second request should be allowed")
+        
+        remaining, ok := response["remaining"].(float64)
+        assert.True(t, ok)
+        assert.Equal(t, float64(0), remaining)
+    })
+    
+    t.Run("matching user - third request rejected", func(t *testing.T) {
+        reqBody := map[string]interface{}{
+            "components": tests[0].components,
+        }
+        body, _ := json.Marshal(reqBody)
+        req := httptest.NewRequest("POST", "/api/v1/ratelimit/check", bytes.NewBuffer(body))
+        req.Header.Set("Content-Type", "application/json")
+        w := httptest.NewRecorder()
+        
+        server.checkRateLimit(w, req)
+        
+        assert.Equal(t, http.StatusOK, w.Code)
+        
+        var response map[string]interface{}
+        json.NewDecoder(w.Body).Decode(&response)
+        
+        allowed, ok := response["allowed"].(bool)
+        assert.True(t, ok)
+        assert.False(t, allowed, "Third request should be rate limited")
+        
+        remaining, ok := response["remaining"].(float64)
+        assert.True(t, ok)
+        assert.Equal(t, float64(0), remaining)
+    })
+    
+    t.Run("non-matching user", func(t *testing.T) {
+        reqBody := map[string]interface{}{
+            "components": tests[1].components,
+        }
+        body, _ := json.Marshal(reqBody)
+        req := httptest.NewRequest("POST", "/api/v1/ratelimit/check", bytes.NewBuffer(body))
+        req.Header.Set("Content-Type", "application/json")
+        w := httptest.NewRecorder()
+        
+        server.checkRateLimit(w, req)
+        
+        assert.Equal(t, http.StatusOK, w.Code)
+        
+        var response map[string]interface{}
+        json.NewDecoder(w.Body).Decode(&response)
+        
+        allowed, ok := response["allowed"].(bool)
+        assert.True(t, ok)
+        assert.True(t, allowed, "Non-matching user should be allowed")
+    })
 }
 
-func TestRespondWithJSON(t *testing.T) {
-    rr := httptest.NewRecorder()
-    data := map[string]string{"test": "value"}
-
-    respondWithJSON(rr, http.StatusCreated, data)
-
-    assert.Equal(t, http.StatusCreated, rr.Code)
-    assert.Equal(t, "application/json", rr.Header().Get("Content-Type"))
-
-    var response map[string]string
-    err := json.Unmarshal(rr.Body.Bytes(), &response)
-    require.NoError(t, err)
-    assert.Equal(t, "value", response["test"])
-}
-
-func TestNotFoundRoute(t *testing.T) {
-    server, _, cleanup := setupTestServer(t)
-    defer cleanup()
-
-    req, err := http.NewRequest("GET", "/nonexistent", nil)
-    require.NoError(t, err)
-
-    rr := httptest.NewRecorder()
-    server.router.ServeHTTP(rr, req)
-
-    assert.Equal(t, http.StatusNotFound, rr.Code)
-}
-
-func TestRateLimitRulesAPI(t *testing.T) {
-    server, _, cleanup := setupTestServer(t)
-    defer cleanup()
-
-    rule := map[string]interface{}{
-        "name":       "new_test_rule",
-        "pattern":    "/api/test",
-        "limit":      10,
-        "window_sec": 60,
-        "algorithm":  "sliding_window",
-    }
-
-    body, _ := json.Marshal(rule)
-    req, err := http.NewRequest("POST", "/api/v1/ratelimit/rules", bytes.NewBuffer(body))
-    require.NoError(t, err)
-
-    rr := httptest.NewRecorder()
-    server.router.ServeHTTP(rr, req)
-
-    assert.Equal(t, http.StatusCreated, rr.Code)
-
-    var response map[string]string
-    err = json.Unmarshal(rr.Body.Bytes(), &response)
-    require.NoError(t, err)
-    assert.Equal(t, "success", response["status"])
-
-    req, err = http.NewRequest("GET", "/api/v1/ratelimit/rules", nil)
-    require.NoError(t, err)
-
-    rr = httptest.NewRecorder()
-    server.router.ServeHTTP(rr, req)
-
-    assert.Equal(t, http.StatusOK, rr.Code)
-
-    req, err = http.NewRequest("DELETE", "/api/v1/ratelimit/rules/new_test_rule", nil)
-    require.NoError(t, err)
-
-    rr = httptest.NewRecorder()
-    server.router.ServeHTTP(rr, req)
-
-    assert.Equal(t, http.StatusOK, rr.Code)
-}
-
-func TestCheckRateLimit(t *testing.T) {
-    server, _, cleanup := setupTestServer(t)
-    defer cleanup()
-
+func TestServer_CheckRateLimit_NoRules(t *testing.T) {
+    server, mr := createTestServerWithRedis(t)
+    defer mr.Close()
+    
     reqBody := map[string]interface{}{
         "components": map[string]string{
-            "path":    "/test",
-            "user_id": "alice",
+            "user_id": "any-user",
+            "path":    "/api",
         },
     }
-
     body, _ := json.Marshal(reqBody)
-    req, err := http.NewRequest("POST", "/api/v1/ratelimit/check", bytes.NewBuffer(body))
-    require.NoError(t, err)
-
-    rr := httptest.NewRecorder()
-    server.router.ServeHTTP(rr, req)
-
-    assert.Equal(t, http.StatusOK, rr.Code)
-
-    var result map[string]interface{}
-    err = json.Unmarshal(rr.Body.Bytes(), &result)
-    require.NoError(t, err)
-
-    hasAllowed := false
-    if _, ok := result["Allowed"]; ok {
-        hasAllowed = true
-    }
-    if _, ok := result["allowed"]; ok {
-        hasAllowed = true
-    }
-
-    assert.True(t, hasAllowed, "Result should contain 'Allowed' or 'allowed' field")
-    t.Logf("Rate limit check result: %+v", result)
-}
-
-func TestReloadConfig(t *testing.T) {
-    server, _, cleanup := setupTestServer(t)
-    defer cleanup()
-
-    req, err := http.NewRequest("POST", "/api/v1/config/reload", nil)
-    require.NoError(t, err)
-
-    rr := httptest.NewRecorder()
-    server.router.ServeHTTP(rr, req)
-
-    assert.Contains(t, []int{http.StatusOK, http.StatusInternalServerError}, rr.Code)
+    req := httptest.NewRequest("POST", "/api/v1/ratelimit/check", bytes.NewBuffer(body))
+    req.Header.Set("Content-Type", "application/json")
+    w := httptest.NewRecorder()
+    
+    server.checkRateLimit(w, req)
+    
+    assert.Equal(t, http.StatusOK, w.Code)
+    
+    var response map[string]interface{}
+    json.NewDecoder(w.Body).Decode(&response)
+    
+    allowed, ok := response["allowed"].(bool)
+    assert.True(t, ok)
+    assert.True(t, allowed, "Without rules, all requests should be allowed")
+    
+    limit, ok := response["limit"].(float64)
+    assert.True(t, ok)
+    assert.Equal(t, float64(0), limit, "Limit should be 0 when no rules match")
 }

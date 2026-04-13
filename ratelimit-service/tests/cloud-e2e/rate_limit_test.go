@@ -30,10 +30,8 @@ const (
 var namespace = utils.GetEnv("NAMESPACE", "core-1-core")
 
 func TestCloudE2E_RateLimitThroughGateway(t *testing.T) {
-    // 1. Setup
     t.Log("=== Setting up cloud E2E test ===")
 
-    // Port-forwards
     t.Log("Starting port-forwards...")
     gatewayPF := setupPortForward(t, "svc/public-gateway-istio", gatewayPort)
     defer gatewayPF()
@@ -51,13 +49,11 @@ func TestCloudE2E_RateLimitThroughGateway(t *testing.T) {
 	metricsURL := fmt.Sprintf("http://localhost:%s", metricsPort)
     userID := "cloud-e2e-user"
 
-    // 2. Clean up any existing rules first
     t.Log("\n=== Cleaning up existing rules ===")
     deleteRule(operatorURL, "e2e_test_rule")
 	t.Log("\n=== Cleaning up existing keys for cloud-e2e-user ===")
 	cleanupRedisKeys("cloud-e2e-user")
 
-    // 3. Test default rate limit (60 requests per minute from default rule)
     t.Log("\n=== Testing default rate limit ===")
 
     for i := 0; i < 3; i++ {
@@ -68,7 +64,6 @@ func TestCloudE2E_RateLimitThroughGateway(t *testing.T) {
         time.Sleep(100 * time.Millisecond)
     }
 
-    // 4. Add custom rule with stricter limit
     t.Log("\n=== Adding custom rule: 2 requests per 60 seconds ===")
 
     rule := map[string]interface{}{
@@ -88,7 +83,6 @@ func TestCloudE2E_RateLimitThroughGateway(t *testing.T) {
     // Wait for rule to be applied
     time.Sleep(3 * time.Second)
 
-    // 5. Test custom rate limit
     t.Log("\n=== Testing custom rate limit (2 requests per 10 seconds) ===")
 
     for i := 0; i < 3; i++ {
@@ -103,14 +97,12 @@ func TestCloudE2E_RateLimitThroughGateway(t *testing.T) {
         time.Sleep(100 * time.Millisecond)
     }
 
-    // 6. Get violating users BEFORE reset (should show the user)
     t.Log("\n=== Getting violating users (before reset) ===")
 
     violatingUsersJSON, err := getViolatingUsersRaw(operatorURL)
     require.NoError(t, err)
     t.Logf("Violating users API response:\n%s", violatingUsersJSON)
 
-    // 7. Test rate limit reset
     t.Log("\n=== Testing rate limit reset ===")
 
     err = resetUserRateLimit(operatorURL, userID)
@@ -119,7 +111,7 @@ func TestCloudE2E_RateLimitThroughGateway(t *testing.T) {
 
     time.Sleep(1 * time.Second)
 
-	// 8. After reset, request should be allowed immediately
+	//  After reset, request should be allowed immediately
     statusCode, err := sendGatewayRequest(gatewayURL, "/test", userID)
     require.NoError(t, err)
     t.Logf("Request after reset: HTTP %d", statusCode)
@@ -127,7 +119,6 @@ func TestCloudE2E_RateLimitThroughGateway(t *testing.T) {
     
     time.Sleep(2 * time.Second)
     
-    // 9. Get violating users AFTER reset (should be empty)
     t.Log("\n=== Getting violating users (after reset) ===")
 
     violatingUsersAfter, err := getViolatingUsers(operatorURL)
@@ -140,7 +131,6 @@ func TestCloudE2E_RateLimitThroughGateway(t *testing.T) {
     require.NoError(t, err)
     t.Logf("Violating users API response after reset:\n%s", violatingUsersJSONAfter)
 
-    // 10. Test Redis keys
     t.Log("\n=== Testing Redis keys ===")
 
     rdb := redis.NewClient(&redis.Options{
@@ -157,19 +147,190 @@ func TestCloudE2E_RateLimitThroughGateway(t *testing.T) {
         t.Logf("  Key: %s = %s", key, val)
     }
 
-	// 11. Prometheus metrics
     t.Log("\n=== Testing metrics ===")
     
     metrics, err := getMetrics(metricsURL)
     require.NoError(t, err)
     t.Logf("Metrics sample:\n%s", metrics[:min(500, len(metrics))])
 
-    // 12. Clean up
     t.Log("\n=== Cleaning up ===")
     deleteRule(operatorURL, "e2e_test_rule")
 
     t.Log("\n=== ✅ Cloud E2E test completed successfully! ===")
 }
+
+func TestCloudE2E_TwoUsersRateLimit(t *testing.T) {
+    t.Log("=== Setting up Two Users Rate Limit Test ===")
+
+    t.Log("Starting port-forwards...")
+    gatewayPF := setupPortForward(t, "svc/public-gateway-istio", gatewayPort)
+    defer gatewayPF()
+    operatorPF := setupPortForward(t, "svc/ratelimit-service", operatorPort)
+    defer operatorPF()
+    redisPF := setupPortForward(t, "svc/redis", "6379")
+    defer redisPF()
+
+    time.Sleep(5 * time.Second)
+
+    gatewayURL := fmt.Sprintf("http://localhost:%s", gatewayPort)
+    operatorURL := fmt.Sprintf("http://localhost:%s", operatorPort)
+    goodUser := "good-user"
+    badUser := "bad-user"
+
+    t.Log("\n=== Cleaning up existing rules ===")
+    deleteRule(operatorURL, "bad_user_rule")
+
+    t.Log("\n=== Adding rate limit rule for BAD user: 30 requests per minute ===")
+
+    rule := map[string]interface{}{
+        "name":       "bad_user_rule",
+        "pattern":    ".*user_id=bad-user.*",
+        "limit":      30,
+        "window_sec": 60,
+        "algorithm":  "fixed_window",
+    }
+
+    body, _ := json.Marshal(rule)
+    resp, err := http.Post(operatorURL+"/api/v1/ratelimit/rules", "application/json", bytes.NewBuffer(body))
+    require.NoError(t, err)
+    resp.Body.Close()
+    t.Log("Rate limit rule added for bad user only (pattern: .*user_id=bad-user.*)")
+
+    time.Sleep(3 * time.Second)
+
+    t.Log("\n=== Verifying rule applied ===")
+    
+    checkResp, err := http.Post(operatorURL+"/api/v1/ratelimit/check", "application/json", 
+        bytes.NewBuffer([]byte(`{"components":{"path":"/test","user_id":"bad-user"}}`)))
+    if err == nil {
+        var result map[string]interface{}
+        json.NewDecoder(checkResp.Body).Decode(&result)
+        t.Logf("Bad user limit: %v", result["limit"])
+        checkResp.Body.Close()
+    }
+    
+    checkResp, err = http.Post(operatorURL+"/api/v1/ratelimit/check", "application/json", 
+        bytes.NewBuffer([]byte(`{"components":{"path":"/test","user_id":"good-user"}}`)))
+    if err == nil {
+        var result map[string]interface{}
+        json.NewDecoder(checkResp.Body).Decode(&result)
+        t.Logf("Good user limit: %v", result["limit"])
+        checkResp.Body.Close()
+    }
+
+    t.Log("\n=== Testing GOOD user (no rate limit applied) ===")
+    
+    goodSuccess := 0
+    goodLimited := 0
+    requests := 50
+
+    for i := 0; i < requests; i++ {
+        statusCode, err := sendGatewayRequest(gatewayURL, "/test", goodUser)
+        require.NoError(t, err)
+        if statusCode == 200 {
+            goodSuccess++
+        } else if statusCode == 429 {
+            goodLimited++
+        }
+        if (i+1)%10 == 0 {
+            t.Logf("Good user progress: %d/%d requests", i+1, requests)
+        }
+        time.Sleep(50 * time.Millisecond)
+    }
+
+    t.Logf("\nGood user results: %d OK, %d Rate Limited out of %d requests", goodSuccess, goodLimited, requests)
+    
+    assert.Equal(t, 0, goodLimited, "Good user should NOT be rate limited (got %d)", goodLimited)
+
+    t.Log("\n=== Testing BAD user (rate limited after ~30 requests) ===")
+
+    badSuccess := 0
+    badLimited := 0
+
+    for i := 0; i < requests; i++ {
+        statusCode, err := sendGatewayRequest(gatewayURL, "/test", badUser)
+        require.NoError(t, err)
+        if statusCode == 200 {
+            badSuccess++
+        } else if statusCode == 429 {
+            badLimited++
+        }
+        
+        if badLimited == 1 && i > 0 {
+            t.Logf("Bad user rate limited started at request #%d", i+1)
+        }
+        
+        if (i+1)%10 == 0 {
+            t.Logf("Bad user progress: %d/%d requests", i+1, requests)
+        }
+        time.Sleep(50 * time.Millisecond)
+    }
+
+    t.Logf("\nBad user results: %d OK, %d Rate Limited out of %d requests", badSuccess, badLimited, requests)
+
+    // Expected: ~30 OK, ~20 Limited
+    expectedLimited := requests - 30
+    if expectedLimited < 0 {
+        expectedLimited = 0
+    }
+    
+    t.Logf("Expected bad user limited requests: ~%d (50 total - 30 limit)", expectedLimited)
+    t.Logf("Actual bad user limited requests: %d", badLimited)
+    
+    // Allow some tolerance (within 10 requests due to network delays)
+    assert.InDelta(t, expectedLimited, badLimited, 10, 
+        "Bad user should be rate limited around %d requests (got %d)", expectedLimited, badLimited)
+    
+    t.Log("\n=== Isolation Check ===")
+    if goodLimited == 0 && badLimited > 0 {
+        t.Log("✅ PASS: Rate limits are properly isolated per user")
+        t.Logf("   Good user: %d limited, Bad user: %d limited", goodLimited, badLimited)
+    } else if goodLimited > 0 {
+        t.Log("⚠️ WARNING: Good user was also rate limited - isolation may be compromised")
+        t.Logf("   Good user: %d limited, Bad user: %d limited", goodLimited, badLimited)
+    }
+
+    t.Log("\n=== Getting violating users ===")
+    
+    violatingUsers, err := getViolatingUsers(operatorURL)
+    require.NoError(t, err)
+    t.Logf("Violating users: %v", violatingUsers)
+    
+    // Bad user should be in violating list if rate limited
+    if badLimited > 0 {
+        assert.Contains(t, violatingUsers, badUser, "Bad user should be in violating users list")
+    }
+    
+    t.Log("\n=== Resetting rate limits for bad user ===")
+    
+    err = resetUserRateLimit(operatorURL, badUser)
+    require.NoError(t, err)
+    t.Log("Rate limits reset for bad user")
+    
+    time.Sleep(2 * time.Second)
+    
+    // Verify reset - bad user should be allowed again
+    t.Log("\n=== Verifying reset ===")
+    
+    resetSuccess := 0
+    for i := 0; i < 10; i++ {
+        statusCode, err := sendGatewayRequest(gatewayURL, "/test", badUser)
+        require.NoError(t, err)
+        if statusCode == 200 {
+            resetSuccess++
+        }
+        time.Sleep(100 * time.Millisecond)
+    }
+    
+    t.Logf("Bad user after reset: %d/10 requests successful", resetSuccess)
+    assert.Greater(t, resetSuccess, 8, "After reset, bad user should be able to make requests again")
+    
+    t.Log("\n=== Cleaning up ===")
+    deleteRule(operatorURL, "bad_user_rule")
+
+    t.Log("\n=== ✅ Two Users Rate Limit Test completed successfully! ===")
+}
+
 
 // Helper functions
 

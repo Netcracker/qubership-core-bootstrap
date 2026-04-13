@@ -1,0 +1,519 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: demo-test-scripts
+  labels:
+    app: test-runner
+data:
+  get-rules.sh: |
+    #!/bin/sh
+    echo "=== Current Rate Limit Rules (with Priorities) ==="
+    echo ""
+    
+    API_URL="http://ratelimit-service.core-1-core.svc.cluster.local:8082"
+    
+    # Get all rules from API
+    RULES=$(curl -s $API_URL/api/v1/ratelimit/rules)
+    
+    if [ -z "$RULES" ] || [ "$RULES" = "null" ]; then
+      echo "No rules found or API not available"
+      exit 0
+    fi
+    
+    # Parse rules without jq
+    echo "$RULES" | grep -o '"name":"[^"]*"' | cut -d'"' -f4 | while read name; do
+      echo "Rule: $name"
+      
+      # Extract pattern
+      pattern=$(echo "$RULES" | grep -A10 "\"name\":\"$name\"" | grep -o '"pattern":"[^"]*"' | head -1 | cut -d'"' -f4)
+      echo "  Pattern: $pattern"
+      
+      # Extract limit
+      limit=$(echo "$RULES" | grep -A10 "\"name\":\"$name\"" | grep -o '"limit":[0-9]*' | head -1 | cut -d':' -f2)
+      echo "  Limit: $limit"
+      
+      # Extract priority
+      priority=$(echo "$RULES" | grep -A10 "\"name\":\"$name\"" | grep -o '"priority":[0-9]*' | head -1 | cut -d':' -f2)
+      echo "  Priority: $priority"
+      
+      echo ""
+    done
+    
+    echo ""
+    echo "--- Rule Priority Check ---"
+    echo "Checking which rule matches test user..."
+    
+    RESPONSE=$(curl -s -X POST $API_URL/api/v1/ratelimit/check \
+      -H "Content-Type: application/json" \
+      -d '{"components":{"path":"/test","user_id":"test-user"}}')
+    
+    RULE_NAME=$(echo "$RESPONSE" | grep -o '"rule_name":"[^"]*"' | cut -d'"' -f4)
+    LIMIT=$(echo "$RESPONSE" | grep -o '"limit":[0-9]*' | cut -d':' -f2)
+    
+    echo "  Matched rule: $RULE_NAME"
+    echo "  Limit: $LIMIT"
+    
+    echo ""
+    echo "--- VIP User (should have higher priority) ---"
+    RESPONSE=$(curl -s -X POST $API_URL/api/v1/ratelimit/check \
+      -H "Content-Type: application/json" \
+      -d '{"components":{"path":"/test","user_id":"vip-user"}}')
+    
+    RULE_NAME=$(echo "$RESPONSE" | grep -o '"rule_name":"[^"]*"' | cut -d'"' -f4)
+    LIMIT=$(echo "$RESPONSE" | grep -o '"limit":[0-9]*' | cut -d':' -f2)
+    
+    echo "  Matched rule: $RULE_NAME"
+    echo "  Limit: $LIMIT"
+    
+    echo ""
+    echo "--- Default User ---"
+    RESPONSE=$(curl -s -X POST $API_URL/api/v1/ratelimit/check \
+      -H "Content-Type: application/json" \
+      -d '{"components":{"path":"/test","user_id":"normal-user"}}')
+    
+    RULE_NAME=$(echo "$RESPONSE" | grep -o '"rule_name":"[^"]*"' | cut -d'"' -f4)
+    LIMIT=$(echo "$RESPONSE" | grep -o '"limit":[0-9]*' | cut -d':' -f2)
+    
+    echo "  Matched rule: $RULE_NAME"
+    echo "  Limit: $LIMIT"
+
+  add-rules-with-priority.sh: |
+    #!/bin/sh
+    API_URL="http://ratelimit-service.core-1-core.svc.cluster.local:8082/api/v1/ratelimit/rules"
+    
+    echo "=== Adding Rules with Different Priorities ==="
+    echo ""
+    
+    # Clean up existing rules
+    echo "Cleaning up old rules..."
+    for rule in default api_strict test_rule fallback_rule vip_rule admin_rule normal_rule; do
+      curl -s -X DELETE "$API_URL/$rule" > /dev/null 2>&1
+    done
+    
+    echo ""
+    echo "1. Adding DEFAULT rule (priority 0 - lowest)"
+    curl -s -X POST $API_URL \
+      -H "Content-Type: application/json" \
+      -d '{
+        "name": "default",
+        "pattern": ".*",
+        "limit": 60,
+        "window_sec": 60,
+        "algorithm": "fixed_window",
+        "priority": 0
+      }'
+    echo " - Default rule added (limit: 60/min, priority: 0)"
+    
+    echo ""
+    echo "2. Adding FALLBACK rule for all users (priority 10)"
+    curl -s -X POST $API_URL \
+      -H "Content-Type: application/json" \
+      -d '{
+        "name": "fallback",
+        "pattern": ".*user_id=.*",
+        "limit": 100,
+        "window_sec": 60,
+        "algorithm": "fixed_window",
+        "priority": 10
+      }'
+    echo " - Fallback rule added (limit: 100/min, priority: 10)"
+    
+    echo ""
+    echo "3. Adding NORMAL user rule (priority 50)"
+    curl -s -X POST $API_URL \
+      -H "Content-Type: application/json" \
+      -d '{
+        "name": "normal_user",
+        "pattern": ".*user_id=normal-.*",
+        "limit": 30,
+        "window_sec": 60,
+        "algorithm": "fixed_window",
+        "priority": 50
+      }'
+    echo " - Normal user rule added (limit: 30/min, priority: 50)"
+    
+    echo ""
+    echo "4. Adding VIP user rule (priority 100 - high)"
+    curl -s -X POST $API_URL \
+      -H "Content-Type: application/json" \
+      -d '{
+        "name": "vip_user",
+        "pattern": ".*user_id=vip-.*",
+        "limit": 1000,
+        "window_sec": 60,
+        "algorithm": "fixed_window",
+        "priority": 100
+      }'
+    echo " - VIP rule added (limit: 1000/min, priority: 100)"
+    
+    echo ""
+    echo "5. Adding ADMIN user rule (priority 200 - highest)"
+    curl -s -X POST $API_URL \
+      -H "Content-Type: application/json" \
+      -d '{
+        "name": "admin_user",
+        "pattern": ".*user_id=admin-.*",
+        "limit": 10000,
+        "window_sec": 60,
+        "algorithm": "fixed_window",
+        "priority": 200
+      }'
+    echo " - Admin rule added (limit: unlimited, priority: 200)"
+    
+    echo ""
+    echo "=== Rules added successfully! ==="
+    echo ""
+    echo "Priority order (highest first):"
+    echo "  200 - Admin users (unlimited)"
+    echo "  100 - VIP users (1000 req/min)"
+    echo "   50 - Normal users (30 req/min)"
+    echo "   10 - Fallback (100 req/min)"
+    echo "    0 - Default (60 req/min)"
+    echo ""
+
+  priority-demo.sh: |
+    #!/bin/sh
+    GATEWAY="http://public-gateway-istio.core-1-core.svc.cluster.local:8080"
+    API="http://ratelimit-service.core-1-core.svc.cluster.local:8082"
+    
+    echo "============================================================"
+    echo "RATE LIMIT PRIORITY DEMO"
+    echo "============================================================"
+    echo ""
+    
+    # Add rules with priorities
+    echo "Setting up rules with priorities..."
+    sh /scripts/add-rules-with-priority.sh
+    
+    echo ""
+    echo "=== Testing Different User Types ==="
+    echo ""
+    
+    # Test function
+    test_user() {
+      local user_type=$1
+      local user_id=$2
+      
+      echo "--- $user_type User (user_id: $user_id) ---"
+      
+      # Get current limit
+      RESPONSE=$(curl -s -X POST $API/api/v1/ratelimit/check \
+        -H "Content-Type: application/json" \
+        -d "{\"components\":{\"path\":\"/test\",\"user_id\":\"$user_id\"}}")
+      
+      LIMIT=$(echo "$RESPONSE" | grep -o '"limit":[0-9]*' | cut -d':' -f2)
+      RULE_NAME=$(echo "$RESPONSE" | grep -o '"rule_name":"[^"]*"' | cut -d'"' -f4)
+      
+      echo "  Matched rule: $RULE_NAME"
+      echo "  Rate limit: $LIMIT requests/minute"
+      
+      # Make 5 requests
+      success=0
+      for i in 1 2 3 4 5; do
+        status=$(curl -s -o /dev/null -w "%{http_code}" -H "x-user-id: $user_id" $GATEWAY/test)
+        [ "$status" = "200" ] && success=$((success + 1))
+      done
+      
+      echo "  Success rate: $success/5 requests"
+      echo ""
+    }
+    
+    test_user "Admin" "admin-john"
+    test_user "VIP" "vip-jane"
+    test_user "Normal" "normal-alice"
+    test_user "Unknown" "unknown-user"
+    
+    echo "============================================================"
+    echo "PRIORITY DEMO COMPLETE"
+    echo "============================================================"
+
+  accuracy-test.sh: |
+    #!/bin/sh
+    GATEWAY="http://public-gateway-istio.core-1-core.svc.cluster.local:8080"
+    API="http://ratelimit-service.core-1-core.svc.cluster.local:8082"
+    
+    echo "============================================================"
+    echo "RATE LIMIT ACCURACY TEST (with Priorities)"
+    echo "============================================================"
+    
+    # Setup rules with priorities
+    echo ""
+    echo "Setting up test rules..."
+    
+    # Clean up old rules
+    curl -s -X DELETE $API/api/v1/ratelimit/rules/strict_test > /dev/null 2>&1
+    curl -s -X DELETE $API/api/v1/ratelimit/rules/default_fallback > /dev/null 2>&1
+    
+    # Add strict rule for test2 user (high priority)
+    curl -s -X POST $API/api/v1/ratelimit/rules \
+      -H "Content-Type: application/json" \
+      -d '{
+        "name": "strict_test",
+        "pattern": ".*user_id=test2.*",
+        "limit": 2,
+        "window_sec": 1,
+        "algorithm": "fixed_window",
+        "priority": 100
+      }' > /dev/null
+    
+    # Add default fallback (low priority)
+    curl -s -X POST $API/api/v1/ratelimit/rules \
+      -H "Content-Type: application/json" \
+      -d '{
+        "name": "default_fallback",
+        "pattern": ".*",
+        "limit": 100,
+        "window_sec": 60,
+        "algorithm": "fixed_window",
+        "priority": 0
+      }' > /dev/null
+    
+    echo ""
+    echo "=== Test: 2 requests per second limit (with 100ms delay) ==="
+    allowed=0
+    for i in 1 2 3 4 5 6 7 8 9 10; do
+      status=$(curl -s -o /dev/null -w "%{http_code}" -H "x-user-id: test2" $GATEWAY/test)
+      [ "$status" = "200" ] && allowed=$((allowed + 1))
+      usleep 100000
+    done
+    echo "Allowed: $allowed/10 (expected ~2-3)"
+    
+    echo ""
+    echo "=== Burst test (no delay, all at once) ==="
+    allowed=0
+    for i in 1 2 3 4 5 6 7 8 9 10; do
+      status=$(curl -s -o /dev/null -w "%{http_code}" -H "x-user-id: burst" $GATEWAY/test)
+      [ "$status" = "200" ] && allowed=$((allowed + 1))
+    done
+    echo "Allowed: $allowed/10 (expected ~2)"
+    
+    # Cleanup
+    curl -s -X DELETE $API/api/v1/ratelimit/rules/strict_test > /dev/null
+    curl -s -X DELETE $API/api/v1/ratelimit/rules/default_fallback > /dev/null
+    
+    echo "============================================================"
+
+  algorithm-compare.sh: |
+    #!/bin/sh
+    GATEWAY="http://public-gateway-istio.core-1-core.svc.cluster.local:8080"
+    API="http://ratelimit-service.core-1-core.svc.cluster.local:8082"
+    REQUESTS=200
+    
+    echo "============================================================"
+    echo "ALGORITHM COMPARISON (2 req/sec limit, $REQUESTS requests)"
+    echo "============================================================"
+    
+    # Clean up old rules
+    curl -s -X DELETE $API/api/v1/ratelimit/rules/fixed_test > /dev/null 2>&1
+    curl -s -X DELETE $API/api/v1/ratelimit/rules/sliding_test > /dev/null 2>&1
+    
+    # Setup rules with different algorithms
+    echo ""
+    echo "Setting up Fixed Window rule..."
+    curl -s -X POST $API/api/v1/ratelimit/rules \
+      -H "Content-Type: application/json" \
+      -d '{
+        "name": "fixed_test",
+        "pattern": ".*user_id=fixed.*",
+        "limit": 2,
+        "window_sec": 1,
+        "algorithm": "fixed_window",
+        "priority": 50
+      }' > /dev/null
+    
+    echo "Setting up Sliding Window rule..."
+    curl -s -X POST $API/api/v1/ratelimit/rules \
+      -H "Content-Type: application/json" \
+      -d '{
+        "name": "sliding_test",
+        "pattern": ".*user_id=sliding.*",
+        "limit": 2,
+        "window_sec": 1,
+        "algorithm": "sliding_log",
+        "priority": 50
+      }' > /dev/null
+    
+    echo ""
+    echo "=== Fixed Window (/test) ==="
+    fixed=0
+    for i in $(seq 1 $REQUESTS); do
+      status=$(curl -s -o /dev/null -w "%{http_code}" -H "x-user-id: fixed" $GATEWAY/test)
+      [ "$status" = "200" ] && fixed=$((fixed + 1))
+    done
+    echo "Allowed: $fixed/$REQUESTS ($((fixed * 100 / REQUESTS))%)"
+    
+    echo ""
+    echo "=== Sliding Window (/test) ==="
+    sliding=0
+    for i in $(seq 1 $REQUESTS); do
+      status=$(curl -s -o /dev/null -w "%{http_code}" -H "x-user-id: sliding" $GATEWAY/test)
+      [ "$status" = "200" ] && sliding=$((sliding + 1))
+    done
+    echo "Allowed: $sliding/$REQUESTS ($((sliding * 100 / REQUESTS))%)"
+    
+    echo ""
+    echo "============================================================"
+    if [ $fixed -gt $sliding ]; then
+      echo "Fixed Window allowed $((fixed - sliding)) more requests"
+      echo "✅ Sliding Window is MORE ACCURATE"
+    elif [ $fixed -lt $sliding ]; then
+      echo "Sliding Window allowed $((sliding - fixed)) more requests"
+      echo "✅ Fixed Window is MORE ACCURATE"
+    else
+      echo "Both algorithms performed the same"
+    fi
+    echo "============================================================"
+    
+    # Cleanup
+    curl -s -X DELETE $API/api/v1/ratelimit/rules/fixed_test > /dev/null
+    curl -s -X DELETE $API/api/v1/ratelimit/rules/sliding_test > /dev/null
+
+  gateway-distribution.sh: |
+    #!/bin/sh
+    GATEWAY_URL="http://public-gateway-istio.core-1-core.svc.cluster.local:8080/test"
+    REQUESTS=${1:-200}
+    
+    echo "=== Gateway Distribution Test ==="
+    echo "Total requests: $REQUESTS"
+    echo ""
+    
+    tmp_file=$(mktemp)
+    
+    for i in $(seq 1 $REQUESTS); do
+      response=$(curl -s -i --header "Connection: close" -H "x-user-id: test" $GATEWAY_URL 2>/dev/null)
+      gateway=$(echo "$response" | grep -i "x-gateway-id" | head -1 | awk '{print $2}' | tr -d '\r')
+      status=$(echo "$response" | head -1 | awk '{print $2}')
+      echo "$gateway|$status" >> $tmp_file
+      
+      if [ $((i % 50)) -eq 0 ]; then
+        echo "Progress: $i/$REQUESTS"
+      fi
+    done
+    
+    echo ""
+    echo "============================================================"
+    echo "GATEWAY DISTRIBUTION TEST RESULTS"
+    echo "============================================================"
+    
+    gateways=$(cut -d'|' -f1 $tmp_file | sort -u | grep -v "^$")
+    
+    for gw in $gateways; do
+      count=$(grep -c "$gw" $tmp_file)
+      limited=$(grep "$gw" $tmp_file | grep -c "429")
+      rate=$((limited * 100 / count))
+      echo "Gateway: $gw"
+      echo "  Requests: $count"
+      echo "  Rate limited: $limited ($rate%)"
+      echo ""
+    done
+    
+    total=$(wc -l < $tmp_file)
+    total_limited=$(grep -c "429" $tmp_file)
+    echo "------------------------------------------------------------"
+    echo "TOTAL: $total requests, $total_limited rate limited ($((total_limited * 100 / total))%)"
+    echo "============================================================"
+    
+    rm -f $tmp_file
+
+  k6-load-test.js: |
+    import http from 'k6/http';
+    import { sleep } from 'k6';
+    
+    export const options = {
+      scenarios: {
+        constant_load: {
+          executor: 'constant-arrival-rate',
+          rate: 50,
+          timeUnit: '1s',
+          duration: '30s',
+          preAllocatedVUs: 20,
+          maxVUs: 50,
+        },
+        spike_load: {
+          executor: 'ramping-arrival-rate',
+          startRate: 10,
+          timeUnit: '1s',
+          preAllocatedVUs: 20,
+          maxVUs: 200,
+          stages: [
+            { duration: '10s', target: 20 },
+            { duration: '10s', target: 100 },
+            { duration: '10s', target: 200 },
+            { duration: '10s', target: 50 },
+            { duration: '10s', target: 10 },
+          ],
+          startTime: '30s',
+        },
+      },
+      thresholds: {
+        http_req_duration: ['p(95)<500'],
+        http_req_failed: ['rate<0.05'],
+      },
+    };
+    
+    export default function () {
+      const userID = `user-${__VU % 20}`;
+      const url = 'http://public-gateway-istio.core-1-core.svc.cluster.local:8080/test';
+      
+      const res = http.get(url, {
+        headers: { 'x-user-id': userID },
+      });
+      
+      sleep(0.1);
+    }
+    
+    export function handleSummary(data) {
+      const total = data.metrics.http_reqs.values.count;
+      const failed = data.metrics.http_req_failed.values.rate;
+      const duration = data.metrics.http_req_duration.values.avg;
+      
+      console.log(`\n=== K6 LOAD TEST RESULTS ===`);
+      console.log(`Total requests: ${total}`);
+      console.log(`Failure rate: ${(failed * 100).toFixed(2)}%`);
+      console.log(`Avg duration: ${duration.toFixed(2)}ms`);
+      console.log(`=============================\n`);
+      return {};
+    }
+
+  k6-burst-test.js: |
+    import http from 'k6/http';
+    import { sleep } from 'k6';
+    
+    export const options = {
+      scenarios: {
+        burst: {
+          executor: 'ramping-arrival-rate',
+          startRate: 10,
+          timeUnit: '1s',
+          preAllocatedVUs: 50,
+          maxVUs: 500,
+          stages: [
+            { duration: '10s', target: 10 },
+            { duration: '5s', target: 200 },
+            { duration: '10s', target: 500 },
+            { duration: '10s', target: 200 },
+            { duration: '10s', target: 10 },
+          ],
+        },
+      },
+    };
+    
+    export default function () {
+      const userID = `burst-user-${__VU % 10}`;
+      const url = 'http://public-gateway-istio.core-1-core.svc.cluster.local:8080/test';
+      
+      http.get(url, {
+        headers: { 'x-user-id': userID },
+      });
+      
+      sleep(0.05);
+    }
+    
+    export function handleSummary(data) {
+      const total = data.metrics.http_reqs.values.count;
+      console.log(`\n=== K6 BURST TEST RESULTS ===`);
+      console.log(`Total requests: ${total}`);
+      console.log(`Requests/sec: ${(total / 45).toFixed(2)}`);
+      console.log(`=============================\n`);
+      return {};
+    }

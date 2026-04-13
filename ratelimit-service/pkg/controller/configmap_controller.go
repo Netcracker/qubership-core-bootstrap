@@ -149,7 +149,9 @@ func (c *ConfigMapController) processConfigMap(ctx context.Context, cm *v1.Confi
     c.configs.Store(cm.Name, rules)
 
     for _, rule := range rules {
-        c.rateLimitManager.AddRule(rule)
+        if err := c.rateLimitManager.AddRule(rule); err != nil {
+            klog.Errorf("Failed to add rule %s: %v", rule.Name, err)
+        }
     }
 
     klog.Infof("Processed ConfigMap %s with %d rules", cm.Name, len(rules))
@@ -157,15 +159,15 @@ func (c *ConfigMapController) processConfigMap(ctx context.Context, cm *v1.Confi
 }
 
 func (c *ConfigMapController) parseConfig(configData string) ([]*ratelimit.Rule, error) {
-
     var rules []*ratelimit.Rule
 
+    // Add default rule
     rules = append(rules, &ratelimit.Rule{
         Name:      "default",
-        Pattern:   ".*",
+        Pattern:   ".*", 
         Limit:     60,
         Window:    time.Minute,
-        Algorithm: ratelimit.AlgorithmSlidingWindow,
+        Algorithm: ratelimit.SlidingLog,
     })
 
     return rules, nil
@@ -179,6 +181,7 @@ func (c *ConfigMapController) deleteConfig(name string) {
 func (c *ConfigMapController) ReloadConfig(ctx context.Context) error {
     klog.Info("Manual config reload triggered")
 
+    // Clear existing rules (optional)
     // c.rateLimitManager.ClearRules()
 
     if err := c.loadExistingConfigs(ctx); err != nil {

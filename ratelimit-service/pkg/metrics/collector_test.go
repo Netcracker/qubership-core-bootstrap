@@ -2,66 +2,56 @@ package metrics
 
 import (
     "context"
-    "ratelimit-service/pkg/ratelimit"
     "testing"
     "time"
 
-    "github.com/alicebob/miniredis/v2"
-    "github.com/redis/go-redis/v9"
+    "ratelimit-service/pkg/ratelimit"
+    "github.com/stretchr/testify/assert"
 )
 
-func setupTestCollector(t *testing.T) (*MetricsCollectorService, *miniredis.Miniredis, *MockMetricsCollector) {
-    mr := miniredis.RunT(t)
-    rdb := redis.NewClient(&redis.Options{Addr: mr.Addr()})
-
-    redisClient, _ := ratelimit.NewRedisClient(mr.Addr(), "", 0)
-    mockMetrics := NewMockMetricsCollector()
-
-    service := NewMetricsCollectorService(redisClient, mockMetrics, 1*time.Second)
-
-    t.Cleanup(func() {
-        rdb.Close()
-        mr.Close()
-        redisClient.Close()
-    })
-
-    return service, mr, mockMetrics
-}
-
 func TestMetricsCollectorService_CollectMetrics(t *testing.T) {
-    service, mr, mockMetrics := setupTestCollector(t)
+    mockMetrics := NewMockMetricsCollector()
+    
+    // Create Redis client
+    redisClient, err := ratelimit.NewRedisClient("localhost:6379", "", 0)
+    if err != nil {
+        t.Skip("Redis not available, skipping test")
+    }
+    
+    service := NewMetricsCollectorService(redisClient, mockMetrics, 1*time.Second)
+    
     ctx := context.Background()
-
-    testKeys := map[string]string{
-        "path=/test|user_id=alice":   "45",
-        "user_id=bob":                "75",
-        "path=/test|user_id=charlie": "1",
-    }
-
-    for key, value := range testKeys {
-        mr.Set(key, value)
-        mr.SetTTL(key, time.Minute)
-    }
-
-    service.collectMetrics(ctx)
-
-    t.Logf("UpdateRateLimitMetricsCalled: %v", mockMetrics.UpdateRateLimitMetricsCalled)
-    t.Logf("RecordRedisOperationCalled: %v", mockMetrics.RecordRedisOperationCalled)
-
-    // assert.True(t, mockMetrics.UpdateRateLimitMetricsCalled)
-    // assert.True(t, mockMetrics.RecordRedisOperationCalled)
+    go service.Start(ctx)
+    
+    // Let it collect metrics once
+    time.Sleep(1500 * time.Millisecond)
+    service.Stop()
+    
+    // Verify that metrics were collected
+    assert.True(t, mockMetrics.UpdateRateLimitMetricsCalled, "UpdateRateLimitMetrics should be called")
+    assert.True(t, mockMetrics.RecordRedisOperationCalled, "RecordRedisOperation should be called")
 }
 
-func TestMetricsCollectorService_StartStop(t *testing.T) {
-    service, _, _ := setupTestCollector(t)
-    ctx, cancel := context.WithCancel(context.Background())
+func TestMetricsCollectorService_RecordRateLimitRequest(t *testing.T) {
+    mockMetrics := NewMockMetricsCollector()
+    
+    // Test RecordRateLimitRequest
+    mockMetrics.RecordRateLimitRequest("/test", true)
+    
+    assert.True(t, mockMetrics.RecordRateLimitRequestCalled)
+    assert.Equal(t, "/test", mockMetrics.RecordRateLimitRequestPath)
+    assert.True(t, mockMetrics.RecordRateLimitRequestAllowed)
+}
 
-    go service.Start(ctx)
-
-    time.Sleep(2 * time.Second)
-
-    t.Log("Service started and stopped successfully")
-
-    cancel()
-    service.Stop()
+func TestMetricsCollectorService_RecordRateLimit(t *testing.T) {
+    mockMetrics := NewMockMetricsCollector()
+    
+    // Test RecordRateLimit
+    mockMetrics.RecordRateLimit("test-key", false, 5, 3)
+    
+    assert.True(t, mockMetrics.RecordRateLimitCalled)
+    assert.Equal(t, "test-key", mockMetrics.RecordRateLimitKey)
+    assert.False(t, mockMetrics.RecordRateLimitAllowed)
+    assert.Equal(t, 5, mockMetrics.RecordRateLimitCurrent)
+    assert.Equal(t, 3, mockMetrics.RecordRateLimitLimit)
 }
