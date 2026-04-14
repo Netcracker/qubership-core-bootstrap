@@ -73,6 +73,8 @@ define install_mesh_helm
 		-f $(REPOS_DIR)/qubership-core-mesh-config/resource-profiles/dev.yaml \
 		--namespace "$(1)" \
 		--set SERVICE_MESH_TYPE=Istio \
+		--set WAYPOINT_CPU_REQUEST=100m \
+		--set CPU_REQUEST=10m \
 		--wait \
 		$(MESH_HELM_EXTRA_ARGS);
 endef
