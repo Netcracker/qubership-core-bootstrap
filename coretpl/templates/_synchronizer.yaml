@@ -70,7 +70,7 @@ spec:
           - name: DEPLOYMENT_SESSION_ID
             value: {{ .Values.DEPLOYMENT_SESSION_ID }}
           - name: SERVICE_MESH_TYPE
-            value: "{{ .Values.SERVICE_MESH_TYPE | default "CORE" }}"                   
+            value: "{{ .Values.SERVICE_MESH_TYPE | default "Core" }}"                   
         resources:
           requests:
             cpu: '50m'
@@ -168,7 +168,7 @@ spec:
           - name: DECLARATIONS_PLURALS
             value: "{{ .Values.CHECK_DECLARATION_PLURALS }}"
           - name: SERVICE_MESH_TYPE
-            value: {{ .Values.SERVICE_MESH_TYPE | default "CORE" }}            
+            value: {{ .Values.SERVICE_MESH_TYPE | default "Core" }}            
         resources:
           requests:
             cpu: '50m'

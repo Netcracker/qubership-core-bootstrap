@@ -82,3 +82,7 @@ CONFIG_SERVER_IMAGE_REPOSITORY ?= ghcr.io/netcracker/qubership-core-config-serve
 CONFIG_SERVER_CONSUL_ENABLED ?= false
 
 SITE_MANAGEMENT_TAG ?= latest
+
+SERVICE_MESH_TYPE ?= Core
+
+TEST_BRANCH ?= main
