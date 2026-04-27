@@ -18,7 +18,7 @@ DBAAS_SERVICE_NAME ?= dbaas-aggregator
 NODE_SELECTOR_DBAAS_KEY ?= topology.k8s.aws/zone-id
 REGION_DBAAS ?= use1-az2
 # Validation image tag
-TAG ?= dbaas-validation-image-merge-20250617131852-28
+TAG ?= latest
 
 # Export all variables for use in shell commands
 export PG_NAMESPACE
@@ -38,3 +38,7 @@ export PATRONI_SERVICES_VALUES_FILE
 CREATE_NAMESPACE ?= false
 SKIP_CRDS ?= true
 ADD_DBAAS_NODE_LABEL ?= false
+
+SERVICE_MESH_TYPE ?= Istio
+REGION_DBAAS ?= use1-az2
+DBAAS_SERVICE_NAME ?= dbaas-aggregator
