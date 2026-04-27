@@ -54,6 +54,10 @@
 CONFIG_FILE ?= local.mk
 include $(CONFIG_FILE)
 
+# Ensure recipes (incl. envsubst) see Make variables in the environment.
+# This includes config-loaded vars and `make VAR=...` overrides.
+.EXPORT_ALL_VARIABLES:
+
 # Repository directory
 REPOS_DIR ?= ./.tmp
 
@@ -237,8 +241,9 @@ clone-repos:
 #---------------------------- values templating ---------------------------------------------
 
 template-values-files:
-	@$(call export_config_vars)
-	@echo "core-values.yaml: $(shell cat ./core-values.yaml)"
+	@envsubst < ./core-values.envsubst > ./core-values.yaml
+	@echo "$(CYAN)=== core-values.yaml ===$(NC)"
+	@cat ./core-values.yaml
 
 # -------------------------- consul -----------------------
 
@@ -849,12 +854,6 @@ define clone_or_update_repo
 			git clone --depth 1 $(2) $(REPOS_DIR)/$(1); \
 		fi; \
 	fi
-endef
-
-# Helper function to export all variables from .config.mk
-define export_config_vars
-	bash -c "$$(tr -d '\r' < $(CONFIG_FILE) | sed 's/^\([A-Z_][A-Z0-9_]*\) ?= \(.*\)/export \1=\"\2\"/' && \
-	echo 'envsubst < ./core-values.envsubst > ./core-values.yaml')"
 endef
 
 # Helper function to check namespace existence
