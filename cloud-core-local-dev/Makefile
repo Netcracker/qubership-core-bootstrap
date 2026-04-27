@@ -238,6 +238,8 @@ clone-repos:
 
 template-values-files:
 	@$(call export_config_vars)
+	@echo "core-values.yaml: $(shell cat ./core-values.yaml)"
+
 
 
 # -------------------------- consul -----------------------
