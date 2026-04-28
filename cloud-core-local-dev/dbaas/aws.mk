@@ -18,7 +18,7 @@ DBAAS_SERVICE_NAME ?= dbaas-aggregator
 NODE_SELECTOR_DBAAS_KEY ?= topology.k8s.aws/zone-id
 REGION_DBAAS ?= use1-az2
 # Validation image tag
-TAG ?= dbaas-validation-image-merge-20250617131852-28
+TAG ?= latest
 
 # Export all variables for use in shell commands
 export PG_NAMESPACE

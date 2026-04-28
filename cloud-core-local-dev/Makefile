@@ -10,6 +10,8 @@
 	clone-repos template-values-files \
 	deploy-consul deploy-consul-old deploy-consul-print-start install-consul wait-for-consul check-consul-connectivity \
 	deploy-monitoring deploy-metrics-server \
+	deploy-istio \
+	deploy-core-mesh-config \
 	deploy-dbaas \
 	deploy-maas \
 	prepare-core-bootstrap prepare-core-bootstrap-print-start deploy-cloud-core-configuration \
@@ -28,6 +30,8 @@
 .PHONY: uninstall uninstall-core uninstall-dependencies \
 	uninstall-cloud-core-components uninstall-cloud-core-configuration \
 	uninstall-consul uninstall-monitoring uninstall-metrics-server \
+	uninstall-istio \
+	uninstall-core-mesh-config \
 	uninstall-dbaas \
 	uninstall-maas \
 	uninstall-control-plane-db-credentials \
@@ -49,6 +53,10 @@
 # Load configuration from .mk file
 CONFIG_FILE ?= local.mk
 include $(CONFIG_FILE)
+
+# Ensure recipes (incl. envsubst) see Make variables in the environment.
+# This includes config-loaded vars and `make VAR=...` overrides.
+.EXPORT_ALL_VARIABLES:
 
 # Repository directory
 REPOS_DIR ?= ./.tmp
@@ -91,10 +99,12 @@ help:
 	@echo ""
 	@echo "$(CYAN)INSTALLATION TARGETS:$(NC)"
 	@echo "  deploy-core             # Deploy Cloud Core bootstrap configuration and components"
-	@echo "  deploy-dependencies     # Deploy metrics-server, monitoring, consul, dbaas"
+	@echo "  deploy-dependencies     # Deploy metrics-server, monitoring, istio, consul, dbaas"
 	@echo "  deploy-consul           # Deploy Consul (if INSTALL_CONSUL=true)"
 	@echo "  deploy-monitoring       # Deploy monitoring operator (if INSTALL_MONITORING=true)"
 	@echo "  deploy-metrics-server   # Deploy metrics server (if INSTALL_METRICS_SERVER=true)"
+	@echo "  deploy-istio            # Deploy Istio via qubership-istio-distr (if INSTALL_ISTIO=true)"
+	@echo "  deploy-core-mesh-config # Enable Istio mesh via core-mesh-config chart (if INSTALL_ISTIO=true)"
 	@echo "  deploy-dbaas            # Deploy DBaaS (if INSTALL_DBAAS=true)"
 	@echo "  deploy-maas             # Deploy MaaS (if INSTALL_MAAS=true)"
 	@echo ""
@@ -114,6 +124,8 @@ help:
 	@echo "  uninstall-consul        # Uninstall Consul (if INSTALL_CONSUL=true)"
 	@echo "  uninstall-monitoring    # Uninstall monitoring (if INSTALL_MONITORING=true)"
 	@echo "  uninstall-metrics-server # Uninstall metrics server (if INSTALL_METRICS_SERVER=true)"
+	@echo "  uninstall-istio         # Uninstall Istio (if INSTALL_ISTIO=true)"
+	@echo "  uninstall-core-mesh-config # Disable Istio mesh, uninstall core-mesh-config chart (if INSTALL_ISTIO=true)"
 	@echo "  uninstall-dbaas         # Uninstall DBaaS (if INSTALL_DBAAS=true)"
 	@echo "  uninstall-maas          # Uninstall MaaS (if INSTALL_MAAS=true)"
 	@echo "  cleanup-crds            # Remove all CRDs (if INSTALL_CRDS=true)"
@@ -123,6 +135,13 @@ help:
 	@echo "  clone-repos             # Clone/update required repositories"
 	@echo "  template-values-files   # Generate values files from config"
 	@echo "  ensure-core-namespace   # Ensure core namespace exists"
+	@echo "  reset-control-plane     # Reset control plane"
+	@echo "  delete-control-plane-database # Delete control plane database"
+	@echo "  restart-services        # Restart all services"
+	@echo "  restart-public-gateway # Check public gateway config consistency"
+	@echo "  restart-services-start # Print restart services start message"
+	@echo "  restart-control-plane # Restart control plane"
+	@echo "  check-public-gateway-config-no-mesh-test # Check public gateway config consistency"
 	@echo ""
 	@echo "$(CYAN)CONFIGURATION FILES:$(NC)"
 	@echo "  local.mk                # Local development configuration (default)"
@@ -135,15 +154,15 @@ help:
 # INSTALLATION
 # =============================================================================
 
-install: validate clone-repos template-values-files deploy mesh-smoke-test
+install: validate clone-repos template-values-files deploy #mesh-smoke-test
 
 deploy: deploy-dependencies deploy-core
 
-deploy-dependencies: deploy-metrics-server deploy-monitoring deploy-consul deploy-dbaas deploy-maas
+deploy-dependencies: deploy-metrics-server deploy-monitoring deploy-consul deploy-dbaas deploy-maas deploy-istio
 	@echo "$(GREEN)=== Cloud Core dependencies deployment completed$(NC)"
 	@echo ""
 
-deploy-core: ensure-core-namespace prepare-core-bootstrap deploy-cloud-core-components
+deploy-core: ensure-core-namespace prepare-core-bootstrap deploy-cloud-core-components deploy-core-mesh-config
 	@echo "$(GREEN)=== Cloud Core deployment completed$(NC)"
 	@echo ""
 
@@ -155,7 +174,7 @@ validate-cli:
 	@echo "$(BLUE)=== CLI PREREQUISITE CHECKS ===$(NC)"
 	@echo "$(CYAN)--- Checking if helm is available...$(NC)"
 	@command -v helm >/dev/null 2>&1 || (echo "$(RED)Error: helm is not installed or not in PATH$(NC)" && echo "$(CYAN)Please install helm: https://helm.sh/docs/intro/install/$(NC)" && exit 1)
-	@echo "$(GREEN)--- helm found: $(shell helm version --short)$(NC)"
+	echo "$(GREEN)--- helm4 found: $(shell helm version --short)$(NC)"
 	@echo "$(CYAN)--- Checking if git is available...$(NC)"
 	@command -v git >/dev/null 2>&1 || (echo "$(RED)Error: git is not installed or not in PATH$(NC)" && echo "$(CYAN)Please install git: https://git-scm.com/downloads$(NC)" && exit 1)
 	@echo "$(GREEN)--- git found: $(shell git --version)$(NC)"
@@ -207,23 +226,26 @@ ensure-core-namespace:
 clone-repos:
 	@echo "$(YELLOW)--- Cloning required repositories...$(NC)"
 	mkdir -p $(REPOS_DIR)
-	@$(call clone_or_update_repo,qubership-monitoring-operator,https://github.com/Netcracker/qubership-monitoring-operator.git,main)
-	@$(call clone_or_update_repo,qubership-core-paas-mediation,https://github.com/Netcracker/qubership-core-paas-mediation.git,main)
-	@$(call clone_or_update_repo,qubership-core-control-plane,https://github.com/Netcracker/qubership-core-control-plane.git,main)
-	@$(call clone_or_update_repo,qubership-core-ingress-gateway,https://github.com/Netcracker/qubership-core-ingress-gateway.git,main)
-	@$(call clone_or_update_repo,qubership-core-site-management,https://github.com/Netcracker/qubership-core-site-management.git,main)
-	@$(call clone_or_update_repo,qubership-core-facade-operator,https://github.com/Netcracker/qubership-core-facade-operator.git,main)
-	@$(call clone_or_update_repo,qubership-core-dbaas-agent,https://github.com/Netcracker/qubership-core-dbaas-agent.git,main)
-	@$(call clone_or_update_repo,qubership-core-maas-agent,https://github.com/Netcracker/qubership-core-maas-agent.git,main)
-	@$(call clone_or_update_repo,qubership-core-core-operator,https://github.com/Netcracker/qubership-core-core-operator.git,main)
-	@$(call clone_or_update_repo,qubership-core-config-server,https://github.com/Netcracker/qubership-core-config-server.git,main)
+	@$(call clone_or_update_repo,qubership-monitoring-operator,https://github.com/Netcracker/qubership-monitoring-operator.git,$(TEST_BRANCH))
+	@$(call clone_or_update_repo,qubership-core-paas-mediation,https://github.com/Netcracker/qubership-core-paas-mediation.git,$(TEST_BRANCH))
+	@$(call clone_or_update_repo,qubership-core-control-plane,https://github.com/Netcracker/qubership-core-control-plane.git,$(TEST_BRANCH))
+	@$(call clone_or_update_repo,qubership-core-ingress-gateway,https://github.com/Netcracker/qubership-core-ingress-gateway.git,$(TEST_BRANCH))
+	@$(call clone_or_update_repo,qubership-core-site-management,https://github.com/Netcracker/qubership-core-site-management.git,$(TEST_BRANCH))
+	@$(call clone_or_update_repo,qubership-core-facade-operator,https://github.com/Netcracker/qubership-core-facade-operator.git,$(TEST_BRANCH))
+	@$(call clone_or_update_repo,qubership-core-dbaas-agent,https://github.com/Netcracker/qubership-core-dbaas-agent.git,$(TEST_BRANCH))
+	@$(call clone_or_update_repo,qubership-core-maas-agent,https://github.com/Netcracker/qubership-core-maas-agent.git,$(TEST_BRANCH))
+	@$(call clone_or_update_repo,qubership-core-core-operator,https://github.com/Netcracker/qubership-core-core-operator.git,$(TEST_BRANCH))
+	@$(call clone_or_update_repo,qubership-core-config-server,https://github.com/Netcracker/qubership-core-config-server.git,m$(TEST_BRANCH))
 	@echo ""
 
 #---------------------------- values templating ---------------------------------------------
 
 template-values-files:
-	@$(call export_config_vars)
-	@echo "core-values.yaml: $(shell cat ./core-values.yaml)"
+	@envsubst < ./core-values.envsubst > ./core-values.yaml
+	@echo "$(CYAN)=== core-values.yaml ===$(NC)"
+	@cat ./core-values.yaml
+
+
 
 # -------------------------- consul -----------------------
 
@@ -393,7 +415,7 @@ deploy-cloud-core-configuration:
 
 # ------------------ cloud core ---------------------------
 
-deploy-cloud-core-components: deploy-cloud-core-print-start deploy-facade-operator deploy-ingress-gateway deploy-control-plane deploy-paas-mediation deploy-dbaas-agent deploy-maas-agent deploy-core-operator deploy-config-server deploy-site-management
+deploy-cloud-core-components: deploy-cloud-core-print-start deploy-facade-operator deploy-ingress-gateway deploy-control-plane deploy-paas-mediation deploy-dbaas-agent deploy-maas-agent deploy-core-operator deploy-config-server deploy-site-management deploy-istio
 	@echo "$(GREEN)=== Cloud Core components deployment completed$(NC)"
 	@echo ""
 
@@ -474,22 +496,27 @@ deploy-dbaas-agent:
 		-f $(REPOS_DIR)/qubership-core-dbaas-agent/helm-templates/dbaas-agent/resource-profiles/dev.yaml \
 		-f ./core-values.yaml \
 		--set TAG=$(DBAAS_AGENT_TAG) \
-		$(HELM_DEBUG_FLAGS)
+		$(HELM_DEBUG_FLAGS)	
 	@echo ""
 
 deploy-maas-agent:
-	@echo "$(YELLOW)--- Setting up MaaS agent...$(NC)"
-	@$(call update_helm_dependencies,$(REPOS_DIR)/qubership-core-maas-agent/helm-templates/maas-agent,)
-	helm upgrade --install maas-agent $(REPOS_DIR)/qubership-core-maas-agent/helm-templates/maas-agent -n $(CORE_NAMESPACE) \
-		-f $(REPOS_DIR)/qubership-core-maas-agent/helm-templates/maas-agent/resource-profiles/dev.yaml \
-		-f ./core-values.yaml \
-		--set IMAGE_REPOSITORY=$(MAAS_AGENT_IMAGE_REPOSITORY) \
-		--set TAG=$(MAAS_AGENT_TAG) \
-		--set MAAS_ENABLED=$(CORE_CONFIG_MAAS_ENABLED) \
-		--set MAAS_INTERNAL_ADDRESS=$(CORE_CONFIG_MAAS_INTERNAL_ADDRESS) \
-		$(HELM_DEBUG_FLAGS)
+	@if [ "$(INSTALL_MAAS)" = "true" ]; then \
+		echo "$(YELLOW)--- Setting up MaaS agent...$(NC)"; \
+		$(call update_helm_dependencies,$(REPOS_DIR)/qubership-core-maas-agent/helm-templates/maas-agent,); \
+		helm upgrade --install maas-agent $(REPOS_DIR)/qubership-core-maas-agent/helm-templates/maas-agent -n $(CORE_NAMESPACE) \
+			-f $(REPOS_DIR)/qubership-core-maas-agent/helm-templates/maas-agent/resource-profiles/dev.yaml \
+			-f ./core-values.yaml \
+			--set IMAGE_REPOSITORY=$(MAAS_AGENT_IMAGE_REPOSITORY) \
+			--set TAG=$(MAAS_AGENT_TAG) \
+			--set MAAS_ENABLED=$(CORE_CONFIG_MAAS_ENABLED) \
+			--set MAAS_INTERNAL_ADDRESS=$(CORE_CONFIG_MAAS_INTERNAL_ADDRESS) \
+			$(HELM_DEBUG_FLAGS); \
+		echo ""; \
+	else \
+		echo "$(CYAN)--- Skipping MaaS agent installation (INSTALL_MAAS=false)...$(NC)"; \
+		echo ""; \
+	fi
 	@echo ""
-
 
 apply-core-operator-crds:
 	@if [ "$(INSTALL_CRDS)" = "true" ]; then \
@@ -528,11 +555,11 @@ deploy-config-server:
 # UNINSTALL
 # =============================================================================
 
-uninstall: uninstall-maas uninstall-core uninstall-dependencies cleanup-mesh-test cleanup-crds cleanup-namespaces
+uninstall: uninstall-istio uninstall-maas uninstall-core uninstall-dependencies cleanup-mesh-test cleanup-crds cleanup-namespaces
 	@echo "$(GREEN)=== Complete cleanup finished$(NC)"
 	@echo ""
 
-uninstall-core: uninstall-cloud-core-components uninstall-cloud-core-configuration
+uninstall-core: uninstall-core-mesh-config uninstall-cloud-core-components uninstall-cloud-core-configuration
 	@echo "$(GREEN)=== Core uninstallation completed$(NC)"
 	@echo ""
 
@@ -673,8 +700,15 @@ cleanup-namespaces:
 # MESH SMOKE TEST
 # =============================================================================
 
-# Include mesh testing targets
-include test/mesh-test/mesh-test.mk
+mesh-smoke-test:
+	@echo "$(GREEN)=== Starting Cloud Core Mesh Smoke Test...$(NC)"
+	@'$(MAKE)' -C test/mesh-test mesh-smoke-test NAMESPACE=$(CORE_NAMESPACE)
+	@echo ""
+
+cleanup-mesh-test:
+	@echo "$(YELLOW)--- Cleaning up mesh test resources...$(NC)"
+	@'$(MAKE)' -C test/mesh-test cleanup-mesh-test NAMESPACE=$(CORE_NAMESPACE)
+	@echo ""
 
 # =============================================================================
 # DBAAS
@@ -751,6 +785,62 @@ uninstall-maas:
 	@echo ""
 
 # =============================================================================
+# ISTIO
+# =============================================================================
+deploy-istio:
+	@echo "$(GREEN)=== Starting Istio installation...$(NC)"
+	@echo ""
+	@if [ "$(INSTALL_ISTIO)" = "true" ]; then \
+		$(call run_istio_operation,install); \
+	else \
+		echo "$(CYAN)--- Skipping Istio installation (INSTALL_ISTIO=false)...$(NC)"; \
+		echo ""; \
+	fi
+	@echo ""
+
+uninstall-istio:
+	@echo "$(GREEN)=== Starting Istio uninstallation...$(NC)"
+	@echo ""
+	@if [ "$(INSTALL_ISTIO)" = "true" ]; then \
+		$(call run_istio_operation,uninstall); \
+	else \
+		echo "$(CYAN)--- Skipping Istio uninstallation (INSTALL_ISTIO=false)...$(NC)"; \
+		echo ""; \
+	fi
+	@echo ""
+
+# =============================================================================
+# CORE MESH CONFIG
+# =============================================================================
+deploy-core-mesh-config:
+	@echo "$(GREEN)=== Starting core mesh config installation...$(NC)"
+	@echo ""
+	@if [ "$(INSTALL_ISTIO)" = "true" ]; then \
+		$(call run_core_mesh_config_operation,enable); \
+	else \
+		echo "$(CYAN)--- Skipping core mesh config installation (INSTALL_ISTIO=false)...$(NC)"; \
+		echo ""; \
+	fi
+	@echo ""
+
+uninstall-core-mesh-config:
+	@echo "$(GREEN)=== Starting core mesh config uninstallation...$(NC)"
+	@echo ""
+	@if [ "$(INSTALL_ISTIO)" = "true" ]; then \
+		$(call run_core_mesh_config_operation,disable); \
+	else \
+		echo "$(CYAN)--- Skipping core mesh config uninstallation (INSTALL_ISTIO=false)...$(NC)"; \
+		echo ""; \
+	fi
+	@echo ""
+
+
+# =============================================================================
+# Reset control plane targets
+# =============================================================================
+include utils/reset-control-plane.mk
+
+# =============================================================================
 # HELPER FUNCTIONS
 # =============================================================================
 
@@ -760,18 +850,15 @@ define clone_or_update_repo
 		(cd $(REPOS_DIR)/$(1) && git pull); \
 	else \
 		echo "Cloning $(1)..."; \
-		if [ -n "$(3)" ]; then \
+		if [ -n "$(3)" ] && git ls-remote --heads $(2) $(3) | grep -q $(3); then \
 			git clone --depth 1 -b $(3) $(2) $(REPOS_DIR)/$(1); \
 		else \
+			if [ -n "$(3)" ]; then \
+				echo "Branch $(3) not found, cloning default branch..."; \
+			fi; \
 			git clone --depth 1 $(2) $(REPOS_DIR)/$(1); \
 		fi; \
 	fi
-endef
-
-# Helper function to export all variables from .config.mk
-define export_config_vars
-	bash -c "$$(tr -d '\r' < $(CONFIG_FILE) | sed 's/^\([A-Z_][A-Z0-9_]*\) ?= \(.*\)/export \1=\"\2\"/' && \
-	echo 'envsubst < ./core-values.envsubst > ./core-values.yaml')"
 endef
 
 # Helper function to check namespace existence
@@ -859,3 +946,40 @@ define run_maas_operation
 	fi
 endef
 
+# Helper function to run core-mesh-config operations
+define run_core_mesh_config_operation
+	set -e; \
+	echo "$(CYAN)--- Using core-mesh-config config file: core-mesh-config/$(MESH_CONFIG_FILE)$(NC)"; \
+	echo "$(CYAN)--- Using Istio namespace: $(ISTIO_NAMESPACE)$(NC)"; \
+	echo "$(CYAN)--- Using core-mesh-config branch: $(CORE_MESH_CONFIG_REPO_BRANCH)$(NC)"; \
+	echo "$(CYAN)--- Enable mesh for namespaces: $(CORE_NAMESPACE)$(NC)"; \
+	if (cd core-mesh-config && '$(MAKE)' $(1) CONFIG_FILE=$(MESH_CONFIG_FILE) \
+		ISTIO_NAMESPACE=$(ISTIO_NAMESPACE) \
+		MESH_NAMESPACES=$(CORE_NAMESPACE) \
+		CORE_MESH_CONFIG_REPO_BRANCH=$(CORE_MESH_CONFIG_REPO_BRANCH)); then \
+		echo "$(GREEN)=== Core mesh config $(1) completed successfully$(NC)"; \
+	else \
+		echo "$(RED)Error: Core mesh config $(1) failed$(NC)"; \
+		exit 1; \
+	fi
+endef
+
+# Helper function to run Istio operations
+define run_istio_operation
+	set -e; \
+	echo "$(CYAN)--- Using istio config file: istio/$(ISTIO_CONFIG_FILE)$(NC)"; \
+	echo "$(CYAN)--- Using Istio namespace: $(ISTIO_NAMESPACE)$(NC)"; \
+	echo "$(CYAN)--- Using Istio repo branch: $(ISTIO_REPO_BRANCH)$(NC)"; \
+	SKIP_CRDS=$(if $(filter true,$(INSTALL_CRDS)),false,true); \
+	echo "$(CYAN)--- Using skip crds: $$SKIP_CRDS$(NC)"; \
+	if (cd istio && '$(MAKE)' $(1) CONFIG_FILE=$(ISTIO_CONFIG_FILE) \
+		ISTIO_NAMESPACE=$(ISTIO_NAMESPACE) \
+		SKIP_CRDS=$$SKIP_CRDS \
+		CREATE_NAMESPACE=$(CREATE_NAMESPACE) \
+		ISTIO_REPO_BRANCH=$(ISTIO_REPO_BRANCH)); then \
+		echo "$(GREEN)=== Istio $(1) completed successfully$(NC)"; \
+	else \
+		echo "$(RED)Error: Istio $(1) failed$(NC)"; \
+		exit 1; \
+	fi
+endef

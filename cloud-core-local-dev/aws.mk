@@ -14,6 +14,15 @@ DBAAS_CONFIG_FILE ?= aws.mk
 INSTALL_MAAS ?= true
 # config file for maas installation - relative path will be resolved upon ./maas folder
 MAAS_CONFIG_FILE ?= aws.mk
+INSTALL_ISTIO ?= false
+# config file for istio installation - relative path will be resolved upon ./istio folder
+ISTIO_CONFIG_FILE ?= aws.mk
+# branch of qubership-istio-distr repository to use
+ISTIO_REPO_BRANCH ?= main
+# config file for core-mesh-config - relative path will be resolved upon ./core-mesh-config folder
+MESH_CONFIG_FILE ?= aws.mk
+# branch of qubership-core-mesh-config repository to use
+CORE_MESH_CONFIG_REPO_BRANCH ?= main
 
 # Namespace configuration
 CORE_NAMESPACE ?= core-1-core
@@ -26,6 +35,8 @@ DBAAS_NAMESPACE ?= core-1-dbaas
 MAAS_NAMESPACE ?= core-1-maas
 RABBIT_NAMESPACE ?= core-1-maas
 KAFKA_NAMESPACE ?= core-1-maas
+# istio namespace is propagated to istio-install
+ISTIO_NAMESPACE ?= istio-system
 
 # General values
 DEPLOYMENT_SESSION_ID ?= cloud-core-aws-dev
@@ -71,3 +82,7 @@ CONFIG_SERVER_IMAGE_REPOSITORY ?= ghcr.io/netcracker/qubership-core-config-serve
 CONFIG_SERVER_CONSUL_ENABLED ?= false
 
 SITE_MANAGEMENT_TAG ?= latest
+
+SERVICE_MESH_TYPE ?= Core
+
+TEST_BRANCH ?= main

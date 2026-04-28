@@ -11,9 +11,18 @@ INSTALL_CONSUL ?= true
 INSTALL_DBAAS ?= true
 # config file for dbaas installation - relative path will be resolved upon ./dbaas folder
 DBAAS_CONFIG_FILE ?= local.mk
-INSTALL_MAAS ?= true
+INSTALL_MAAS ?= false
 # config file for maas installation - relative path will be resolved upon ./maas folder
 MAAS_CONFIG_FILE ?= local.mk
+INSTALL_ISTIO ?= false
+# config file for istio installation - relative path will be resolved upon ./istio folder
+ISTIO_CONFIG_FILE ?= local.mk
+# branch of qubership-istio-distr repository to use
+ISTIO_REPO_BRANCH ?= main
+# config file for core-mesh-config - relative path will be resolved upon ./core-mesh-config folder
+MESH_CONFIG_FILE ?= local.mk
+# branch of qubership-core-mesh-config repository to use
+CORE_MESH_CONFIG_REPO_BRANCH ?= main
 
 # Namespace configuration
 CORE_NAMESPACE ?= core
@@ -26,6 +35,8 @@ DBAAS_NAMESPACE ?= dbaas
 MAAS_NAMESPACE ?= maas
 RABBIT_NAMESPACE ?= rabbit
 KAFKA_NAMESPACE ?= kafka
+# istio namespace is propagated to istio-install
+ISTIO_NAMESPACE ?= istio-system
 
 # General values
 DEPLOYMENT_SESSION_ID ?= cloud-core-local-dev
@@ -44,7 +55,7 @@ RABBIT_INSTANCES ?=
 # Core bootstrap configuration
 CORE_BOOTSTRAP_IMAGE ?= ghcr.io/netcracker/core-bootstrap:latest 
 CORE_CONFIG_CONSUL_ENABLED ?= false
-CORE_CONFIG_MAAS_ENABLED ?= true
+CORE_CONFIG_MAAS_ENABLED ?= false
 CORE_CONFIG_MAAS_INTERNAL_ADDRESS ?= http://maas-service.maas:8080
 
 # Components values
@@ -71,3 +82,7 @@ CONFIG_SERVER_IMAGE_REPOSITORY ?= ghcr.io/netcracker/qubership-core-config-serve
 CONFIG_SERVER_CONSUL_ENABLED ?= false
 
 SITE_MANAGEMENT_TAG ?= latest
+
+SERVICE_MESH_TYPE ?= Core
+
+TEST_BRANCH ?= main
