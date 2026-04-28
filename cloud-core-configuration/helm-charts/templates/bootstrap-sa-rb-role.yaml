@@ -26,11 +26,11 @@ metadata:
     app.kubernetes.io/part-of: 'Cloud-Core'
     app.kubernetes.io/managed-by: 'saasDeployer'
 rules:
-  - apiGroups: ["core.netcracker.com", "gateway.networking.k8s.io"]
+  - apiGroups: ["core.netcracker.com"]
     resources: ["*"]
     verbs: ["get","list","watch", "create", "update", "patch", "delete"]
   - apiGroups: [""]
-    resources: ["events", "pods", "services"]
+    resources: ["events", "pods"]
     verbs: ["get","list", "create", "update", "patch"]
   - apiGroups: ["batch"]
     resources: ["jobs"]
@@ -110,11 +110,11 @@ metadata:
     app.kubernetes.io/part-of: 'Cloud-Core'
     app.kubernetes.io/managed-by: 'saasDeployer'
 rules:
-  - apiGroups: ["cdn.netcracker.com", "core.netcracker.com", "gateway.networking.k8s.io"]
+  - apiGroups: ["cdn.netcracker.com", "core.netcracker.com"]
     resources: ["*"]
     verbs: ["get","list","watch", "create", "update", "patch", "delete"]
   - apiGroups: [""]
-    resources: ["events", "pods", "services"]
+    resources: ["events", "pods"]
     verbs: ["get","list", "create", "update", "patch"]
   - apiGroups: ["batch"]
     resources: ["jobs"]
