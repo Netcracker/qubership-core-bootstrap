@@ -63,17 +63,7 @@ validate:
 	@echo "$(BLUE)=== PREREQUISITE CHECKS ===$(NC)"
 	@echo "$(CYAN)--- Checking if helm is available...$(NC)"
 	@command -v helm >/dev/null 2>&1 || (echo "$(RED)Error: helm is not installed or not in PATH$(NC)" && echo "$(CYAN)Please install helm: https://helm.sh/docs/intro/install/$(NC)" && exit 1)
-	@HELM_VERSION=$$(helm version --short 2>/dev/null | grep -oP 'v\K[0-9]+' | head -1); \
-	if [ -z "$$HELM_VERSION" ]; then \
-		echo "$(RED)Error: Could not determine helm version$(NC)"; \
-		exit 1; \
-	fi; \
-	if [ "$$HELM_VERSION" -lt 4 ]; then \
-		echo "$(RED)Error: helm version 4 or higher is required, but version $$HELM_VERSION is installed$(NC)"; \
-		echo "$(CYAN)Please upgrade helm to version 4 or higher: https://helm.sh/docs/intro/install/$(NC)"; \
-		exit 1; \
-	fi; \
-	echo "$(GREEN)--- helm4 found: $(shell helm version --short)$(NC)"
+	@echo "$(GREEN)--- helm found: $(shell helm version --short)$(NC)"
 	@echo "$(CYAN)--- Checking if git is available...$(NC)"
 	@command -v git >/dev/null 2>&1 || (echo "$(RED)Error: git is not installed or not in PATH$(NC)" && echo "$(CYAN)Please install git: https://git-scm.com/downloads$(NC)" && exit 1)
 	@echo "$(GREEN)--- git found: $(shell git --version)$(NC)"
