@@ -1,4 +1,4 @@
-FROM golang:1.25 AS build
+FROM golang:1.26 AS build
 
 WORKDIR /app
 
@@ -7,7 +7,7 @@ COPY . .
 RUN go mod download
 RUN go build -o platform-bootstrap-image .
 
-FROM ghcr.io/netcracker/qubership-core-base:2.2.4 AS run
+FROM ghcr.io/netcracker/qubership-core-base:2.2.13 AS run
 
 COPY --chown=10001:0 --chmod=555 --from=build app/platform-bootstrap-image /app/platform-bootstrap-image
 
