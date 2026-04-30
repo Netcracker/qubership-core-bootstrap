@@ -236,6 +236,7 @@ clone-repos:
 	@$(call clone_or_update_repo,qubership-core-maas-agent,https://github.com/Netcracker/qubership-core-maas-agent.git,$(TEST_BRANCH))
 	@$(call clone_or_update_repo,qubership-core-core-operator,https://github.com/Netcracker/qubership-core-core-operator.git,$(TEST_BRANCH))
 	@$(call clone_or_update_repo,qubership-core-config-server,https://github.com/Netcracker/qubership-core-config-server.git,m$(TEST_BRANCH))
+	@$(call clone_or_update_repo,qubership-dbaas,https://github.com/Netcracker/qubership-dbaas.git,m$(TEST_BRANCH))
 	@echo ""
 
 #---------------------------- values templating ---------------------------------------------
@@ -919,7 +920,7 @@ define run_dbaas_operation
 	echo "$(CYAN)--- Using pg namespace: $(PG_NAMESPACE)$(NC)"; \
 	SKIP_CRDS=$(if $(filter true,$(INSTALL_CRDS)),false,true); \
 	echo "$(CYAN)--- Using skip crds: $$SKIP_CRDS$(NC)"; \
-	if (cd dbaas && '$(MAKE)' $(1) CONFIG_FILE=$(DBAAS_CONFIG_FILE) DBAAS_SERVICE_NAME=$(DBAAS_SERVICE_NAME) DBAAS_NAMESPACE=$(DBAAS_NAMESPACE) PG_NAMESPACE=$(PG_NAMESPACE) SKIP_CRDS=$$SKIP_CRDS CREATE_NAMESPACE=$(CREATE_NAMESPACE)); then \
+	if ('$(MAKE)' -C .tmp/qubership-dbaas/bootstrap  $(1) CONFIG_FILE=$(DBAAS_CONFIG_FILE) PATRONI_SERVICES_VALUES_FILE=../../../dbaas/patroni-services-values.yaml DBAAS_SERVICE_NAME=$(DBAAS_SERVICE_NAME) DBAAS_NAMESPACE=$(DBAAS_NAMESPACE) PG_NAMESPACE=$(PG_NAMESPACE) SKIP_CRDS=$$SKIP_CRDS CREATE_NAMESPACE=$(CREATE_NAMESPACE) DBAAS_OPERATOR_ENABLED=false); then \
 		echo "$(GREEN)=== DBaaS $(1) completed successfully$(NC)"; \
 	else \
 		echo "$(RED)Error: DBaaS $(1) failed$(NC)"; \
