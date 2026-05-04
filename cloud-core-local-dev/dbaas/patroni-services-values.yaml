@@ -13,3 +13,11 @@ dbaas:
     registrationAddress: http://${DBAAS_SERVICE_NAME}.${DBAAS_NAMESPACE}.svc.cluster.local:8080
     registrationUsername: cluster-dba
     registrationPassword: password
+
+metricCollector:
+  install: false
+
+tests:
+  install: false
+
+MONITORING_ENABLED: false
