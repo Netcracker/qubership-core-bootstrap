@@ -845,20 +845,27 @@ include utils/reset-control-plane.mk
 # HELPER FUNCTIONS
 # =============================================================================
 
+# Clone a repo into $(REPOS_DIR), replacing any existing directory.
+# Usage: $(call clone_or_update_repo,<local_name>,<git_url>,<branch>)
+#   $(1) Directory name under $(REPOS_DIR) for the clone.
+#   $(2) Remote repository URL.
+#   $(3) Optional branch: cloned when non-empty and present on remote; otherwise falls back to main, then remote default.
 define clone_or_update_repo
 	if [ -d "$(REPOS_DIR)/$(1)" ]; then \
-		echo "Updating $(1)..."; \
-		(cd $(REPOS_DIR)/$(1) && git pull); \
-	else \
-		echo "Cloning $(1)..."; \
-		if [ -n "$(3)" ] && git ls-remote --heads $(2) $(3) | grep -q $(3); then \
-			git clone --depth 1 -b $(3) $(2) $(REPOS_DIR)/$(1); \
-		else \
-			if [ -n "$(3)" ]; then \
-				echo "Branch $(3) not found, cloning default branch..."; \
-			fi; \
-			git clone --depth 1 $(2) $(REPOS_DIR)/$(1); \
+		echo "Cleaning $(1)..."; \
+		rm -rf "$(REPOS_DIR)/$(1)"; \
+	fi; \
+	echo "Cloning $(1)..."; \
+	if [ -n "$(3)" ] && [ -n "$$(git ls-remote --heads $(2) $(3) 2>/dev/null)" ]; then \
+		git clone --depth 1 -b $(3) $(2) $(REPOS_DIR)/$(1); \
+	elif [ -n "$$(git ls-remote --heads $(2) main 2>/dev/null)" ]; then \
+		if [ -n "$(3)" ]; then \
+			echo "Branch $(3) not found, cloning main..."; \
 		fi; \
+		git clone --depth 1 -b main $(2) $(REPOS_DIR)/$(1); \
+	else \
+		echo "Branch main not found on remote, cloning default branch..."; \
+		git clone --depth 1 $(2) $(REPOS_DIR)/$(1); \
 	fi
 endef
 
