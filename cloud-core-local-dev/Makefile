@@ -445,6 +445,8 @@ deploy-facade-operator: apply-facade-operator-crds
 		$(HELM_DEBUG_FLAGS)
 	@echo ""
 
+# SERVICE_MESH_TYPE is set to Istio when Istio installed, as it contains contract gateway services, that must point to Istio gateways in this case
+# that is why SERVICE_MESH_TYPE from core-values.yaml is overriden here 
 deploy-ingress-gateway: 
 	@echo "$(YELLOW)--- Setting up Ingress Gateway...$(NC)"
 	@$(call update_helm_dependencies,$(REPOS_DIR)/qubership-core-ingress-gateway/helm-templates/frontend-gateway,)
@@ -454,6 +456,7 @@ deploy-ingress-gateway:
 		--set CLOUD_PUBLIC_HOST=$(INGRESS_GATEWAY_CLOUD_PUBLIC_HOST) \
 		--set CLOUD_PRIVATE_HOST=$(INGRESS_GATEWAY_CLOUD_PRIVATE_HOST) \
 		--set TAG=$(INGRESS_GATEWAY_TAG) \
+		--set SERVICE_MESH_TYPE=$(if $(filter true,$(INSTALL_ISTIO)),Istio,Core) \
 		$(HELM_DEBUG_FLAGS)
 	@echo ""
 
