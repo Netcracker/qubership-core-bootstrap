@@ -105,6 +105,16 @@ func (m *MockMetricsCollector) RecordConfigReload(success bool) {
     m.RecordConfigReloadSuccess = success
 }
 
+func (m *MockMetricsCollector) UpdateRedisKeysCount(_ int) {}
+
+func (m *MockMetricsCollector) UpdateRedisMemoryUsage(_ int64) {}
+
+func (m *MockMetricsCollector) UpdateRedisConnectedClients(_ int) {}
+
+func (m *MockMetricsCollector) RecordRedisLatency(_ string, _ float64) {}
+
+func (m *MockMetricsCollector) UpdateRedisHitRate(_ float64) {}
+
 func (m *MockMetricsCollector) RecordRateLimit(key string, allowed bool, current int, limit int) {
     m.RecordRateLimitCalled = true
     m.RecordRateLimitKey = key

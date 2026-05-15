@@ -78,13 +78,13 @@ func TestServer_CheckRateLimit(t *testing.T) {
         req.Header.Set("Content-Type", "application/json")
         w := httptest.NewRecorder()
         
-        server.checkRateLimit(w, req)
-        
+        server.CheckRateLimit(w, req)
+
         assert.Equal(t, http.StatusOK, w.Code)
-        
+
         var response map[string]interface{}
         json.NewDecoder(w.Body).Decode(&response)
-        
+
         allowed, ok := response["allowed"].(bool)
         assert.True(t, ok)
         assert.True(t, allowed, "First request should be allowed")
@@ -107,13 +107,13 @@ func TestServer_CheckRateLimit(t *testing.T) {
         req.Header.Set("Content-Type", "application/json")
         w := httptest.NewRecorder()
         
-        server.checkRateLimit(w, req)
-        
+        server.CheckRateLimit(w, req)
+
         assert.Equal(t, http.StatusOK, w.Code)
-        
+
         var response map[string]interface{}
         json.NewDecoder(w.Body).Decode(&response)
-        
+
         allowed, ok := response["allowed"].(bool)
         assert.True(t, ok)
         assert.True(t, allowed, "Second request should be allowed")
@@ -132,13 +132,13 @@ func TestServer_CheckRateLimit(t *testing.T) {
         req.Header.Set("Content-Type", "application/json")
         w := httptest.NewRecorder()
         
-        server.checkRateLimit(w, req)
-        
+        server.CheckRateLimit(w, req)
+
         assert.Equal(t, http.StatusOK, w.Code)
-        
+
         var response map[string]interface{}
         json.NewDecoder(w.Body).Decode(&response)
-        
+
         allowed, ok := response["allowed"].(bool)
         assert.True(t, ok)
         assert.False(t, allowed, "Third request should be rate limited")
@@ -157,13 +157,13 @@ func TestServer_CheckRateLimit(t *testing.T) {
         req.Header.Set("Content-Type", "application/json")
         w := httptest.NewRecorder()
         
-        server.checkRateLimit(w, req)
-        
+        server.CheckRateLimit(w, req)
+
         assert.Equal(t, http.StatusOK, w.Code)
-        
+
         var response map[string]interface{}
         json.NewDecoder(w.Body).Decode(&response)
-        
+
         allowed, ok := response["allowed"].(bool)
         assert.True(t, ok)
         assert.True(t, allowed, "Non-matching user should be allowed")
@@ -185,8 +185,8 @@ func TestServer_CheckRateLimit_NoRules(t *testing.T) {
     req.Header.Set("Content-Type", "application/json")
     w := httptest.NewRecorder()
     
-    server.checkRateLimit(w, req)
-    
+    server.CheckRateLimit(w, req)
+
     assert.Equal(t, http.StatusOK, w.Code)
     
     var response map[string]interface{}

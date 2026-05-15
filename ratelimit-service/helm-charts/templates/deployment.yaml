@@ -37,7 +37,10 @@ spec:
         env:
         - name: GRPC_PORT
           value: "8081"
-        env:
+        - name: API_PORT
+          value: {{ .Values.api.port | quote }}
+        - name: METRICS_PORT
+          value: {{ .Values.metrics.port | quote }}
         - name: REDIS_ADDR
           value: {{ .Values.config.redis.addr | quote }}
         - name: REDIS_PASSWORD
@@ -52,8 +55,6 @@ spec:
           value: {{ .Values.api.auth.key | quote }}
         - name: ENABLE_API_AUTH
           value: {{ .Values.api.auth.enabled | quote }}
-        - name: RATELIMIT_SEPARATOR
-          value: {{ .Values.config.separator | quote }}
         livenessProbe:
           httpGet:
             path: /health

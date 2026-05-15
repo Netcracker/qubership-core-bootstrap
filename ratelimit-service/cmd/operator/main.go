@@ -41,20 +41,6 @@ func main() {
     rateLimitManager := ratelimit.NewRateLimitManager(redisClient)
     redisClient.SetManager(rateLimitManager)
 
-    // Add default rule
-    defaultRule := &ratelimit.Rule{
-        Name:      "default",
-        Pattern:   ".*",
-        Limit:     60,
-        Window:    time.Minute,
-        Algorithm: ratelimit.FixedWindow,
-        Priority:  50,
-    }
-
-    if err := rateLimitManager.AddRule(defaultRule); err != nil {
-        klog.Warningf("Failed to add default rule: %v", err)
-    }
-
     // Create metrics collector
     metricsCollector := metrics.NewDefaultMetricsCollector()
     metrics.SetGlobalMetrics(metricsCollector)

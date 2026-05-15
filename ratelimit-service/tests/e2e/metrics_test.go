@@ -5,242 +5,234 @@
 package e2e
 
 import (
-    "bytes"
-    "context"
-    "encoding/json"
-    "fmt"
-    "io"
-    "net/http"
-    "testing"
-    "time"
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"testing"
+	"time"
 
-    "ratelimit-service/pkg/utils"
-    "ratelimit-service/tests/e2e/setup"
-    "github.com/stretchr/testify/assert"
-    "github.com/stretchr/testify/require"
+	"ratelimit-service/pkg/utils"
+	"ratelimit-service/tests/e2e/setup"
+	"ratelimit-service/tests/helpers"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/clientcmd"
 )
 
 var (
-    metricsPort = "9090"
+	metricsPort = "9090"
 )
 
 func TestE2E_MetricsEndpoint(t *testing.T) {
-    t.Log("=== Setting up metrics test environment ===")
+	t.Log("=== Setting up metrics test environment ===")
 
-    kubeconfig := utils.GetEnv("KUBECONFIG", utils.GetEnv("HOME", "")+"/.kube/config")
+	kubeconfig := utils.GetEnv("KUBECONFIG", utils.GetEnv("HOME", "")+"/.kube/config")
 
-    // Port-forward for Redis
-    redisPF := setup.NewPortForward("core-1-core", "service/redis", "6379", "6379")
-    require.NoError(t, redisPF.Start())
-    defer redisPF.Stop()
+	// Redis port-forward (6379) is provided by the Makefile via port-forward.sh --profile=local --start.
+	operator, err := setup.NewLocalOperator(kubeconfig)
+	require.NoError(t, err)
+	require.NoError(t, operator.Start(context.Background(), operatorPort))
+	defer operator.Stop()
 
-    // Start local operator
-    operator, err := setup.NewLocalOperator(kubeconfig)
-    require.NoError(t, err)
-    require.NoError(t, operator.Start(context.Background(), operatorPort))
-    defer operator.Stop()
+	time.Sleep(5 * time.Second)
 
-    // Wait for services to start
-    time.Sleep(5 * time.Second)
+	metricsURL := fmt.Sprintf("http://localhost:%s/metrics", metricsPort)
 
-    metricsURL := fmt.Sprintf("http://localhost:%s/metrics", metricsPort)
+	t.Log("\n=== Testing metrics endpoint availability ===")
 
-    t.Log("\n=== Testing metrics endpoint availability ===")
+	var resp *http.Response
+	for i := 0; i < 5; i++ {
+		resp, err = http.Get(metricsURL)
+		if err == nil {
+			break
+		}
+		t.Logf("Attempt %d: metrics endpoint not ready yet, waiting...", i+1)
+		time.Sleep(2 * time.Second)
+	}
 
-    // Try multiple times to connect
-    var resp *http.Response
-    for i := 0; i < 5; i++ {
-        resp, err = http.Get(metricsURL)
-        if err == nil {
-            break
-        }
-        t.Logf("Attempt %d: metrics endpoint not ready yet, waiting...", i+1)
-        time.Sleep(2 * time.Second)
-    }
-    
-    require.NoError(t, err, "Metrics endpoint should be available")
-    defer resp.Body.Close()
+	require.NoError(t, err, "Metrics endpoint should be available")
+	defer resp.Body.Close()
 
-    assert.Equal(t, 200, resp.StatusCode, "Metrics endpoint should return 200")
-    
-    body, err := io.ReadAll(resp.Body)
-    require.NoError(t, err)
-    
-    metrics := string(body)
-    t.Logf("Metrics endpoint accessible, response length: %d bytes", len(metrics))
-    
-    // Check for expected metrics (some may be zero-initialized)
-    expectedMetrics := []string{
-        "ratelimit_violating_users_total",
-        "ratelimit_active_limits_total",
-        "ratelimit_redis_operations_total",
-        "ratelimit_config_reloads_total",
-        "ratelimit_redis_keys_total",
-        "ratelimit_redis_memory_bytes",
-        "ratelimit_redis_connected_clients",
-        "ratelimit_redis_hit_rate",
-    }
-    
-    missingMetrics := []string{}
-    for _, metric := range expectedMetrics {
-        if !assert.Contains(t, metrics, metric, "Should contain metric: %s", metric) {
-            missingMetrics = append(missingMetrics, metric)
-        }
-    }
-    
-    if len(missingMetrics) > 0 {
-        t.Logf("Missing metrics: %v", missingMetrics)
-        t.Logf("Metrics preview: %s", metrics[:min(500, len(metrics))])
-    }
-    
-    t.Log("✓ Metrics endpoint test completed")
+	assert.Equal(t, 200, resp.StatusCode, "Metrics endpoint should return 200")
+
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+
+	metricsStr := string(body)
+	t.Logf("Metrics endpoint accessible, response length: %d bytes", len(metricsStr))
+
+	expectedMetrics := []string{
+		"ratelimit_violating_users_total",
+		"ratelimit_active_limits_total",
+		"ratelimit_redis_operations_total",
+		"ratelimit_config_reloads_total",
+		"ratelimit_redis_keys_total",
+		"ratelimit_redis_memory_bytes",
+		"ratelimit_redis_connected_clients",
+		"ratelimit_redis_hit_rate",
+	}
+
+	missingMetrics := []string{}
+	for _, metric := range expectedMetrics {
+		if !assert.Contains(t, metricsStr, metric, "Should contain metric: %s", metric) {
+			missingMetrics = append(missingMetrics, metric)
+		}
+	}
+
+	if len(missingMetrics) > 0 {
+		t.Logf("Missing metrics: %v", missingMetrics)
+		preview := metricsStr
+		if len(preview) > 500 {
+			preview = preview[:500]
+		}
+		t.Logf("Metrics preview: %s", preview)
+	}
+
+	t.Log("Metrics endpoint test completed")
 }
 
 func TestE2E_MetricsCollection(t *testing.T) {
-    t.Log("=== Testing metrics collection ===")
+	t.Log("=== Testing metrics collection ===")
 
-    kubeconfig := utils.GetEnv("KUBECONFIG", utils.GetEnv("HOME", "")+"/.kube/config")
+	ctx := context.Background()
+	kubeconfig := utils.GetEnv("KUBECONFIG", utils.GetEnv("HOME", "")+"/.kube/config")
 
-    // Port-forward for Redis
-    redisPF := setup.NewPortForward("core-1-core", "service/redis", "6379", "6379")
-    require.NoError(t, redisPF.Start())
-    defer redisPF.Stop()
+	// Build k8s clientset for ConfigMap management.
+	restConfig, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
+	require.NoError(t, err)
+	clientset, err := kubernetes.NewForConfig(restConfig)
+	require.NoError(t, err)
 
-    // Start local operator
-    operator, err := setup.NewLocalOperator(kubeconfig)
-    require.NoError(t, err)
-    require.NoError(t, operator.Start(context.Background(), operatorPort))
-    defer operator.Stop()
+	testNs := utils.GetEnv("NAMESPACE", "core-1-core")
 
-    time.Sleep(5 * time.Second)
+	// Redis port-forward (6379) is provided by the Makefile.
+	operator, err := setup.NewLocalOperator(kubeconfig)
+	require.NoError(t, err)
+	require.NoError(t, operator.Start(ctx, operatorPort))
+	defer operator.Stop()
 
-    operatorURL := fmt.Sprintf("http://localhost:%s", operatorPort)
-    metricsURL := fmt.Sprintf("http://localhost:%s/metrics", metricsPort)
-    userID := "metrics-test-user"
+	time.Sleep(5 * time.Second)
 
-    t.Log("\n=== Adding rate limit rule ===")
+	operatorURL := fmt.Sprintf("http://localhost:%s", operatorPort)
+	metricsURL := fmt.Sprintf("http://localhost:%s/metrics", metricsPort)
+	userID := "metrics-test-user"
 
-    rule := map[string]interface{}{
-        "name":       "metrics_test_rule",
-        "pattern":    ".*user_id=" + userID + ".*",
-        "limit":      2,
-        "window_sec": 10,
-        "algorithm":  "fixed_window",
-        "priority":   100,
-    }
+	t.Log("\n=== Adding rate limit rule via ConfigMap ===")
 
-    body, _ := json.Marshal(rule)
-    resp, err := http.Post(operatorURL+"/api/v1/ratelimit/rules", "application/json", bytes.NewBuffer(body))
-    require.NoError(t, err)
-    resp.Body.Close()
-    t.Log("✓ Rule added")
+	configYAML := `
+domain: auth_limit
+separator: "|"
+descriptors:
+  - key: user_id
+    value_regex: "metrics-test-user"
+    rate_limit:
+      unit: minute
+      requests_per_unit: 2
+    algorithm: fixed_window
+    priority: 100
+`
+	helpers.SetRules(ctx, t, clientset, testNs, "e2e-metrics-test", configYAML)
 
-    t.Log("\n=== Making rate limit requests ===")
+	// Force immediate reconciliation.
+	_, _ = http.Post(operatorURL+"/api/v1/config/reload", "application/json", nil)
+	time.Sleep(500 * time.Millisecond)
+	t.Log("Rule added via ConfigMap")
 
-    // Make requests to trigger rate limiting
-    for i := 0; i < 5; i++ {
-        checkReq := map[string]interface{}{
-            "components": map[string]string{
-                "path":    "/test",
-                "user_id": userID,
-            },
-        }
-        body, _ := json.Marshal(checkReq)
-        resp, err := http.Post(operatorURL+"/api/v1/ratelimit/check", "application/json", bytes.NewBuffer(body))
-        if err != nil {
-            t.Logf("Request %d failed: %v", i+1, err)
-            continue
-        }
-        
-        var result map[string]interface{}
-        if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-            t.Logf("Failed to decode response: %v", err)
-            resp.Body.Close()
-            continue
-        }
-        resp.Body.Close()
-        
-        if allowed, ok := result["allowed"].(bool); ok {
-            t.Logf("Request %d: allowed=%v", i+1, allowed)
-        } else {
-            t.Logf("Request %d: unexpected response format", i+1)
-        }
-        time.Sleep(100 * time.Millisecond)
-    }
+	t.Log("\n=== Making rate limit requests ===")
 
-    t.Log("\n=== Checking metrics after requests ===")
+	for i := 0; i < 5; i++ {
+		checkReq := map[string]interface{}{
+			"components": map[string]string{
+				"path":    "/test",
+				"user_id": userID,
+			},
+		}
+		body, _ := json.Marshal(checkReq)
+		resp, err := http.Post(operatorURL+"/api/v1/ratelimit/check", "application/json", bytes.NewBuffer(body))
+		if err != nil {
+			t.Logf("Request %d failed: %v", i+1, err)
+			continue
+		}
 
-    // Give time for metrics to update
-    time.Sleep(3 * time.Second)
+		var result map[string]interface{}
+		if err := json.NewDecoder(resp.Body).Decode(&result); err == nil {
+			if allowed, ok := result["allowed"].(bool); ok {
+				t.Logf("Request %d: allowed=%v", i+1, allowed)
+			}
+		}
+		resp.Body.Close()
+		time.Sleep(100 * time.Millisecond)
+	}
 
-    // Get metrics
-    resp, err = http.Get(metricsURL)
-    require.NoError(t, err)
-    defer resp.Body.Close()
+	t.Log("\n=== Checking metrics after requests ===")
 
-    bodyBytes, err := io.ReadAll(resp.Body)
-    require.NoError(t, err)
-    metrics := string(bodyBytes)
+	time.Sleep(3 * time.Second)
 
-    t.Logf("Metrics collected (first 800 chars):\n%s", metrics[:min(800, len(metrics))])
-    
-    // Verify metrics show some activity
-    if !assert.Contains(t, metrics, "ratelimit_active_limits_total", "Should have active limits") {
-        t.Log("Note: Some metrics may be zero if no rate limits were triggered")
-    }
-    
-    t.Log("✓ Metrics collection test completed")
+	resp, err := http.Get(metricsURL)
+	require.NoError(t, err)
+	defer resp.Body.Close()
 
-    // Cleanup
-    t.Log("\n=== Cleaning up ===")
-    deleteRule(operatorURL, "metrics_test_rule")
+	bodyBytes, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	metricsStr := string(bodyBytes)
+
+	preview := metricsStr
+	if len(preview) > 800 {
+		preview = preview[:800]
+	}
+	t.Logf("Metrics collected (first 800 chars):\n%s", preview)
+
+	if !assert.Contains(t, metricsStr, "ratelimit_active_limits_total", "Should have active limits") {
+		t.Log("Note: Some metrics may be zero if no rate limits were triggered")
+	}
+
+	t.Log("Metrics collection test completed")
+	// ConfigMap cleanup is handled by helpers.SetRules t.Cleanup.
 }
 
 func TestE2E_MetricsServerOnly(t *testing.T) {
-    t.Log("=== Testing metrics server only ===")
+	t.Log("=== Testing metrics server only ===")
 
-    kubeconfig := utils.GetEnv("KUBECONFIG", utils.GetEnv("HOME", "")+"/.kube/config")
+	kubeconfig := utils.GetEnv("KUBECONFIG", utils.GetEnv("HOME", "")+"/.kube/config")
 
-    // Port-forward for Redis
-    redisPF := setup.NewPortForward("core-1-core", "service/redis", "6379", "6379")
-    require.NoError(t, redisPF.Start())
-    defer redisPF.Stop()
+	// Redis port-forward (6379) is provided by the Makefile.
+	operator, err := setup.NewLocalOperator(kubeconfig)
+	require.NoError(t, err)
+	require.NoError(t, operator.Start(context.Background(), operatorPort))
+	defer operator.Stop()
 
-    // Start local operator
-    operator, err := setup.NewLocalOperator(kubeconfig)
-    require.NoError(t, err)
-    require.NoError(t, operator.Start(context.Background(), operatorPort))
-    defer operator.Stop()
+	time.Sleep(5 * time.Second)
 
-    time.Sleep(5 * time.Second)
+	metricsURL := fmt.Sprintf("http://localhost:%s/metrics", metricsPort)
 
-    metricsURL := fmt.Sprintf("http://localhost:%s/metrics", metricsPort)
+	for i := 0; i < 3; i++ {
+		resp, err := http.Get(metricsURL)
+		require.NoError(t, err)
 
-    // Test metrics endpoint multiple times
-    for i := 0; i < 3; i++ {
-        resp, err := http.Get(metricsURL)
-        require.NoError(t, err)
-        
-        body, err := io.ReadAll(resp.Body)
-        resp.Body.Close()
-        require.NoError(t, err)
-        
-        metrics := string(body)
-        t.Logf("Attempt %d: Got %d bytes of metrics", i+1, len(metrics))
-        
-        // Check that we have some Redis metrics
-        assert.Contains(t, metrics, "ratelimit_redis_connected_clients", "Should have Redis clients metric")
-        assert.Contains(t, metrics, "ratelimit_redis_hit_rate", "Should have Redis hit rate metric")
-        
-        time.Sleep(2 * time.Second)
-    }
-    
-    t.Log("✓ Metrics server test completed")
+		body, err := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		require.NoError(t, err)
+
+		metricsStr := string(body)
+		t.Logf("Attempt %d: Got %d bytes of metrics", i+1, len(metricsStr))
+
+		assert.Contains(t, metricsStr, "ratelimit_redis_connected_clients", "Should have Redis clients metric")
+		assert.Contains(t, metricsStr, "ratelimit_redis_hit_rate", "Should have Redis hit rate metric")
+
+		time.Sleep(2 * time.Second)
+	}
+
+	t.Log("Metrics server test completed")
 }
 
 func min(a, b int) int {
-    if a < b {
-        return a
-    }
-    return b
+	if a < b {
+		return a
+	}
+	return b
 }

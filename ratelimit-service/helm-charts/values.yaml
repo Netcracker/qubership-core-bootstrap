@@ -18,19 +18,28 @@ config:
   rateLimits:
     default:
       limit: 60
-      window: "minute" 
-      algorithm: sliding_window
+      window: "minute"
+      algorithm: fixed_window
     rules:
       - name: api_strict
         pattern: "/api/v1/.*"
-        limit: 10
+        limit: 1000
         window: "minute"
-        algorithm: sliding_window
+        algorithm: fixed_window
+        priority: 50
+        # Optional layered limit: stricter per-(path, user_id) cap on top of
+        # the outer per-path cap above. The inner rule MUST have higher
+        # priority than the outer one to win when both match.
+        perUser:
+          limit: 10
+          window: "minute"
+          algorithm: fixed_window
+          priority: 100
       - name: burst_allowed
         pattern: "/health"
         limit: 100
         window: "second"
-        algorithm: token_bucket
+        algorithm: fixed_window
       - name: test_endpoint
         pattern: "/test"
         limit: 2
@@ -45,7 +54,7 @@ config:
         pattern: "/sliding"
         limit: 2
         window: "second"
-        algorithm: sliding_window
+        algorithm: sliding_log
 
 grpc:
   port: 8081

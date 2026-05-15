@@ -79,96 +79,76 @@ data:
 
   add-rules-with-priority.sh: |
     #!/bin/sh
-    API_URL="http://ratelimit-service.core-1-core.svc.cluster.local:8082/api/v1/ratelimit/rules"
-    
+    # NOTE: Requires kubectl in the execution environment (pod or CI runner).
+    CONFIG_NAME="${CONFIG_NAME:-k6-priority-rules}"
+    NS="${NAMESPACE:-core-1-core}"
+    OPERATOR="http://ratelimit-service.core-1-core.svc.cluster.local:8082"
+
     echo "=== Adding Rules with Different Priorities ==="
     echo ""
-    
-    # Clean up existing rules
-    echo "Cleaning up old rules..."
-    for rule in default api_strict test_rule fallback_rule vip_rule admin_rule normal_rule; do
-      curl -s -X DELETE "$API_URL/$rule" > /dev/null 2>&1
-    done
-    
-    echo ""
-    echo "1. Adding DEFAULT rule (priority 0 - lowest)"
-    curl -s -X POST $API_URL \
-      -H "Content-Type: application/json" \
-      -d '{
-        "name": "default",
-        "pattern": ".*",
-        "limit": 60,
-        "window_sec": 60,
-        "algorithm": "fixed_window",
-        "priority": 0
-      }'
-    echo " - Default rule added (limit: 60/min, priority: 0)"
-    
-    echo ""
-    echo "2. Adding FALLBACK rule for all users (priority 10)"
-    curl -s -X POST $API_URL \
-      -H "Content-Type: application/json" \
-      -d '{
-        "name": "fallback",
-        "pattern": ".*user_id=.*",
-        "limit": 100,
-        "window_sec": 60,
-        "algorithm": "fixed_window",
-        "priority": 10
-      }'
-    echo " - Fallback rule added (limit: 100/min, priority: 10)"
-    
-    echo ""
-    echo "3. Adding NORMAL user rule (priority 50)"
-    curl -s -X POST $API_URL \
-      -H "Content-Type: application/json" \
-      -d '{
-        "name": "normal_user",
-        "pattern": ".*user_id=normal-.*",
-        "limit": 30,
-        "window_sec": 60,
-        "algorithm": "fixed_window",
-        "priority": 60
-      }'
-    echo " - Normal user rule added (limit: 30/min, priority: 50)"
-    
-    echo ""
-    echo "4. Adding VIP user rule (priority 100 - high)"
-    curl -s -X POST $API_URL \
-      -H "Content-Type: application/json" \
-      -d '{
-        "name": "vip_user",
-        "pattern": ".*user_id=vip-.*",
-        "limit": 1000,
-        "window_sec": 60,
-        "algorithm": "fixed_window",
-        "priority": 100
-      }'
-    echo " - VIP rule added (limit: 1000/min, priority: 100)"
-    
-    echo ""
-    echo "5. Adding ADMIN user rule (priority 200 - highest)"
-    curl -s -X POST $API_URL \
-      -H "Content-Type: application/json" \
-      -d '{
-        "name": "admin_user",
-        "pattern": ".*user_id=admin-.*",
-        "limit": 10000,
-        "window_sec": 60,
-        "algorithm": "fixed_window",
-        "priority": 200
-      }'
-    echo " - Admin rule added (limit: unlimited, priority: 200)"
-    
-    echo ""
+    echo "Applying ConfigMap with all priority rules..."
+
+    cat <<EOF | kubectl apply -f -
+    apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: ${CONFIG_NAME}
+      namespace: ${NS}
+      labels:
+        rate-limit-config: "true"
+        app: ratelimit-k6-demo
+    data:
+      config.yaml: |
+        domain: auth_limit
+        separator: "|"
+        descriptors:
+          - key: user_id
+            value_regex: "admin-.*"
+            rate_limit:
+              unit: minute
+              requests_per_unit: 10000
+            algorithm: fixed_window
+            priority: 200
+          - key: user_id
+            value_regex: "vip-.*"
+            rate_limit:
+              unit: minute
+              requests_per_unit: 1000
+            algorithm: fixed_window
+            priority: 100
+          - key: user_id
+            value_regex: "normal-.*"
+            rate_limit:
+              unit: minute
+              requests_per_unit: 30
+            algorithm: fixed_window
+            priority: 60
+          - key: user_id
+            value_regex: ".*"
+            rate_limit:
+              unit: minute
+              requests_per_unit: 100
+            algorithm: fixed_window
+            priority: 10
+          - key: ""
+            rate_limit:
+              unit: minute
+              requests_per_unit: 60
+            algorithm: fixed_window
+            priority: 0
+    EOF
+
+    curl -s -X POST "${OPERATOR}/api/v1/config/reload" > /dev/null
+    sleep 2
+
     echo "=== Rules added successfully! ==="
     echo ""
     echo "Priority order (highest first):"
-    echo "  200 - Admin users (unlimited)"
+    echo "  200 - Admin users (10000 req/min)"
     echo "  100 - VIP users (1000 req/min)"
-    echo "   50 - Normal users (30 req/min)"
-    echo "   10 - Fallback (100 req/min)"
-    echo "    0 - Default (60 req/min)"
+    echo "   60 - Normal users (30 req/min)"
+    echo "   10 - Fallback user_id (100 req/min)"
+    echo "    0 - Default catch-all (60 req/min)"
     echo ""
 
   priority-demo.sh: |
@@ -229,45 +209,51 @@ data:
 
   accuracy-test.sh: |
     #!/bin/sh
+    # NOTE: Requires kubectl in the execution environment (pod or CI runner).
     GATEWAY="http://public-gateway-istio.core-1-core.svc.cluster.local:8080"
-    API="http://ratelimit-service.core-1-core.svc.cluster.local:8082"
-    
+    OPERATOR="http://ratelimit-service.core-1-core.svc.cluster.local:8082"
+    CONFIG_NAME="${CONFIG_NAME:-k6-accuracy-test}"
+    NS="${NAMESPACE:-core-1-core}"
+
     echo "============================================================"
     echo "RATE LIMIT ACCURACY TEST (with Priorities)"
     echo "============================================================"
-    
-    # Setup rules with priorities
+
     echo ""
-    echo "Setting up test rules..."
-    
-    # Clean up old rules
-    curl -s -X DELETE $API/api/v1/ratelimit/rules/strict_test > /dev/null 2>&1
-    curl -s -X DELETE $API/api/v1/ratelimit/rules/default_fallback > /dev/null 2>&1
-    
-    # Add strict rule for test2 user (high priority)
-    curl -s -X POST $API/api/v1/ratelimit/rules \
-      -H "Content-Type: application/json" \
-      -d '{
-        "name": "strict_test",
-        "pattern": ".*user_id=test2.*",
-        "limit": 2,
-        "window_sec": 1,
-        "algorithm": "fixed_window",
-        "priority": 100
-      }' > /dev/null
-    
-    # Add default fallback (low priority)
-    curl -s -X POST $API/api/v1/ratelimit/rules \
-      -H "Content-Type: application/json" \
-      -d '{
-        "name": "default_fallback",
-        "pattern": ".*",
-        "limit": 100,
-        "window_sec": 60,
-        "algorithm": "fixed_window",
-        "priority": 0
-      }' > /dev/null
-    
+    echo "Setting up test rules via ConfigMap..."
+
+    cat <<EOF | kubectl apply -f -
+    apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: ${CONFIG_NAME}
+      namespace: ${NS}
+      labels:
+        rate-limit-config: "true"
+        app: ratelimit-k6-demo
+    data:
+      config.yaml: |
+        domain: auth_limit
+        separator: "|"
+        descriptors:
+          - key: user_id
+            value_regex: "test2"
+            rate_limit:
+              unit: second
+              requests_per_unit: 2
+            algorithm: fixed_window
+            priority: 100
+          - key: ""
+            rate_limit:
+              unit: minute
+              requests_per_unit: 100
+            algorithm: fixed_window
+            priority: 0
+    EOF
+
+    curl -s -X POST "${OPERATOR}/api/v1/config/reload" > /dev/null
+    sleep 2
+
     echo ""
     echo "=== Test: 2 requests per second limit (with 100ms delay) ==="
     allowed=0
@@ -277,7 +263,7 @@ data:
       usleep 100000
     done
     echo "Allowed: $allowed/10 (expected ~2-3)"
-    
+
     echo ""
     echo "=== Burst test (no delay, all at once) ==="
     allowed=0
@@ -286,53 +272,79 @@ data:
       [ "$status" = "200" ] && allowed=$((allowed + 1))
     done
     echo "Allowed: $allowed/10 (expected ~2)"
-    
+
     # Cleanup
-    curl -s -X DELETE $API/api/v1/ratelimit/rules/strict_test > /dev/null
-    curl -s -X DELETE $API/api/v1/ratelimit/rules/default_fallback > /dev/null
-    
+    kubectl delete configmap "${CONFIG_NAME}" -n "${NS}" --ignore-not-found
+    curl -s -X POST "${OPERATOR}/api/v1/config/reload" > /dev/null
+
     echo "============================================================"
 
   algorithm-compare.sh: |
     #!/bin/sh
+    # NOTE: Requires kubectl in the execution environment (pod or CI runner).
     GATEWAY="http://public-gateway-istio.core-1-core.svc.cluster.local:8080"
-    API="http://ratelimit-service.core-1-core.svc.cluster.local:8082"
+    OPERATOR="http://ratelimit-service.core-1-core.svc.cluster.local:8082"
+    CONFIG_NAME_FIXED="${CONFIG_NAME_FIXED:-k6-fixed-test}"
+    CONFIG_NAME_SLIDING="${CONFIG_NAME_SLIDING:-k6-sliding-test}"
+    NS="${NAMESPACE:-core-1-core}"
     REQUESTS=200
-    
+
     echo "============================================================"
     echo "ALGORITHM COMPARISON (2 req/sec limit, $REQUESTS requests)"
     echo "============================================================"
-    
-    # Clean up old rules
-    curl -s -X DELETE $API/api/v1/ratelimit/rules/fixed_test > /dev/null 2>&1
-    curl -s -X DELETE $API/api/v1/ratelimit/rules/sliding_test > /dev/null 2>&1
-    
-    # Setup rules with different algorithms
+
     echo ""
-    echo "Setting up Fixed Window rule..."
-    curl -s -X POST $API/api/v1/ratelimit/rules \
-      -H "Content-Type: application/json" \
-      -d '{
-        "name": "fixed_test",
-        "pattern": ".*user_id=fixed.*",
-        "limit": 2,
-        "window_sec": 1,
-        "algorithm": "fixed_window",
-        "priority": 50
-      }' > /dev/null
-    
-    echo "Setting up Sliding Window rule..."
-    curl -s -X POST $API/api/v1/ratelimit/rules \
-      -H "Content-Type: application/json" \
-      -d '{
-        "name": "sliding_test",
-        "pattern": ".*user_id=sliding.*",
-        "limit": 2,
-        "window_sec": 1,
-        "algorithm": "sliding_log",
-        "priority": 50
-      }' > /dev/null
-    
+    echo "Setting up Fixed Window rule via ConfigMap..."
+    cat <<EOF | kubectl apply -f -
+    apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: ${CONFIG_NAME_FIXED}
+      namespace: ${NS}
+      labels:
+        rate-limit-config: "true"
+        app: ratelimit-k6-demo
+    data:
+      config.yaml: |
+        domain: auth_limit
+        separator: "|"
+        descriptors:
+          - key: user_id
+            value_regex: "fixed"
+            rate_limit:
+              unit: second
+              requests_per_unit: 2
+            algorithm: fixed_window
+            priority: 50
+    EOF
+
+    echo "Setting up Sliding Window rule via ConfigMap..."
+    cat <<EOF | kubectl apply -f -
+    apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: ${CONFIG_NAME_SLIDING}
+      namespace: ${NS}
+      labels:
+        rate-limit-config: "true"
+        app: ratelimit-k6-demo
+    data:
+      config.yaml: |
+        domain: auth_limit
+        separator: "|"
+        descriptors:
+          - key: user_id
+            value_regex: "sliding"
+            rate_limit:
+              unit: second
+              requests_per_unit: 2
+            algorithm: sliding_log
+            priority: 50
+    EOF
+
+    curl -s -X POST "${OPERATOR}/api/v1/config/reload" > /dev/null
+    sleep 2
+
     echo ""
     echo "=== Fixed Window (/test) ==="
     fixed=0
@@ -341,7 +353,7 @@ data:
       [ "$status" = "200" ] && fixed=$((fixed + 1))
     done
     echo "Allowed: $fixed/$REQUESTS ($((fixed * 100 / REQUESTS))%)"
-    
+
     echo ""
     echo "=== Sliding Window (/test) ==="
     sliding=0
@@ -350,23 +362,23 @@ data:
       [ "$status" = "200" ] && sliding=$((sliding + 1))
     done
     echo "Allowed: $sliding/$REQUESTS ($((sliding * 100 / REQUESTS))%)"
-    
+
     echo ""
     echo "============================================================"
     if [ $fixed -gt $sliding ]; then
       echo "Fixed Window allowed $((fixed - sliding)) more requests"
-      echo "✅ Sliding Window is MORE ACCURATE"
+      echo "Sliding Window is MORE ACCURATE"
     elif [ $fixed -lt $sliding ]; then
       echo "Sliding Window allowed $((sliding - fixed)) more requests"
-      echo "✅ Fixed Window is MORE ACCURATE"
+      echo "Fixed Window is MORE ACCURATE"
     else
       echo "Both algorithms performed the same"
     fi
     echo "============================================================"
-    
+
     # Cleanup
-    curl -s -X DELETE $API/api/v1/ratelimit/rules/fixed_test > /dev/null
-    curl -s -X DELETE $API/api/v1/ratelimit/rules/sliding_test > /dev/null
+    kubectl delete configmap "${CONFIG_NAME_FIXED}" "${CONFIG_NAME_SLIDING}" -n "${NS}" --ignore-not-found
+    curl -s -X POST "${OPERATOR}/api/v1/config/reload" > /dev/null
 
   gateway-distribution.sh: |
     #!/bin/sh
