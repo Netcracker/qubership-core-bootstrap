@@ -1,21 +1,21 @@
 #!/usr/bin/env bash
 # tests/scripts/port-forward.sh
 #
-# Управляет kubectl port-forward-ами для тестов.
+# Manages kubectl port-forwards for tests.
 #
-# Использование:
+# Usage:
 #   port-forward.sh --profile=<local|cloud> --start
 #   port-forward.sh --profile=<local|cloud> --stop
 #
 # Profiles:
-#   local  — Redis на 6379 (для tests/e2e/*).
+#   local  — Redis on 6379 (for tests/e2e/*).
 #   cloud  — Gateway 8080, Operator 8082, Redis 6379, Metrics 9090
-#            (для tests/cloud-e2e/*).
+#            (for tests/cloud-e2e/*).
 #
 # ENV:
-#   NAMESPACE  — k8s namespace. По умолчанию: core-1-core.
-#   PF_PID_DIR — где хранить PID-файлы. По умолчанию: /tmp.
-#   PF_WAIT    — секунды на ожидание готовности порт-форварда. По умолчанию: 5.
+#   NAMESPACE  — k8s namespace. Default: core-1-core.
+#   PF_PID_DIR — where to store PID files. Default: /tmp.
+#   PF_WAIT    — seconds to wait for port-forward readiness. Default: 5.
 
 set -euo pipefail
 
@@ -43,8 +43,8 @@ if [[ -z "$PROFILE" || -z "$ACTION" ]]; then
     exit 2
 fi
 
-# Список форвардов для каждого профиля.
-# Формат: "<name>:<resource>:<port>"
+# List of forwards for each profile.
+# Format: "<name>:<resource>:<port>"
 case "$PROFILE" in
     local)
         FORWARDS=(

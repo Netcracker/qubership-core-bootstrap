@@ -1,8 +1,5 @@
 # tests/integration.mk
-# Integration-цели (miniredis, без kubectl).
-# Старое поведение Makefile-а запускало port-forward для этих целей — это была ошибка,
-# теперь port-forward здесь не нужен (см. docs/ANALYSIS.md §3, пункт 1).
-
+# Integration targets (miniredis, no kubectl).
 .PHONY: test-integration test-integration-all \
         test-integration-ratelimit test-integration-controller \
         test-integration-api test-integration-metrics

@@ -41,7 +41,7 @@ func TestSnapshot_GrafanaDashboard(t *testing.T) {
 		"ratelimit_checks_total",
 		"ratelimit_violating_users_total",
 		"ratelimit_redis_operations_total",
-		"ratelimit_config_reloads_total", // panel added in phase 2c-IV
+		"ratelimit_config_reloads_total",
 	}
 	body := string(data)
 	for _, m := range requiredMetrics {

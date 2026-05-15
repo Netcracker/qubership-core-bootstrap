@@ -1,5 +1,5 @@
 # tests/unit.mk
-# Unit-цели (без внешних зависимостей).
+# Unit targets (no external dependencies).
 
 .PHONY: test-unit test-ratelimit test-controller test-api test-metrics test-ratelimit-bench test-coverage
 

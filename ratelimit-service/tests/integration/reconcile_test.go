@@ -52,7 +52,7 @@ func TestIntegration_ReconcileLoop(t *testing.T) {
 	// Give the controller time to register its watch before we send events.
 	time.Sleep(200 * time.Millisecond)
 
-	// ── Phase 1: create the ConfigMap, expect rules to appear. ──────────────
+	// ── Step 1: create the ConfigMap, expect rules to appear. ───────────────
 	cm := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      cmName,
@@ -80,7 +80,7 @@ descriptors:
 
 	requireRuleEventually(t, env.Manager, cmName, 100, 3*time.Second)
 
-	// ── Phase 2: update the ConfigMap — limit 100 → 200. ────────────────────
+	// ── Step 2: update the ConfigMap — limit 100 → 200. ────────────────────
 	cm.Data["config.yaml"] = `
 domain: auth_limit
 separator: "|"
@@ -100,7 +100,7 @@ descriptors:
 	requireRuleEventually(t, env.Manager, cmName, 200, 3*time.Second)
 	assertRuleCount(t, env.Manager, cmName, 1, "after update should still have exactly 1 rule")
 
-	// ── Phase 3: delete the ConfigMap, expect all its rules to disappear. ────
+	// ── Step 3: delete the ConfigMap, expect all its rules to disappear. ────
 	err = clientset.CoreV1().ConfigMaps(namespace).
 		Delete(ctx, cmName, metav1.DeleteOptions{})
 	require.NoError(t, err)

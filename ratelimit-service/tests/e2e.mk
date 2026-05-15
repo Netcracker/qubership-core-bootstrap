@@ -1,5 +1,5 @@
 # tests/e2e.mk
-# Local end-to-end (требуется kubectl port-forward к in-cluster Redis).
+# Local end-to-end (requires kubectl port-forward to in-cluster Redis).
 
 .PHONY: test-e2e test-integration-e2e
 
@@ -14,5 +14,5 @@ test-e2e:
 		exit $$EXIT
 	@echo "$(GREEN)✓ E2E tests passed!$(NC)"
 
-# Backward-compat alias (CI ссылается на это имя).
+# Backward-compat alias (CI references this target name).
 test-integration-e2e: test-e2e

@@ -1,5 +1,5 @@
 # tests/cloud-e2e.mk
-# Cloud end-to-end (требуется развёрнутый сервис в кластере).
+# Cloud end-to-end (requires a deployed service in the cluster).
 
 .PHONY: test-cloud-e2e test-cloud-e2e-performance test-cloud-e2e-layered
 

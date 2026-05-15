@@ -12,7 +12,7 @@ import (
 	// consistent with the envoy API definition:
 	//   envoy/service/ratelimit/v3/rls.proto imports
 	//   envoy/extensions/common/ratelimit/v3/ratelimit.proto
-	// See §3.4 of phase-2c-III-regression-guards.md for background.
+	// See envoy/extensions/common/ratelimit/v3/ratelimit.proto for the type definition.
 	rl "github.com/envoyproxy/go-control-plane/envoy/extensions/common/ratelimit/v3"
 )
 

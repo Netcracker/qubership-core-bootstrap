@@ -1,7 +1,6 @@
 # ratelimit-service/Makefile
 #
-# Корневой Makefile — тонкий агрегатор. Логика целей вынесена в tests/*.mk.
-# См. docs/plans/phase-2a-test-infrastructure.md для контекста рефакторинга.
+# Root Makefile — thin aggregator. Target logic lives in tests/*.mk.
 
 include tests/suite.mk
 include tests/unit.mk

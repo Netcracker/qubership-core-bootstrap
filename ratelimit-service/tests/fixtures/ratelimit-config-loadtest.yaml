@@ -11,13 +11,13 @@ data:
     domain: auth_limit
     separator: "|"
     descriptors:
-      # Глобальный лимит для load тестов
+      # Global limit for load tests
       - key: ""
         rate_limit:
           unit: second
           requests_per_unit: 1000
       
-      # Основной лимит для тестового эндпоинта - 10 запросов в секунду на пользователя
+      # Primary limit for the test endpoint — 10 requests per second per user
       - key: path
         value: "/test"
         rate_limit:
@@ -29,7 +29,7 @@ data:
             unit: second
             requests_per_unit: 10
       
-      # Дополнительный лимит для burst тестов
+      # Additional limit for burst tests
       - key: path
         value: "/burst"
         rate_limit:
@@ -41,7 +41,7 @@ data:
             unit: second
             requests_per_unit: 20
       
-      # Жесткий лимит для spike тестов
+      # Hard limit for spike tests
       - key: path
         value: "/spike"
         rate_limit:

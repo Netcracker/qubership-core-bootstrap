@@ -1,13 +1,10 @@
 # tests/helpers/
 
-Переиспользуемый Go-код для тестов: фабрики miniredis, загрузка YAML-фикстур, выделение свободных портов, создание тестовых ConfigMap-ов.
+Reusable Go test code: miniredis factories, YAML fixture loading, free-port allocation, test ConfigMap creation.
 
-В фазе 2a (текущей) каталог создан пустым.
-В фазе 2b сюда будут добавлены:
+- `miniredis.go` — standard miniredis + RedisClient + RateLimitManager setup.
+- `fixtures.go` — load YAML from `tests/fixtures/`, parse into `[]*ratelimit.Rule`.
+- `ports.go` — allocate a free TCP port for tests.
+- `configmap.go` — create a test ConfigMap via `fake.Clientset` or a real k8s API; `SetRules(t, clientset, namespace, rules)` with `t.Cleanup`.
 
-- `miniredis.go` — стандартный setup miniredis + RedisClient + RateLimitManager.
-- `fixtures.go` — загрузка YAML из `tests/fixtures/`, парсинг в `[]*ratelimit.Rule`.
-- `ports.go` — выделение свободного TCP-порта для тестов.
-- `configmap.go` — создание тестового ConfigMap через `fake.Clientset` или реальный k8s API; `SetRules(t, clientset, namespace, rules)` с `t.Cleanup`.
-
-Хелперы используются из `tests/integration/`, `tests/e2e/`, `tests/cloud-e2e/`.
+Helpers are used from `tests/integration/`, `tests/e2e/`, and `tests/cloud-e2e/`.

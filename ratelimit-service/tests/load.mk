@@ -1,5 +1,5 @@
 # tests/load.mk
-# Load testing (k6 + bash). Эти цели вызывают существующие скрипты в tests/load/.
+# Load testing (k6 + bash). These targets invoke the existing scripts in tests/load/.
 
 .PHONY: test-load-demo
 

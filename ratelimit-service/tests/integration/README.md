@@ -1,23 +1,23 @@
 # tests/integration/
 
-Цель каталога — integration-тесты, использующие miniredis (in-process Redis). Они не требуют kubectl/port-forward и запускаются изолированно.
+Integration tests that use miniredis (in-process Redis). They require no kubectl or port-forward and run in isolation.
 
-## Файлы
+## Files
 
-| Файл | Что тестирует |
+| File | What it tests |
 |------|---------------|
 | `ratelimit_test.go` | RateLimitManager: Check, GetViolatingUsers |
 | `controller_test.go` | ConfigMapController + RateLimitManager |
-| `api_test.go` | HTTP-сервер (api.Server.CheckRateLimit) через httptest |
+| `api_test.go` | HTTP server (api.Server.CheckRateLimit) via httptest |
 
-## Запуск
+## Running
 
 ```bash
 make test-integration
 ```
 
-## Примечания
+## Notes
 
-- **metrics_test.go is in tests/e2e/** (as `metrics_collector_test.go`, moved in phase 2c-I) — `metrics.NewMetricsCollectorService` требует Redis `INFO`-команд, которых нет в miniredis. Тест скипает себя, если реальный Redis недоступен.
-- Все тесты здесь используют `helpers.NewEnv(t)` для получения miniredis-окружения.
-- Build-tag: `//go:build integration`
+- **metrics_test.go is in tests/e2e/** (as `metrics_collector_test.go`) — `metrics.NewMetricsCollectorService` requires Redis `INFO` commands that miniredis does not support. The test skips itself if a real Redis is unavailable.
+- All tests here use `helpers.NewEnv(t)` to obtain a miniredis environment.
+- Build tag: `//go:build integration`
