@@ -714,9 +714,9 @@ The Makefile is a thin aggregator; the actual targets live in `tests/*.mk`. Run 
 | `make test-unit` | Run all unit tests (with `-race` enabled). |
 | `make test-integration` | Run integration tests (miniredis-based). Alias: `test-integration-all`. |
 | `make test-e2e` | Run local end-to-end tests. Manages Redis port-forward automatically. Alias: `test-integration-e2e`. |
-| `make test-cloud-e2e` | Run cloud end-to-end tests against deployed service. Requires `TEST_JWT_TOKEN`. |
-| `make test-cloud-e2e-performance` | Performance subset of cloud e2e. |
+| `make test-cloud-e2e` | Run cloud end-to-end tests against deployed service. |
 | `make test-cloud-e2e-layered` | Composite-limits cloud test (~2 min, opt-in). |
+| `make test-load-demo` | k6-based load and performance tests (constant 50 req/s, burst spike, algorithm comparison). Runs inside the cluster via kubectl exec. |
 | `make test-coverage` | Run unit tests with coverage gate. Threshold via `COVERAGE_THRESHOLD` env (default: 35%). |
 | `make test-helm` | Validate Helm chart: lint + template + optional `kubeconform`. |
 | `make test-ratelimit-bench` | Run `pkg/ratelimit` benchmarks. |

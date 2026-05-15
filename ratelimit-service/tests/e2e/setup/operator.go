@@ -129,6 +129,13 @@ func (op *LocalOperator) Stop() {
     if op.controller != nil {
         op.controller.Stop()
     }
+    if op.apiServer != nil {
+        shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+        defer cancel()
+        if err := op.apiServer.Shutdown(shutdownCtx); err != nil {
+            klog.Warningf("API server shutdown error: %v", err)
+        }
+    }
     if op.redisClient != nil {
         op.redisClient.Close()
     }

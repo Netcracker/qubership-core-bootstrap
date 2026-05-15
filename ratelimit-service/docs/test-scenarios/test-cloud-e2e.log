@@ -1,0 +1,115 @@
+[0;34mRunning cloud e2e tests...[0m
+Starting port-forwards (profile=cloud, namespace=core-1-core)...
+  started gateway -> 8080:8080 (pid=67285)
+  started operator -> 8082:8082 (pid=67287)
+  started redis -> 6379:6379 (pid=67297)
+  started metrics -> 9090:9090 (pid=67303)
+Port-forwards ready.
+=== RUN   TestCloudE2E_RateLimitThroughGateway
+    rate_limit_test.go:37: === Setting up cloud E2E test ===
+    rate_limit_test.go:55: 
+        === Cleaning up existing keys for cloud-e2e-user ===
+    rate_limit_test.go:58: 
+        === Adding rate limit rule via ConfigMap: 2 requests per minute ===
+    rate_limit_test.go:77: Rate limit rule added
+    rate_limit_test.go:79: 
+        === Testing custom rate limit (2 requests per minute) ===
+    rate_limit_test.go:85: Request 1: HTTP 200
+    rate_limit_test.go:85: Request 2: HTTP 200
+    rate_limit_test.go:93: Request 3: HTTP 429
+    rate_limit_test.go:96: 
+        === Getting violating users (before reset) ===
+    rate_limit_test.go:100: Violating users API response:
+        {
+          "count": 1,
+          "timestamp": 1778850813,
+          "violating_users": [
+            {
+              "reason": "rate_limit_exceeded",
+              "user_id": "cloud-e2e-user#0"
+            }
+          ]
+        }
+    rate_limit_test.go:102: 
+        === Testing rate limit reset ===
+    rate_limit_test.go:106: Rate limits reset
+    rate_limit_test.go:113: Request after reset: HTTP 200
+    rate_limit_test.go:118: 
+        === Getting violating users (after reset) ===
+    rate_limit_test.go:122: Violating users after reset: [cloud-e2e-user#0]
+    rate_limit_test.go:126: Warning: Violating users still present after reset: [cloud-e2e-user#0]
+    rate_limit_test.go:129: 
+        === Testing Redis keys ===
+    rate_limit_test.go:139: Redis keys found: 1
+    rate_limit_test.go:142:   Key: ratelimit:cloud-e2e-rttg/user_id=cloud-e2e-user#0:domain=auth_limit|path=/test|user_id=cloud-e2e-user = 1
+    rate_limit_test.go:145: 
+        === Testing metrics (optional) ===
+    rate_limit_test.go:151: Metrics sample:
+        === RateLimit Metrics ===
+        # HELP ratelimit_active_limits_total Total number of active rate limits in Redis
+        # TYPE ratelimit_active_limits_total gauge
+        ratelimit_active_limits_total 0
+        # HELP ratelimit_config_reload_errors_total Total number of config reload errors
+        # TYPE ratelimit_config_reload_errors_total counter
+        ratelimit_config_reload_errors_total 0
+        # HELP ratelimit_config_reloads_total Total number of config reloads
+        # TYPE ratelimit_config_reloads_total counter
+        ratelimit_config_reloads_total 
+    rate_limit_test.go:155: 
+        === Cloud E2E test completed successfully! ===
+--- PASS: TestCloudE2E_RateLimitThroughGateway (14.25s)
+=== RUN   TestCloudE2E_TwoUsersRateLimit
+    rate_limit_test.go:159: === Setting up Two Users Rate Limit Test ===
+    rate_limit_test.go:177: 
+        === Adding rate limit rules via ConfigMap ===
+    rate_limit_test.go:206: Rate limit rules added (bad-user=30/min, good-user=1000/min)
+    rate_limit_test.go:208: 
+        === Verifying rule applied ===
+    rate_limit_test.go:215: Bad user limit: 30
+    rate_limit_test.go:224: Good user limit: 1000
+    rate_limit_test.go:228: 
+        === Testing GOOD user (should have high limit) ===
+    rate_limit_test.go:243: Good user progress: 10/50 requests
+    rate_limit_test.go:243: Good user progress: 20/50 requests
+    rate_limit_test.go:243: Good user progress: 30/50 requests
+    rate_limit_test.go:243: Good user progress: 40/50 requests
+    rate_limit_test.go:243: Good user progress: 50/50 requests
+    rate_limit_test.go:248: 
+        Good user results: 50 OK, 0 Rate Limited out of 50 requests
+    rate_limit_test.go:253: 
+        === Testing BAD user (rate limited after ~30 requests) ===
+    rate_limit_test.go:271: Bad user progress: 10/50 requests
+    rate_limit_test.go:271: Bad user progress: 20/50 requests
+    rate_limit_test.go:271: Bad user progress: 30/50 requests
+    rate_limit_test.go:266: Bad user rate limited started at request #31
+    rate_limit_test.go:271: Bad user progress: 40/50 requests
+    rate_limit_test.go:271: Bad user progress: 50/50 requests
+    rate_limit_test.go:276: 
+        Bad user results: 30 OK, 20 Rate Limited out of 50 requests
+    rate_limit_test.go:284: Expected bad user limited requests: ~20 (50 total - 30 limit)
+    rate_limit_test.go:285: Actual bad user limited requests: 20
+    rate_limit_test.go:291: 
+        === Isolation Check ===
+    rate_limit_test.go:293: PASS: Rate limits are properly isolated per user
+    rate_limit_test.go:294:    Good user: 0 limited, Bad user: 20 limited
+    rate_limit_test.go:300: 
+        === Getting violating users ===
+    rate_limit_test.go:304: Violating users: [good-user#1 cloud-e2e-user#0 bad-user#0]
+    rate_limit_test.go:306: 
+        === Resetting rate limits for bad user ===
+    rate_limit_test.go:310: Rate limits reset for bad user
+    rate_limit_test.go:314: 
+        === Verifying reset ===
+    rate_limit_test.go:326: Bad user after reset: 10/10 requests successful
+    rate_limit_test.go:330: 
+        === Two Users Rate Limit Test completed successfully! ===
+--- PASS: TestCloudE2E_TwoUsersRateLimit (56.42s)
+PASS
+ok  	ratelimit-service/tests/cloud-e2e	70.695s
+Stopping port-forwards (profile=cloud)...
+  stopped gateway (pid=67285)
+  stopped operator (pid=67287)
+  stopped redis (pid=67297)
+  stopped metrics (pid=67303)
+Port-forwards stopped.
+[0;32m✓ Cloud e2e tests passed![0m

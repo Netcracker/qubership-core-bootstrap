@@ -12,6 +12,8 @@ BLUE='\033[0;34m'
 YELLOW='\033[1;33m'
 NC='\033[0m'
 
+FIXTURES_DIR="$TEST_DIR/../../fixtures"
+
 get_rule_info() {
     local rule_name=$1
     kubectl exec -n $NAMESPACE deployment/ratelimit -- sh -c "
@@ -19,6 +21,24 @@ get_rule_info() {
           -H 'Content-Type: application/json' \
           -d '{\"components\":{\"path\":\"/$rule_name\",\"user_id\":\"test\"}}' 2>/dev/null
     " 2>/dev/null || echo "{\"limit\":\"unknown\"}"
+}
+
+# Apply a fixture ConfigMap from the host (kubectl runs here, not inside the pod)
+# and trigger immediate reconciliation via the operator API.
+apply_config() {
+    local yaml_file=$1
+    echo -e "${YELLOW}  Applying ConfigMap from host: $(basename $yaml_file)${NC}"
+    kubectl apply -f "$yaml_file" -n $NAMESPACE
+    kubectl exec -n $NAMESPACE deployment/ratelimit -- \
+        curl -s -X POST http://localhost:8082/api/v1/config/reload > /dev/null
+    sleep 2
+}
+
+delete_config() {
+    local cm_name=$1
+    kubectl delete configmap "$cm_name" -n $NAMESPACE --ignore-not-found > /dev/null
+    kubectl exec -n $NAMESPACE deployment/ratelimit -- \
+        curl -s -X POST http://localhost:8082/api/v1/config/reload > /dev/null
 }
 
 run_test() {
@@ -99,33 +119,48 @@ case $choice in
         run_test "Get Current Rules" "get-rules.sh" ""
         ;;
     2)
+        apply_config "$FIXTURES_DIR/ratelimit-config-priority-demo.yaml"
         run_test "Add Rules with Priorities" "add-rules-with-priority.sh" ""
         ;;
     3)
+        apply_config "$FIXTURES_DIR/ratelimit-config-priority-demo.yaml"
         run_test "Priority Demo" "priority-demo.sh" ""
         ;;
     4)
         run_test "Gateway Distribution Test" "gateway-distribution.sh" "200"
         ;;
     5)
+        apply_config "$FIXTURES_DIR/ratelimit-config-accuracy.yaml"
         run_test "Rate Limit Accuracy Test" "accuracy-test.sh" ""
+        delete_config "k6-accuracy-test"
         ;;
     6)
+        apply_config "$FIXTURES_DIR/ratelimit-config-algo-compare.yaml"
         run_test "Algorithm Comparison Test" "algorithm-compare.sh" ""
+        delete_config "k6-fixed-test"
+        delete_config "k6-sliding-test"
         ;;
     7)
+        apply_config "$FIXTURES_DIR/ratelimit-config-loadtest.yaml"
         run_k6_test "K6 Load Test" "k6-load-test.js"
+        delete_config "ratelimit-config-loadtest"
         ;;
     8)
         run_k6_test "K6 Burst Test" "k6-burst-test.js"
         ;;
     9)
         run_test "Get Current Rules" "get-rules.sh" ""
+        apply_config "$FIXTURES_DIR/ratelimit-config-priority-demo.yaml"
         run_test "Add Rules with Priorities" "add-rules-with-priority.sh" ""
         run_test "Priority Demo" "priority-demo.sh" ""
         run_test "Gateway Distribution Test" "gateway-distribution.sh" "200"
+        apply_config "$FIXTURES_DIR/ratelimit-config-accuracy.yaml"
         run_test "Rate Limit Accuracy Test" "accuracy-test.sh" ""
+        delete_config "k6-accuracy-test"
+        apply_config "$FIXTURES_DIR/ratelimit-config-algo-compare.yaml"
         run_test "Algorithm Comparison Test" "algorithm-compare.sh" ""
+        delete_config "k6-fixed-test"
+        delete_config "k6-sliding-test"
         run_k6_test "K6 Load Test" "k6-load-test.js"
         run_k6_test "K6 Burst Test" "k6-burst-test.js"
         echo -e "${GREEN}✅ All tests completed${NC}"

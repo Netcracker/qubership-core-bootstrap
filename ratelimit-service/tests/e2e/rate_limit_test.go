@@ -73,8 +73,11 @@ func TestE2E_RateLimitThroughOperatorAPI(t *testing.T) {
 
 	t.Log("\n=== Creating rules via ConfigMap ===")
 
-	// Rule for specific user (high priority), plus catch-all fallback (low priority).
-	// window_sec:10 maps to unit:second (closest available unit; window is 1s).
+	// Two explicit per-user rules, both at priority=100, so they always beat any
+	// cluster-level ratelimit-config rules (typically priority≤50).
+	// A catch-all fallback at low priority is intentionally avoided: its effective
+	// limit would be determined by which higher-priority cluster rule matches first,
+	// making the assertion non-deterministic across environments.
 	configYAML := `
 domain: auth_limit
 separator: "|"
@@ -86,12 +89,13 @@ descriptors:
       requests_per_unit: 2
     algorithm: fixed_window
     priority: 100
-  - key: ""
+  - key: user_id
+    value_regex: "other-test-user"
     rate_limit:
       unit: minute
       requests_per_unit: 100
     algorithm: fixed_window
-    priority: 10
+    priority: 100
 `
 	helpers.SetRules(ctx, t, clientset, testNs, "e2e-rate-limit-test", configYAML)
 
@@ -120,8 +124,8 @@ descriptors:
 	allowed2, limit2, _, err := checkRateLimit(operatorURL, "/test", otherUserID)
 	require.NoError(t, err)
 	t.Logf("Other user: allowed=%v, limit=%d", allowed2, limit2)
-	assert.True(t, allowed2, "Other user should be allowed")
-	assert.Equal(t, 100, limit2, "Other user should have limit 100 from fallback rule")
+	assert.True(t, allowed2, "Other user should be allowed (rate limits are per-user, not shared)")
+	assert.Equal(t, 100, limit2, "Other user should have limit 100 from their dedicated rule (priority=100)")
 
 	t.Log("\n=== Testing rate limit reset ===")
 

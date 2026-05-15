@@ -1,0 +1,283 @@
+[0;34mRunning k6 demo load tests...[0m
+pod "curl-test-runner" deleted
+pod "k6-test-runner" deleted
+configmap/demo-test-scripts unchanged
+pod/curl-test-runner created
+pod/k6-test-runner created
+pod/k6-test-runner condition met
+pod/curl-test-runner condition met
+
+[0;34m============================================================[0m
+[0;32m           RATE LIMIT DEMO WITH PRIORITIES[0m
+[0;34m============================================================[0m
+1) Show Current Rules with Priorities
+2) Add Rules with Different Priorities
+3) Priority Demo (Admin/VIP/Normal Users)
+4) Gateway Distribution Test (200 requests)
+5) Rate Limit Accuracy Test
+6) Algorithm Comparison Test (200 requests)
+7) K6 Load Test (constant 50 req/s, 30s)
+8) K6 Burst Test (spike to 500 req/s)
+9) Run ALL tests
+10) Exit
+[0;34m============================================================[0m
+
+[0;34m============================================================[0m
+[0;32m🚀 RUNNING: Get Current Rules[0m
+[0;34m============================================================[0m
+=== Current Rate Limit Rules (with Priorities) ===
+
+
+--- Rule Priority Check ---
+Checking which rule matches test user...
+  Matched rule: ratelimit-config/path=_test#3
+  Limit: 2
+
+--- VIP User (should have higher priority) ---
+  Matched rule: ratelimit-config/path=_test#3
+  Limit: 2
+
+--- Default User ---
+  Matched rule: ratelimit-config/__#0
+  Limit: 60
+[0;32m✅ Get Current Rules completed successfully[0m
+
+[1;33m  Applying ConfigMap from host: ratelimit-config-priority-demo.yaml[0m
+configmap/k6-priority-rules created
+
+[0;34m============================================================[0m
+[0;32m🚀 RUNNING: Add Rules with Priorities[0m
+[0;34m============================================================[0m
+=== Adding Rules with Different Priorities ===
+
+Applying ConfigMap with all priority rules...
+=== Rules added successfully! ===
+
+Priority order (highest first):
+  200 - Admin users (10000 req/min)
+  100 - VIP users (1000 req/min)
+   60 - Normal users (30 req/min)
+   10 - Fallback user_id (100 req/min)
+    0 - Default catch-all (60 req/min)
+
+[0;32m✅ Add Rules with Priorities completed successfully[0m
+
+
+[0;34m============================================================[0m
+[0;32m🚀 RUNNING: Priority Demo[0m
+[0;34m============================================================[0m
+============================================================
+RATE LIMIT PRIORITY DEMO
+============================================================
+
+Setting up rules with priorities...
+=== Adding Rules with Different Priorities ===
+
+Applying ConfigMap with all priority rules...
+=== Rules added successfully! ===
+
+Priority order (highest first):
+  200 - Admin users (10000 req/min)
+  100 - VIP users (1000 req/min)
+   60 - Normal users (30 req/min)
+   10 - Fallback user_id (100 req/min)
+    0 - Default catch-all (60 req/min)
+
+
+=== Testing Different User Types ===
+
+--- Admin User (user_id: admin-john) ---
+  Matched rule: k6-priority-rules/user_id=admin-__#0
+  Rate limit: 10000 requests/minute
+  Success rate: 5/5 requests
+
+--- VIP User (user_id: vip-jane) ---
+  Matched rule: k6-priority-rules/user_id=vip-__#1
+  Rate limit: 1000 requests/minute
+  Success rate: 5/5 requests
+
+--- Normal User (user_id: normal-alice) ---
+  Matched rule: k6-priority-rules/user_id=normal-__#2
+  Rate limit: 30 requests/minute
+  Success rate: 5/5 requests
+
+--- Unknown User (user_id: unknown-user) ---
+  Matched rule: ratelimit-config/__#0
+  Rate limit: 60 requests/minute
+  Success rate: 5/5 requests
+
+============================================================
+PRIORITY DEMO COMPLETE
+============================================================
+[0;32m✅ Priority Demo completed successfully[0m
+
+
+[0;34m============================================================[0m
+[0;32m🚀 RUNNING: Gateway Distribution Test[0m
+[0;34m============================================================[0m
+=== Gateway Distribution Test ===
+Total requests: 200
+
+Progress: 50/200
+Progress: 100/200
+Progress: 150/200
+Progress: 200/200
+
+============================================================
+GATEWAY DISTRIBUTION TEST RESULTS
+============================================================
+Gateway: public-gateway-istio-7998d6ff7d-sf47t
+  Requests: 100
+  Rate limited: 59 (59%)
+
+Gateway: public-gateway-istio-7998d6ff7d-wwlnd
+  Requests: 100
+  Rate limited: 51 (51%)
+
+------------------------------------------------------------
+TOTAL: 200 requests, 110 rate limited (55%)
+============================================================
+[0;32m✅ Gateway Distribution Test completed successfully[0m
+
+[1;33m  Applying ConfigMap from host: ratelimit-config-accuracy.yaml[0m
+configmap/k6-accuracy-test created
+
+[0;34m============================================================[0m
+[0;32m🚀 RUNNING: Rate Limit Accuracy Test[0m
+[0;34m============================================================[0m
+============================================================
+RATE LIMIT ACCURACY TEST (with Priorities)
+============================================================
+
+Setting up test rules via ConfigMap...
+
+=== Test: 2 requests per second limit (with 100ms delay) ===
+Allowed: 2/10 (expected ~2-3)
+
+=== Burst test (no delay, all at once) ===
+Allowed: 2/10 (expected ~2)
+============================================================
+[0;32m✅ Rate Limit Accuracy Test completed successfully[0m
+
+[1;33m  Applying ConfigMap from host: ratelimit-config-algo-compare.yaml[0m
+configmap/k6-fixed-test created
+configmap/k6-sliding-test created
+
+[0;34m============================================================[0m
+[0;32m🚀 RUNNING: Algorithm Comparison Test[0m
+[0;34m============================================================[0m
+============================================================
+ALGORITHM COMPARISON (2 req/sec limit, 200 requests)
+============================================================
+
+Setting up Fixed Window rule via ConfigMap...
+Setting up Sliding Window rule via ConfigMap...
+
+=== Fixed Window (/test) ===
+Allowed: 96/200 (48%)
+
+=== Sliding Window (/test) ===
+Allowed: 68/200 (34%)
+
+============================================================
+Fixed Window allowed 28 more requests
+Sliding Window is MORE ACCURATE
+============================================================
+[0;32m✅ Algorithm Comparison Test completed successfully[0m
+
+
+[0;34m============================================================[0m
+[0;32m🚀 RUNNING K6: K6 Load Test[0m
+[0;34m============================================================[0m
+running (1m13.0s), 004/041 VUs, 5127 complete and 0 interrupted iterations
+constant_load ✓ [ 100% ] 00/20 VUs    30s        50.00 iters/s
+spike_load      [  86% ] 004/021 VUs  43.0s/50s  038.05 iters/s
+
+running (1m14.0s), 003/041 VUs, 5164 complete and 0 interrupted iterations
+constant_load ✓ [ 100% ] 00/20 VUs    30s        50.00 iters/s
+spike_load      [  88% ] 003/021 VUs  44.0s/50s  034.06 iters/s
+
+running (1m15.0s), 003/041 VUs, 5196 complete and 0 interrupted iterations
+constant_load ✓ [ 100% ] 00/20 VUs    30s        50.00 iters/s
+spike_load      [  90% ] 003/021 VUs  45.0s/50s  030.07 iters/s
+
+running (1m16.0s), 003/041 VUs, 5224 complete and 0 interrupted iterations
+constant_load ✓ [ 100% ] 00/20 VUs    30s        50.00 iters/s
+spike_load      [  92% ] 003/021 VUs  46.0s/50s  026.08 iters/s
+
+running (1m17.0s), 002/041 VUs, 5249 complete and 0 interrupted iterations
+constant_load ✓ [ 100% ] 00/20 VUs    30s        50.00 iters/s
+spike_load      [  94% ] 002/021 VUs  47.0s/50s  022.09 iters/s
+
+running (1m18.0s), 002/041 VUs, 5269 complete and 0 interrupted iterations
+constant_load ✓ [ 100% ] 00/20 VUs    30s        50.00 iters/s
+spike_load      [  96% ] 002/021 VUs  48.0s/50s  018.11 iters/s
+
+running (1m19.0s), 001/041 VUs, 5286 complete and 0 interrupted iterations
+constant_load ✓ [ 100% ] 00/20 VUs    30s        50.00 iters/s
+spike_load      [  98% ] 001/021 VUs  49.0s/50s  014.14 iters/s
+
+running (1m20.0s), 001/041 VUs, 5298 complete and 0 interrupted iterations
+constant_load ✓ [ 100% ] 00/20 VUs    30s        50.00 iters/s
+spike_load      [ 100% ] 001/021 VUs  50.0s/50s  010.20 iters/s
+time="2026-05-15T15:44:25Z" level=info msg="\n=== K6 LOAD TEST RESULTS ===" source=console
+time="2026-05-15T15:44:25Z" level=info msg="Total requests: 5300" source=console
+time="2026-05-15T15:44:25Z" level=info msg="Avg duration: 3.03ms" source=console
+time="2026-05-15T15:44:25Z" level=info msg="Overall failure rate (incl. spike 429s): 23.85%" source=console
+time="2026-05-15T15:44:25Z" level=info msg="=============================\n" source=console
+
+running (1m20.1s), 000/041 VUs, 5300 complete and 0 interrupted iterations
+constant_load ✓ [ 100% ] 00/20 VUs    30s  50.00 iters/s
+spike_load    ✓ [ 100% ] 000/021 VUs  50s  010.20 iters/s
+[0;32m✅ K6 K6 Load Test completed successfully[0m
+
+
+[0;34m============================================================[0m
+[0;32m🚀 RUNNING K6: K6 Burst Test[0m
+[0;34m============================================================[0m
+
+running (0m35.0s), 011/050 VUs, 7610 complete and 0 interrupted iterations
+burst   [  78% ] 011/050 VUs  35.0s/45s  200.52 iters/s
+
+running (0m36.0s), 009/050 VUs, 7802 complete and 0 interrupted iterations
+burst   [  80% ] 010/050 VUs  36.0s/45s  181.31 iters/s
+
+running (0m37.0s), 008/050 VUs, 7975 complete and 0 interrupted iterations
+burst   [  82% ] 008/050 VUs  37.0s/45s  162.29 iters/s
+
+running (0m38.0s), 007/050 VUs, 8129 complete and 0 interrupted iterations
+burst   [  84% ] 007/050 VUs  38.0s/45s  143.40 iters/s
+
+running (0m39.0s), 006/050 VUs, 8264 complete and 0 interrupted iterations
+burst   [  87% ] 006/050 VUs  39.0s/45s  124.38 iters/s
+
+running (0m40.0s), 006/050 VUs, 8379 complete and 0 interrupted iterations
+burst   [  89% ] 006/050 VUs  40.0s/45s  105.36 iters/s
+
+running (0m41.0s), 005/050 VUs, 8476 complete and 0 interrupted iterations
+burst   [  91% ] 005/050 VUs  41.0s/45s  086.33 iters/s
+
+running (0m42.0s), 004/050 VUs, 8554 complete and 0 interrupted iterations
+burst   [  93% ] 004/050 VUs  42.0s/45s  067.28 iters/s
+
+running (0m43.0s), 003/050 VUs, 8613 complete and 0 interrupted iterations
+burst   [  96% ] 003/050 VUs  43.0s/45s  048.20 iters/s
+
+running (0m44.0s), 001/050 VUs, 8653 complete and 0 interrupted iterations
+burst   [  98% ] 001/050 VUs  44.0s/45s  029.65 iters/s
+
+running (0m45.0s), 000/050 VUs, 8674 complete and 0 interrupted iterations
+burst   [ 100% ] 000/050 VUs  45.0s/45s  010.87 iters/s
+time="2026-05-15T15:45:12Z" level=info msg="\n=== K6 BURST TEST RESULTS ===" source=console
+time="2026-05-15T15:45:12Z" level=info msg="Total requests: 8674" source=console
+time="2026-05-15T15:45:12Z" level=info msg="Requests/sec: 192.76" source=console
+time="2026-05-15T15:45:12Z" level=info msg="=============================\n" source=console
+
+running (0m45.0s), 000/050 VUs, 8674 complete and 0 interrupted iterations
+burst ✓ [ 100% ] 000/050 VUs  45s  010.87 iters/s
+[0;32m✅ K6 K6 Burst Test completed successfully[0m
+
+[0;32m✅ All tests completed[0m
+pod "k6-test-runner" deleted
+pod "curl-test-runner" deleted
+[0;32m✓ Load demo tests completed.[0m

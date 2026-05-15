@@ -1,0 +1,372 @@
+[0;34mRunning local e2e tests...[0m
+Starting port-forwards (profile=local, namespace=core-1-core)...
+  started redis -> 6379:6379 (pid=66709)
+Port-forwards ready.
+=== RUN   TestE2E_MetricsWithRealRedis
+I0515 16:55:59.540295   66876 collector.go:33] Starting metrics collector service
+    metrics_collector_test.go:69: Violating users: 0.000000
+    metrics_collector_test.go:77: E2E metrics collector test completed
+--- PASS: TestE2E_MetricsWithRealRedis (4.72s)
+=== RUN   TestE2E_MetricsEndpoint
+    metrics_test.go:32: === Setting up metrics test environment ===
+I0515 16:56:02.115823   66876 collector.go:46] Metrics collector service stopped
+I0515 16:56:02.402547   66876 manager.go:69] Rule added: api_strict (pattern: .*/test.*, limit: 2, window: 10s, priority: 50)
+I0515 16:56:02.402961   66876 server.go:236] API server listening on :8083
+W0515 16:56:02.402980   66876 server.go:240] API authentication disabled - set API_KEY environment variable
+I0515 16:56:02.403012   66876 server.go:37] Metrics server listening on port 9090
+I0515 16:56:02.403572   66876 collector.go:33] Starting metrics collector service
+I0515 16:56:02.403032   66876 configmap_controller.go:50] Starting ConfigMap controller
+I0515 16:56:02.882098   66876 configmap_controller.go:72] Found 1 existing ConfigMaps with rate-limit-config label
+I0515 16:56:02.882550   66876 manager.go:69] Rule added: ratelimit-config/__#0 (pattern: .*.*.*, limit: 60, window: 1m0s, priority: 50)
+I0515 16:56:02.882577   66876 manager.go:69] Rule added: ratelimit-config/path=_api_v1_____#1 (pattern: .*path=/api/v1/\.\*.*, limit: 10, window: 1m0s, priority: 50)
+I0515 16:56:02.882584   66876 manager.go:69] Rule added: ratelimit-config/path=_api_v1______user_id=______#0 (pattern: .*path=/api/v1/\.\*\|user_id=[^\|]+.*, limit: 10, window: 1m0s, priority: 50)
+I0515 16:56:02.882590   66876 manager.go:69] Rule added: ratelimit-config/path=_health#2 (pattern: .*path=/health.*, limit: 100, window: 1s, priority: 50)
+I0515 16:56:02.882595   66876 manager.go:69] Rule added: ratelimit-config/path=_health_user_id=______#0 (pattern: .*path=/health\|user_id=[^\|]+.*, limit: 100, window: 1s, priority: 50)
+I0515 16:56:02.882601   66876 manager.go:69] Rule added: ratelimit-config/path=_test#3 (pattern: .*path=/test.*, limit: 2, window: 1s, priority: 50)
+I0515 16:56:02.882606   66876 manager.go:69] Rule added: ratelimit-config/path=_test_user_id=______#0 (pattern: .*path=/test\|user_id=[^\|]+.*, limit: 2, window: 1s, priority: 50)
+I0515 16:56:02.882619   66876 manager.go:69] Rule added: ratelimit-config/path=_fixed#4 (pattern: .*path=/fixed.*, limit: 2, window: 1s, priority: 50)
+I0515 16:56:02.882628   66876 manager.go:69] Rule added: ratelimit-config/path=_fixed_user_id=______#0 (pattern: .*path=/fixed\|user_id=[^\|]+.*, limit: 2, window: 1s, priority: 50)
+I0515 16:56:02.882633   66876 manager.go:69] Rule added: ratelimit-config/path=_sliding#5 (pattern: .*path=/sliding.*, limit: 2, window: 1s, priority: 50)
+I0515 16:56:02.882639   66876 manager.go:69] Rule added: ratelimit-config/path=_sliding_user_id=______#0 (pattern: .*path=/sliding\|user_id=[^\|]+.*, limit: 2, window: 1s, priority: 50)
+I0515 16:56:02.882644   66876 configmap_controller.go:178] Processed ConfigMap ratelimit-config with 11 rules
+I0515 16:56:03.028011   66876 configmap_controller.go:110] ConfigMap watcher started
+I0515 16:56:03.028201   66876 configmap_controller.go:131] ConfigMap ratelimit-config: ADDED
+I0515 16:56:03.028224   66876 manager.go:84] Rule removed: ratelimit-config/__#0
+I0515 16:56:03.028227   66876 manager.go:84] Rule removed: ratelimit-config/path=_api_v1_____#1
+I0515 16:56:03.028230   66876 manager.go:84] Rule removed: ratelimit-config/path=_api_v1______user_id=______#0
+I0515 16:56:03.028233   66876 manager.go:84] Rule removed: ratelimit-config/path=_health#2
+I0515 16:56:03.028235   66876 manager.go:84] Rule removed: ratelimit-config/path=_health_user_id=______#0
+I0515 16:56:03.028237   66876 manager.go:84] Rule removed: ratelimit-config/path=_test#3
+I0515 16:56:03.028238   66876 manager.go:84] Rule removed: ratelimit-config/path=_test_user_id=______#0
+I0515 16:56:03.028240   66876 manager.go:84] Rule removed: ratelimit-config/path=_fixed#4
+I0515 16:56:03.028242   66876 manager.go:84] Rule removed: ratelimit-config/path=_fixed_user_id=______#0
+I0515 16:56:03.028244   66876 manager.go:84] Rule removed: ratelimit-config/path=_sliding#5
+I0515 16:56:03.028246   66876 manager.go:84] Rule removed: ratelimit-config/path=_sliding_user_id=______#0
+I0515 16:56:03.028538   66876 manager.go:69] Rule added: ratelimit-config/__#0 (pattern: .*.*.*, limit: 60, window: 1m0s, priority: 50)
+I0515 16:56:03.028563   66876 manager.go:69] Rule added: ratelimit-config/path=_api_v1_____#1 (pattern: .*path=/api/v1/\.\*.*, limit: 10, window: 1m0s, priority: 50)
+I0515 16:56:03.028571   66876 manager.go:69] Rule added: ratelimit-config/path=_api_v1______user_id=______#0 (pattern: .*path=/api/v1/\.\*\|user_id=[^\|]+.*, limit: 10, window: 1m0s, priority: 50)
+I0515 16:56:03.028575   66876 manager.go:69] Rule added: ratelimit-config/path=_health#2 (pattern: .*path=/health.*, limit: 100, window: 1s, priority: 50)
+I0515 16:56:03.028582   66876 manager.go:69] Rule added: ratelimit-config/path=_health_user_id=______#0 (pattern: .*path=/health\|user_id=[^\|]+.*, limit: 100, window: 1s, priority: 50)
+I0515 16:56:03.028587   66876 manager.go:69] Rule added: ratelimit-config/path=_test#3 (pattern: .*path=/test.*, limit: 2, window: 1s, priority: 50)
+I0515 16:56:03.028592   66876 manager.go:69] Rule added: ratelimit-config/path=_test_user_id=______#0 (pattern: .*path=/test\|user_id=[^\|]+.*, limit: 2, window: 1s, priority: 50)
+I0515 16:56:03.028597   66876 manager.go:69] Rule added: ratelimit-config/path=_fixed#4 (pattern: .*path=/fixed.*, limit: 2, window: 1s, priority: 50)
+I0515 16:56:03.028609   66876 manager.go:69] Rule added: ratelimit-config/path=_fixed_user_id=______#0 (pattern: .*path=/fixed\|user_id=[^\|]+.*, limit: 2, window: 1s, priority: 50)
+I0515 16:56:03.028625   66876 manager.go:69] Rule added: ratelimit-config/path=_sliding#5 (pattern: .*path=/sliding.*, limit: 2, window: 1s, priority: 50)
+I0515 16:56:03.028631   66876 manager.go:69] Rule added: ratelimit-config/path=_sliding_user_id=______#0 (pattern: .*path=/sliding\|user_id=[^\|]+.*, limit: 2, window: 1s, priority: 50)
+I0515 16:56:03.028637   66876 configmap_controller.go:178] Processed ConfigMap ratelimit-config with 11 rules
+I0515 16:56:04.430294   66876 operator.go:115] Local operator started successfully
+    metrics_test.go:46: 
+        === Testing metrics endpoint availability ===
+    metrics_test.go:67: Metrics endpoint accessible, response length: 2831 bytes
+    metrics_test.go:96: Metrics endpoint test completed
+I0515 16:56:08.789211   66876 configmap_controller.go:379] Stopping ConfigMap controller...
+W0515 16:56:08.789211   66876 configmap_controller.go:94] ConfigMap watcher disconnected, reconnecting in 5 seconds...
+I0515 16:56:08.789249   66876 collector.go:43] Stopping metrics collector service
+I0515 16:56:13.807147   66876 configmap_controller.go:61] ConfigMap controller stopped
+I0515 16:56:13.807227   66876 configmap_controller.go:382] ConfigMap controller stopped
+I0515 16:56:13.808527   66876 operator.go:142] Local operator stopped
+--- PASS: TestE2E_MetricsEndpoint (12.79s)
+=== RUN   TestE2E_MetricsCollection
+    metrics_test.go:100: === Testing metrics collection ===
+I0515 16:56:14.526674   66876 manager.go:69] Rule added: api_strict (pattern: .*/test.*, limit: 2, window: 10s, priority: 50)
+I0515 16:56:14.527153   66876 server.go:236] API server listening on :8083
+W0515 16:56:14.527166   66876 server.go:240] API authentication disabled - set API_KEY environment variable
+I0515 16:56:14.527240   66876 configmap_controller.go:50] Starting ConfigMap controller
+I0515 16:56:14.527232   66876 server.go:37] Metrics server listening on port 9090
+I0515 16:56:14.527246   66876 collector.go:33] Starting metrics collector service
+I0515 16:56:14.675222   66876 configmap_controller.go:72] Found 1 existing ConfigMaps with rate-limit-config label
+I0515 16:56:14.675667   66876 manager.go:69] Rule added: ratelimit-config/__#0 (pattern: .*.*.*, limit: 60, window: 1m0s, priority: 50)
+I0515 16:56:14.675696   66876 manager.go:69] Rule added: ratelimit-config/path=_api_v1_____#1 (pattern: .*path=/api/v1/\.\*.*, limit: 10, window: 1m0s, priority: 50)
+I0515 16:56:14.675706   66876 manager.go:69] Rule added: ratelimit-config/path=_api_v1______user_id=______#0 (pattern: .*path=/api/v1/\.\*\|user_id=[^\|]+.*, limit: 10, window: 1m0s, priority: 50)
+I0515 16:56:14.675714   66876 manager.go:69] Rule added: ratelimit-config/path=_health#2 (pattern: .*path=/health.*, limit: 100, window: 1s, priority: 50)
+I0515 16:56:14.675721   66876 manager.go:69] Rule added: ratelimit-config/path=_health_user_id=______#0 (pattern: .*path=/health\|user_id=[^\|]+.*, limit: 100, window: 1s, priority: 50)
+I0515 16:56:14.675728   66876 manager.go:69] Rule added: ratelimit-config/path=_test#3 (pattern: .*path=/test.*, limit: 2, window: 1s, priority: 50)
+I0515 16:56:14.675735   66876 manager.go:69] Rule added: ratelimit-config/path=_test_user_id=______#0 (pattern: .*path=/test\|user_id=[^\|]+.*, limit: 2, window: 1s, priority: 50)
+I0515 16:56:14.675755   66876 manager.go:69] Rule added: ratelimit-config/path=_fixed#4 (pattern: .*path=/fixed.*, limit: 2, window: 1s, priority: 50)
+I0515 16:56:14.675770   66876 manager.go:69] Rule added: ratelimit-config/path=_fixed_user_id=______#0 (pattern: .*path=/fixed\|user_id=[^\|]+.*, limit: 2, window: 1s, priority: 50)
+I0515 16:56:14.675789   66876 manager.go:69] Rule added: ratelimit-config/path=_sliding#5 (pattern: .*path=/sliding.*, limit: 2, window: 1s, priority: 50)
+I0515 16:56:14.675800   66876 manager.go:69] Rule added: ratelimit-config/path=_sliding_user_id=______#0 (pattern: .*path=/sliding\|user_id=[^\|]+.*, limit: 2, window: 1s, priority: 50)
+I0515 16:56:14.675818   66876 configmap_controller.go:178] Processed ConfigMap ratelimit-config with 11 rules
+I0515 16:56:14.821110   66876 configmap_controller.go:110] ConfigMap watcher started
+I0515 16:56:14.821247   66876 configmap_controller.go:131] ConfigMap ratelimit-config: ADDED
+I0515 16:56:14.821260   66876 manager.go:84] Rule removed: ratelimit-config/__#0
+I0515 16:56:14.821264   66876 manager.go:84] Rule removed: ratelimit-config/path=_api_v1_____#1
+I0515 16:56:14.821267   66876 manager.go:84] Rule removed: ratelimit-config/path=_api_v1______user_id=______#0
+I0515 16:56:14.821270   66876 manager.go:84] Rule removed: ratelimit-config/path=_health#2
+I0515 16:56:14.821273   66876 manager.go:84] Rule removed: ratelimit-config/path=_health_user_id=______#0
+I0515 16:56:14.821275   66876 manager.go:84] Rule removed: ratelimit-config/path=_test#3
+I0515 16:56:14.821278   66876 manager.go:84] Rule removed: ratelimit-config/path=_test_user_id=______#0
+I0515 16:56:14.821281   66876 manager.go:84] Rule removed: ratelimit-config/path=_fixed#4
+I0515 16:56:14.821283   66876 manager.go:84] Rule removed: ratelimit-config/path=_fixed_user_id=______#0
+I0515 16:56:14.821286   66876 manager.go:84] Rule removed: ratelimit-config/path=_sliding#5
+I0515 16:56:14.821289   66876 manager.go:84] Rule removed: ratelimit-config/path=_sliding_user_id=______#0
+I0515 16:56:14.821625   66876 manager.go:69] Rule added: ratelimit-config/__#0 (pattern: .*.*.*, limit: 60, window: 1m0s, priority: 50)
+I0515 16:56:14.821653   66876 manager.go:69] Rule added: ratelimit-config/path=_api_v1_____#1 (pattern: .*path=/api/v1/\.\*.*, limit: 10, window: 1m0s, priority: 50)
+I0515 16:56:14.821661   66876 manager.go:69] Rule added: ratelimit-config/path=_api_v1______user_id=______#0 (pattern: .*path=/api/v1/\.\*\|user_id=[^\|]+.*, limit: 10, window: 1m0s, priority: 50)
+I0515 16:56:14.821669   66876 manager.go:69] Rule added: ratelimit-config/path=_health#2 (pattern: .*path=/health.*, limit: 100, window: 1s, priority: 50)
+I0515 16:56:14.821674   66876 manager.go:69] Rule added: ratelimit-config/path=_health_user_id=______#0 (pattern: .*path=/health\|user_id=[^\|]+.*, limit: 100, window: 1s, priority: 50)
+I0515 16:56:14.821681   66876 manager.go:69] Rule added: ratelimit-config/path=_test#3 (pattern: .*path=/test.*, limit: 2, window: 1s, priority: 50)
+I0515 16:56:14.821687   66876 manager.go:69] Rule added: ratelimit-config/path=_test_user_id=______#0 (pattern: .*path=/test\|user_id=[^\|]+.*, limit: 2, window: 1s, priority: 50)
+I0515 16:56:14.821696   66876 manager.go:69] Rule added: ratelimit-config/path=_fixed#4 (pattern: .*path=/fixed.*, limit: 2, window: 1s, priority: 50)
+I0515 16:56:14.821704   66876 manager.go:69] Rule added: ratelimit-config/path=_fixed_user_id=______#0 (pattern: .*path=/fixed\|user_id=[^\|]+.*, limit: 2, window: 1s, priority: 50)
+I0515 16:56:14.821709   66876 manager.go:69] Rule added: ratelimit-config/path=_sliding#5 (pattern: .*path=/sliding.*, limit: 2, window: 1s, priority: 50)
+I0515 16:56:14.821715   66876 manager.go:69] Rule added: ratelimit-config/path=_sliding_user_id=______#0 (pattern: .*path=/sliding\|user_id=[^\|]+.*, limit: 2, window: 1s, priority: 50)
+I0515 16:56:14.821724   66876 configmap_controller.go:178] Processed ConfigMap ratelimit-config with 11 rules
+I0515 16:56:16.547230   66876 operator.go:115] Local operator started successfully
+    metrics_test.go:125: 
+        === Adding rate limit rule via ConfigMap ===
+I0515 16:56:21.705782   66876 configmap_controller.go:131] ConfigMap e2e-metrics-test: ADDED
+I0515 16:56:21.705974   66876 manager.go:69] Rule added: e2e-metrics-test/user_id=metrics-test-user#0 (pattern: .*user_id=metrics-test-user.*, limit: 2, window: 1m0s, priority: 100)
+I0515 16:56:21.706023   66876 configmap_controller.go:178] Processed ConfigMap e2e-metrics-test with 1 rules
+I0515 16:56:21.853465   66876 server.go:137] Manual config reload triggered via API
+I0515 16:56:21.853517   66876 configmap_controller.go:359] Manual config reload triggered
+I0515 16:56:21.999778   66876 configmap_controller.go:72] Found 2 existing ConfigMaps with rate-limit-config label
+I0515 16:56:21.999896   66876 manager.go:84] Rule removed: e2e-metrics-test/user_id=metrics-test-user#0
+I0515 16:56:22.000208   66876 manager.go:69] Rule added: e2e-metrics-test/user_id=metrics-test-user#0 (pattern: .*user_id=metrics-test-user.*, limit: 2, window: 1m0s, priority: 100)
+I0515 16:56:22.000239   66876 configmap_controller.go:178] Processed ConfigMap e2e-metrics-test with 1 rules
+I0515 16:56:22.000245   66876 manager.go:84] Rule removed: ratelimit-config/__#0
+I0515 16:56:22.000248   66876 manager.go:84] Rule removed: ratelimit-config/path=_api_v1_____#1
+I0515 16:56:22.000251   66876 manager.go:84] Rule removed: ratelimit-config/path=_api_v1______user_id=______#0
+I0515 16:56:22.000254   66876 manager.go:84] Rule removed: ratelimit-config/path=_health#2
+I0515 16:56:22.000256   66876 manager.go:84] Rule removed: ratelimit-config/path=_health_user_id=______#0
+I0515 16:56:22.000258   66876 manager.go:84] Rule removed: ratelimit-config/path=_test#3
+I0515 16:56:22.000261   66876 manager.go:84] Rule removed: ratelimit-config/path=_test_user_id=______#0
+I0515 16:56:22.000263   66876 manager.go:84] Rule removed: ratelimit-config/path=_fixed#4
+I0515 16:56:22.000265   66876 manager.go:84] Rule removed: ratelimit-config/path=_fixed_user_id=______#0
+I0515 16:56:22.000268   66876 manager.go:84] Rule removed: ratelimit-config/path=_sliding#5
+I0515 16:56:22.000270   66876 manager.go:84] Rule removed: ratelimit-config/path=_sliding_user_id=______#0
+I0515 16:56:22.000572   66876 manager.go:69] Rule added: ratelimit-config/__#0 (pattern: .*.*.*, limit: 60, window: 1m0s, priority: 50)
+I0515 16:56:22.000600   66876 manager.go:69] Rule added: ratelimit-config/path=_api_v1_____#1 (pattern: .*path=/api/v1/\.\*.*, limit: 10, window: 1m0s, priority: 50)
+I0515 16:56:22.000607   66876 manager.go:69] Rule added: ratelimit-config/path=_api_v1______user_id=______#0 (pattern: .*path=/api/v1/\.\*\|user_id=[^\|]+.*, limit: 10, window: 1m0s, priority: 50)
+I0515 16:56:22.000615   66876 manager.go:69] Rule added: ratelimit-config/path=_health#2 (pattern: .*path=/health.*, limit: 100, window: 1s, priority: 50)
+I0515 16:56:22.000621   66876 manager.go:69] Rule added: ratelimit-config/path=_health_user_id=______#0 (pattern: .*path=/health\|user_id=[^\|]+.*, limit: 100, window: 1s, priority: 50)
+I0515 16:56:22.000625   66876 manager.go:69] Rule added: ratelimit-config/path=_test#3 (pattern: .*path=/test.*, limit: 2, window: 1s, priority: 50)
+I0515 16:56:22.000630   66876 manager.go:69] Rule added: ratelimit-config/path=_test_user_id=______#0 (pattern: .*path=/test\|user_id=[^\|]+.*, limit: 2, window: 1s, priority: 50)
+I0515 16:56:22.000637   66876 manager.go:69] Rule added: ratelimit-config/path=_fixed#4 (pattern: .*path=/fixed.*, limit: 2, window: 1s, priority: 50)
+I0515 16:56:22.000648   66876 manager.go:69] Rule added: ratelimit-config/path=_fixed_user_id=______#0 (pattern: .*path=/fixed\|user_id=[^\|]+.*, limit: 2, window: 1s, priority: 50)
+I0515 16:56:22.000664   66876 manager.go:69] Rule added: ratelimit-config/path=_sliding#5 (pattern: .*path=/sliding.*, limit: 2, window: 1s, priority: 50)
+I0515 16:56:22.000676   66876 manager.go:69] Rule added: ratelimit-config/path=_sliding_user_id=______#0 (pattern: .*path=/sliding\|user_id=[^\|]+.*, limit: 2, window: 1s, priority: 50)
+I0515 16:56:22.000682   66876 configmap_controller.go:178] Processed ConfigMap ratelimit-config with 11 rules
+I0515 16:56:22.000686   66876 configmap_controller.go:365] Config reload completed
+    metrics_test.go:144: Rule added via ConfigMap
+    metrics_test.go:146: 
+        === Making rate limit requests ===
+    metrics_test.go:165: Request 1: allowed=true
+    metrics_test.go:165: Request 2: allowed=true
+    metrics_test.go:165: Request 3: allowed=false
+    metrics_test.go:165: Request 4: allowed=false
+    metrics_test.go:165: Request 5: allowed=false
+    metrics_test.go:172: 
+        === Checking metrics after requests ===
+    metrics_test.go:188: Metrics collected (first 800 chars):
+        # HELP ratelimit_active_limits_total Total number of active rate limits in Redis
+        # TYPE ratelimit_active_limits_total gauge
+        ratelimit_active_limits_total 1
+        # HELP ratelimit_config_reload_errors_total Total number of config reload errors
+        # TYPE ratelimit_config_reload_errors_total counter
+        ratelimit_config_reload_errors_total 0
+        # HELP ratelimit_config_reloads_total Total number of config reloads
+        # TYPE ratelimit_config_reloads_total counter
+        ratelimit_config_reloads_total 5
+        # HELP ratelimit_redis_connected_clients Number of connected Redis clients
+        # TYPE ratelimit_redis_connected_clients gauge
+        ratelimit_redis_connected_clients 2
+        # HELP ratelimit_redis_hit_rate Redis cache hit rate (0-1)
+        # TYPE ratelimit_redis_hit_rate gauge
+        ratelimit_redis_hit_rate 1
+        # HELP ratelimit_redis_keys_total Total nu
+    metrics_test.go:194: Metrics collection test completed
+I0515 16:56:27.040883   66876 collector.go:43] Stopping metrics collector service
+W0515 16:56:27.040910   66876 configmap_controller.go:94] ConfigMap watcher disconnected, reconnecting in 5 seconds...
+I0515 16:56:27.040972   66876 configmap_controller.go:379] Stopping ConfigMap controller...
+I0515 16:56:32.054231   66876 configmap_controller.go:61] ConfigMap controller stopped
+I0515 16:56:32.054274   66876 configmap_controller.go:382] ConfigMap controller stopped
+I0515 16:56:32.054600   66876 operator.go:142] Local operator stopped
+--- PASS: TestE2E_MetricsCollection (18.41s)
+=== RUN   TestE2E_MetricsServerOnly
+    metrics_test.go:199: === Testing metrics server only ===
+I0515 16:56:33.420684   66876 manager.go:69] Rule added: api_strict (pattern: .*/test.*, limit: 2, window: 10s, priority: 50)
+I0515 16:56:33.421008   66876 server.go:236] API server listening on :8083
+W0515 16:56:33.421026   66876 server.go:240] API authentication disabled - set API_KEY environment variable
+I0515 16:56:33.421093   66876 server.go:37] Metrics server listening on port 9090
+I0515 16:56:33.421123   66876 collector.go:33] Starting metrics collector service
+I0515 16:56:33.421126   66876 configmap_controller.go:50] Starting ConfigMap controller
+I0515 16:56:33.645664   66876 configmap_controller.go:72] Found 1 existing ConfigMaps with rate-limit-config label
+I0515 16:56:33.645988   66876 manager.go:69] Rule added: ratelimit-config/__#0 (pattern: .*.*.*, limit: 60, window: 1m0s, priority: 50)
+I0515 16:56:33.646016   66876 manager.go:69] Rule added: ratelimit-config/path=_api_v1_____#1 (pattern: .*path=/api/v1/\.\*.*, limit: 10, window: 1m0s, priority: 50)
+I0515 16:56:33.646025   66876 manager.go:69] Rule added: ratelimit-config/path=_api_v1______user_id=______#0 (pattern: .*path=/api/v1/\.\*\|user_id=[^\|]+.*, limit: 10, window: 1m0s, priority: 50)
+I0515 16:56:33.646030   66876 manager.go:69] Rule added: ratelimit-config/path=_health#2 (pattern: .*path=/health.*, limit: 100, window: 1s, priority: 50)
+I0515 16:56:33.646036   66876 manager.go:69] Rule added: ratelimit-config/path=_health_user_id=______#0 (pattern: .*path=/health\|user_id=[^\|]+.*, limit: 100, window: 1s, priority: 50)
+I0515 16:56:33.646041   66876 manager.go:69] Rule added: ratelimit-config/path=_test#3 (pattern: .*path=/test.*, limit: 2, window: 1s, priority: 50)
+I0515 16:56:33.646046   66876 manager.go:69] Rule added: ratelimit-config/path=_test_user_id=______#0 (pattern: .*path=/test\|user_id=[^\|]+.*, limit: 2, window: 1s, priority: 50)
+I0515 16:56:33.646052   66876 manager.go:69] Rule added: ratelimit-config/path=_fixed#4 (pattern: .*path=/fixed.*, limit: 2, window: 1s, priority: 50)
+I0515 16:56:33.646060   66876 manager.go:69] Rule added: ratelimit-config/path=_fixed_user_id=______#0 (pattern: .*path=/fixed\|user_id=[^\|]+.*, limit: 2, window: 1s, priority: 50)
+I0515 16:56:33.646065   66876 manager.go:69] Rule added: ratelimit-config/path=_sliding#5 (pattern: .*path=/sliding.*, limit: 2, window: 1s, priority: 50)
+I0515 16:56:33.646071   66876 manager.go:69] Rule added: ratelimit-config/path=_sliding_user_id=______#0 (pattern: .*path=/sliding\|user_id=[^\|]+.*, limit: 2, window: 1s, priority: 50)
+I0515 16:56:33.646078   66876 configmap_controller.go:178] Processed ConfigMap ratelimit-config with 11 rules
+I0515 16:56:33.803089   66876 configmap_controller.go:110] ConfigMap watcher started
+I0515 16:56:33.803822   66876 configmap_controller.go:131] ConfigMap ratelimit-config: ADDED
+I0515 16:56:33.803844   66876 manager.go:84] Rule removed: ratelimit-config/__#0
+I0515 16:56:33.803847   66876 manager.go:84] Rule removed: ratelimit-config/path=_api_v1_____#1
+I0515 16:56:33.803850   66876 manager.go:84] Rule removed: ratelimit-config/path=_api_v1______user_id=______#0
+I0515 16:56:33.803852   66876 manager.go:84] Rule removed: ratelimit-config/path=_health#2
+I0515 16:56:33.803854   66876 manager.go:84] Rule removed: ratelimit-config/path=_health_user_id=______#0
+I0515 16:56:33.803855   66876 manager.go:84] Rule removed: ratelimit-config/path=_test#3
+I0515 16:56:33.803857   66876 manager.go:84] Rule removed: ratelimit-config/path=_test_user_id=______#0
+I0515 16:56:33.803859   66876 manager.go:84] Rule removed: ratelimit-config/path=_fixed#4
+I0515 16:56:33.803861   66876 manager.go:84] Rule removed: ratelimit-config/path=_fixed_user_id=______#0
+I0515 16:56:33.803863   66876 manager.go:84] Rule removed: ratelimit-config/path=_sliding#5
+I0515 16:56:33.803864   66876 manager.go:84] Rule removed: ratelimit-config/path=_sliding_user_id=______#0
+I0515 16:56:33.804114   66876 manager.go:69] Rule added: ratelimit-config/__#0 (pattern: .*.*.*, limit: 60, window: 1m0s, priority: 50)
+I0515 16:56:33.804138   66876 manager.go:69] Rule added: ratelimit-config/path=_api_v1_____#1 (pattern: .*path=/api/v1/\.\*.*, limit: 10, window: 1m0s, priority: 50)
+I0515 16:56:33.804145   66876 manager.go:69] Rule added: ratelimit-config/path=_api_v1______user_id=______#0 (pattern: .*path=/api/v1/\.\*\|user_id=[^\|]+.*, limit: 10, window: 1m0s, priority: 50)
+I0515 16:56:33.804152   66876 manager.go:69] Rule added: ratelimit-config/path=_health#2 (pattern: .*path=/health.*, limit: 100, window: 1s, priority: 50)
+I0515 16:56:33.804157   66876 manager.go:69] Rule added: ratelimit-config/path=_health_user_id=______#0 (pattern: .*path=/health\|user_id=[^\|]+.*, limit: 100, window: 1s, priority: 50)
+I0515 16:56:33.804161   66876 manager.go:69] Rule added: ratelimit-config/path=_test#3 (pattern: .*path=/test.*, limit: 2, window: 1s, priority: 50)
+I0515 16:56:33.804167   66876 manager.go:69] Rule added: ratelimit-config/path=_test_user_id=______#0 (pattern: .*path=/test\|user_id=[^\|]+.*, limit: 2, window: 1s, priority: 50)
+I0515 16:56:33.804171   66876 manager.go:69] Rule added: ratelimit-config/path=_fixed#4 (pattern: .*path=/fixed.*, limit: 2, window: 1s, priority: 50)
+I0515 16:56:33.804176   66876 manager.go:69] Rule added: ratelimit-config/path=_fixed_user_id=______#0 (pattern: .*path=/fixed\|user_id=[^\|]+.*, limit: 2, window: 1s, priority: 50)
+I0515 16:56:33.804182   66876 manager.go:69] Rule added: ratelimit-config/path=_sliding#5 (pattern: .*path=/sliding.*, limit: 2, window: 1s, priority: 50)
+I0515 16:56:33.804188   66876 manager.go:69] Rule added: ratelimit-config/path=_sliding_user_id=______#0 (pattern: .*path=/sliding\|user_id=[^\|]+.*, limit: 2, window: 1s, priority: 50)
+I0515 16:56:33.804207   66876 configmap_controller.go:178] Processed ConfigMap ratelimit-config with 11 rules
+I0515 16:56:35.441832   66876 operator.go:115] Local operator started successfully
+    metrics_test.go:222: Attempt 1: Got 2825 bytes of metrics
+    metrics_test.go:222: Attempt 2: Got 2825 bytes of metrics
+    metrics_test.go:222: Attempt 3: Got 2832 bytes of metrics
+    metrics_test.go:230: Metrics server test completed
+I0515 16:56:45.772049   66876 collector.go:43] Stopping metrics collector service
+W0515 16:56:45.772059   66876 configmap_controller.go:94] ConfigMap watcher disconnected, reconnecting in 5 seconds...
+I0515 16:56:45.772142   66876 configmap_controller.go:379] Stopping ConfigMap controller...
+I0515 16:56:50.872042   66876 configmap_controller.go:61] ConfigMap controller stopped
+I0515 16:56:50.872089   66876 configmap_controller.go:382] ConfigMap controller stopped
+I0515 16:56:50.872290   66876 operator.go:142] Local operator stopped
+--- PASS: TestE2E_MetricsServerOnly (19.37s)
+=== RUN   TestE2E_RateLimitThroughOperatorAPI
+    rate_limit_test.go:35: === Setting up test environment ===
+I0515 16:56:51.605751   66876 manager.go:69] Rule added: api_strict (pattern: .*/test.*, limit: 2, window: 10s, priority: 50)
+I0515 16:56:51.606325   66876 server.go:236] API server listening on :8083
+W0515 16:56:51.606340   66876 server.go:240] API authentication disabled - set API_KEY environment variable
+I0515 16:56:51.606353   66876 collector.go:33] Starting metrics collector service
+I0515 16:56:51.606365   66876 configmap_controller.go:50] Starting ConfigMap controller
+I0515 16:56:51.606332   66876 server.go:37] Metrics server listening on port 9090
+I0515 16:56:51.754199   66876 configmap_controller.go:72] Found 1 existing ConfigMaps with rate-limit-config label
+I0515 16:56:51.754594   66876 manager.go:69] Rule added: ratelimit-config/__#0 (pattern: .*.*.*, limit: 60, window: 1m0s, priority: 50)
+I0515 16:56:51.754629   66876 manager.go:69] Rule added: ratelimit-config/path=_api_v1_____#1 (pattern: .*path=/api/v1/\.\*.*, limit: 10, window: 1m0s, priority: 50)
+I0515 16:56:51.754640   66876 manager.go:69] Rule added: ratelimit-config/path=_api_v1______user_id=______#0 (pattern: .*path=/api/v1/\.\*\|user_id=[^\|]+.*, limit: 10, window: 1m0s, priority: 50)
+I0515 16:56:51.754648   66876 manager.go:69] Rule added: ratelimit-config/path=_health#2 (pattern: .*path=/health.*, limit: 100, window: 1s, priority: 50)
+I0515 16:56:51.754655   66876 manager.go:69] Rule added: ratelimit-config/path=_health_user_id=______#0 (pattern: .*path=/health\|user_id=[^\|]+.*, limit: 100, window: 1s, priority: 50)
+I0515 16:56:51.754661   66876 manager.go:69] Rule added: ratelimit-config/path=_test#3 (pattern: .*path=/test.*, limit: 2, window: 1s, priority: 50)
+I0515 16:56:51.754668   66876 manager.go:69] Rule added: ratelimit-config/path=_test_user_id=______#0 (pattern: .*path=/test\|user_id=[^\|]+.*, limit: 2, window: 1s, priority: 50)
+I0515 16:56:51.754674   66876 manager.go:69] Rule added: ratelimit-config/path=_fixed#4 (pattern: .*path=/fixed.*, limit: 2, window: 1s, priority: 50)
+I0515 16:56:51.754681   66876 manager.go:69] Rule added: ratelimit-config/path=_fixed_user_id=______#0 (pattern: .*path=/fixed\|user_id=[^\|]+.*, limit: 2, window: 1s, priority: 50)
+I0515 16:56:51.754689   66876 manager.go:69] Rule added: ratelimit-config/path=_sliding#5 (pattern: .*path=/sliding.*, limit: 2, window: 1s, priority: 50)
+I0515 16:56:51.754702   66876 manager.go:69] Rule added: ratelimit-config/path=_sliding_user_id=______#0 (pattern: .*path=/sliding\|user_id=[^\|]+.*, limit: 2, window: 1s, priority: 50)
+I0515 16:56:51.754709   66876 configmap_controller.go:178] Processed ConfigMap ratelimit-config with 11 rules
+I0515 16:56:51.901829   66876 configmap_controller.go:110] ConfigMap watcher started
+I0515 16:56:51.902073   66876 configmap_controller.go:131] ConfigMap ratelimit-config: ADDED
+I0515 16:56:51.902126   66876 manager.go:84] Rule removed: ratelimit-config/__#0
+I0515 16:56:51.902131   66876 manager.go:84] Rule removed: ratelimit-config/path=_api_v1_____#1
+I0515 16:56:51.902133   66876 manager.go:84] Rule removed: ratelimit-config/path=_api_v1______user_id=______#0
+I0515 16:56:51.902137   66876 manager.go:84] Rule removed: ratelimit-config/path=_health#2
+I0515 16:56:51.902140   66876 manager.go:84] Rule removed: ratelimit-config/path=_health_user_id=______#0
+I0515 16:56:51.902142   66876 manager.go:84] Rule removed: ratelimit-config/path=_test#3
+I0515 16:56:51.902145   66876 manager.go:84] Rule removed: ratelimit-config/path=_test_user_id=______#0
+I0515 16:56:51.902147   66876 manager.go:84] Rule removed: ratelimit-config/path=_fixed#4
+I0515 16:56:51.902149   66876 manager.go:84] Rule removed: ratelimit-config/path=_fixed_user_id=______#0
+I0515 16:56:51.902152   66876 manager.go:84] Rule removed: ratelimit-config/path=_sliding#5
+I0515 16:56:51.902154   66876 manager.go:84] Rule removed: ratelimit-config/path=_sliding_user_id=______#0
+I0515 16:56:51.902496   66876 manager.go:69] Rule added: ratelimit-config/__#0 (pattern: .*.*.*, limit: 60, window: 1m0s, priority: 50)
+I0515 16:56:51.902519   66876 manager.go:69] Rule added: ratelimit-config/path=_api_v1_____#1 (pattern: .*path=/api/v1/\.\*.*, limit: 10, window: 1m0s, priority: 50)
+I0515 16:56:51.902527   66876 manager.go:69] Rule added: ratelimit-config/path=_api_v1______user_id=______#0 (pattern: .*path=/api/v1/\.\*\|user_id=[^\|]+.*, limit: 10, window: 1m0s, priority: 50)
+I0515 16:56:51.902532   66876 manager.go:69] Rule added: ratelimit-config/path=_health#2 (pattern: .*path=/health.*, limit: 100, window: 1s, priority: 50)
+I0515 16:56:51.902538   66876 manager.go:69] Rule added: ratelimit-config/path=_health_user_id=______#0 (pattern: .*path=/health\|user_id=[^\|]+.*, limit: 100, window: 1s, priority: 50)
+I0515 16:56:51.902543   66876 manager.go:69] Rule added: ratelimit-config/path=_test#3 (pattern: .*path=/test.*, limit: 2, window: 1s, priority: 50)
+I0515 16:56:51.902554   66876 manager.go:69] Rule added: ratelimit-config/path=_test_user_id=______#0 (pattern: .*path=/test\|user_id=[^\|]+.*, limit: 2, window: 1s, priority: 50)
+I0515 16:56:51.902562   66876 manager.go:69] Rule added: ratelimit-config/path=_fixed#4 (pattern: .*path=/fixed.*, limit: 2, window: 1s, priority: 50)
+I0515 16:56:51.902568   66876 manager.go:69] Rule added: ratelimit-config/path=_fixed_user_id=______#0 (pattern: .*path=/fixed\|user_id=[^\|]+.*, limit: 2, window: 1s, priority: 50)
+I0515 16:56:51.902576   66876 manager.go:69] Rule added: ratelimit-config/path=_sliding#5 (pattern: .*path=/sliding.*, limit: 2, window: 1s, priority: 50)
+I0515 16:56:51.902582   66876 manager.go:69] Rule added: ratelimit-config/path=_sliding_user_id=______#0 (pattern: .*path=/sliding\|user_id=[^\|]+.*, limit: 2, window: 1s, priority: 50)
+I0515 16:56:51.902588   66876 configmap_controller.go:178] Processed ConfigMap ratelimit-config with 11 rules
+I0515 16:56:53.630337   66876 operator.go:115] Local operator started successfully
+    rate_limit_test.go:61: 
+        === Cleaning Redis before test ===
+    rate_limit_test.go:72: Cleaned 0 keys from Redis
+    rate_limit_test.go:74: 
+        === Creating rules via ConfigMap ===
+I0515 16:56:57.489283   66876 configmap_controller.go:131] ConfigMap e2e-rate-limit-test: ADDED
+I0515 16:56:57.489511   66876 manager.go:69] Rule added: e2e-rate-limit-test/user_id=e2e-test-user#0 (pattern: .*user_id=e2e-test-user.*, limit: 2, window: 1m0s, priority: 100)
+I0515 16:56:57.489554   66876 manager.go:69] Rule added: e2e-rate-limit-test/user_id=other-test-user#1 (pattern: .*user_id=other-test-user.*, limit: 100, window: 1m0s, priority: 100)
+I0515 16:56:57.489562   66876 configmap_controller.go:178] Processed ConfigMap e2e-rate-limit-test with 2 rules
+I0515 16:56:57.635614   66876 server.go:137] Manual config reload triggered via API
+I0515 16:56:57.635643   66876 configmap_controller.go:359] Manual config reload triggered
+I0515 16:56:57.780972   66876 configmap_controller.go:72] Found 2 existing ConfigMaps with rate-limit-config label
+I0515 16:56:57.781005   66876 manager.go:84] Rule removed: e2e-rate-limit-test/user_id=e2e-test-user#0
+I0515 16:56:57.781009   66876 manager.go:84] Rule removed: e2e-rate-limit-test/user_id=other-test-user#1
+I0515 16:56:57.781135   66876 manager.go:69] Rule added: e2e-rate-limit-test/user_id=e2e-test-user#0 (pattern: .*user_id=e2e-test-user.*, limit: 2, window: 1m0s, priority: 100)
+I0515 16:56:57.781174   66876 manager.go:69] Rule added: e2e-rate-limit-test/user_id=other-test-user#1 (pattern: .*user_id=other-test-user.*, limit: 100, window: 1m0s, priority: 100)
+I0515 16:56:57.781193   66876 configmap_controller.go:178] Processed ConfigMap e2e-rate-limit-test with 2 rules
+I0515 16:56:57.781197   66876 manager.go:84] Rule removed: ratelimit-config/__#0
+I0515 16:56:57.781200   66876 manager.go:84] Rule removed: ratelimit-config/path=_api_v1_____#1
+I0515 16:56:57.781202   66876 manager.go:84] Rule removed: ratelimit-config/path=_api_v1______user_id=______#0
+I0515 16:56:57.781204   66876 manager.go:84] Rule removed: ratelimit-config/path=_health#2
+I0515 16:56:57.781206   66876 manager.go:84] Rule removed: ratelimit-config/path=_health_user_id=______#0
+I0515 16:56:57.781208   66876 manager.go:84] Rule removed: ratelimit-config/path=_test#3
+I0515 16:56:57.781210   66876 manager.go:84] Rule removed: ratelimit-config/path=_test_user_id=______#0
+I0515 16:56:57.781212   66876 manager.go:84] Rule removed: ratelimit-config/path=_fixed#4
+I0515 16:56:57.781213   66876 manager.go:84] Rule removed: ratelimit-config/path=_fixed_user_id=______#0
+I0515 16:56:57.781215   66876 manager.go:84] Rule removed: ratelimit-config/path=_sliding#5
+I0515 16:56:57.781217   66876 manager.go:84] Rule removed: ratelimit-config/path=_sliding_user_id=______#0
+I0515 16:56:57.781514   66876 manager.go:69] Rule added: ratelimit-config/__#0 (pattern: .*.*.*, limit: 60, window: 1m0s, priority: 50)
+I0515 16:56:57.781536   66876 manager.go:69] Rule added: ratelimit-config/path=_api_v1_____#1 (pattern: .*path=/api/v1/\.\*.*, limit: 10, window: 1m0s, priority: 50)
+I0515 16:56:57.781542   66876 manager.go:69] Rule added: ratelimit-config/path=_api_v1______user_id=______#0 (pattern: .*path=/api/v1/\.\*\|user_id=[^\|]+.*, limit: 10, window: 1m0s, priority: 50)
+I0515 16:56:57.781548   66876 manager.go:69] Rule added: ratelimit-config/path=_health#2 (pattern: .*path=/health.*, limit: 100, window: 1s, priority: 50)
+I0515 16:56:57.781553   66876 manager.go:69] Rule added: ratelimit-config/path=_health_user_id=______#0 (pattern: .*path=/health\|user_id=[^\|]+.*, limit: 100, window: 1s, priority: 50)
+I0515 16:56:57.781560   66876 manager.go:69] Rule added: ratelimit-config/path=_test#3 (pattern: .*path=/test.*, limit: 2, window: 1s, priority: 50)
+I0515 16:56:57.781566   66876 manager.go:69] Rule added: ratelimit-config/path=_test_user_id=______#0 (pattern: .*path=/test\|user_id=[^\|]+.*, limit: 2, window: 1s, priority: 50)
+I0515 16:56:57.781572   66876 manager.go:69] Rule added: ratelimit-config/path=_fixed#4 (pattern: .*path=/fixed.*, limit: 2, window: 1s, priority: 50)
+I0515 16:56:57.781577   66876 manager.go:69] Rule added: ratelimit-config/path=_fixed_user_id=______#0 (pattern: .*path=/fixed\|user_id=[^\|]+.*, limit: 2, window: 1s, priority: 50)
+I0515 16:56:57.781584   66876 manager.go:69] Rule added: ratelimit-config/path=_sliding#5 (pattern: .*path=/sliding.*, limit: 2, window: 1s, priority: 50)
+I0515 16:56:57.781593   66876 manager.go:69] Rule added: ratelimit-config/path=_sliding_user_id=______#0 (pattern: .*path=/sliding\|user_id=[^\|]+.*, limit: 2, window: 1s, priority: 50)
+I0515 16:56:57.781607   66876 configmap_controller.go:178] Processed ConfigMap ratelimit-config with 11 rules
+I0515 16:56:57.781611   66876 configmap_controller.go:365] Config reload completed
+    rate_limit_test.go:106: 
+        === Testing rate limit for test user (limit=2/s) ===
+    rate_limit_test.go:111: Request 1 (test user): allowed=true, limit=2, remaining=1
+    rate_limit_test.go:111: Request 2 (test user): allowed=true, limit=2, remaining=0
+    rate_limit_test.go:118: Request 3 (test user): allowed=false, remaining=0
+    rate_limit_test.go:121: 
+        === Testing other user with fallback rule ===
+    rate_limit_test.go:126: Other user: allowed=true, limit=100
+    rate_limit_test.go:130: 
+        === Testing rate limit reset ===
+I0515 16:56:59.424743   66876 redis_client.go:148] Reset rate limits for user: e2e-test-user (deleted 1 keys)
+    rate_limit_test.go:134: Rate limits reset for test user
+    rate_limit_test.go:139: After reset: allowed=true
+    rate_limit_test.go:143: 
+        === Cleaning up Redis ===
+    rate_limit_test.go:149: Deleted key: ratelimit:e2e-rate-limit-test/user_id=other-test-user#1:path=/test|user_id=other-test-user
+    rate_limit_test.go:149: Deleted key: ratelimit:e2e-rate-limit-test/user_id=e2e-test-user#0:path=/test|user_id=e2e-test-user
+    rate_limit_test.go:153: 
+        === E2E test completed successfully! ===
+I0515 16:57:01.134712   66876 configmap_controller.go:379] Stopping ConfigMap controller...
+I0515 16:57:01.134755   66876 collector.go:43] Stopping metrics collector service
+W0515 16:57:01.134786   66876 configmap_controller.go:94] ConfigMap watcher disconnected, reconnecting in 5 seconds...
+I0515 16:57:06.136948   66876 configmap_controller.go:61] ConfigMap controller stopped
+I0515 16:57:06.137045   66876 configmap_controller.go:382] ConfigMap controller stopped
+I0515 16:57:06.137457   66876 operator.go:142] Local operator stopped
+--- PASS: TestE2E_RateLimitThroughOperatorAPI (15.43s)
+=== RUN   TestHelperFunctions
+=== RUN   TestHelperFunctions/ValidatePattern
+=== RUN   TestHelperFunctions/BuildKey
+=== RUN   TestHelperFunctions/BuildKeyStable
+--- PASS: TestHelperFunctions (0.00s)
+    --- PASS: TestHelperFunctions/ValidatePattern (0.00s)
+    --- PASS: TestHelperFunctions/BuildKey (0.00s)
+    --- PASS: TestHelperFunctions/BuildKeyStable (0.00s)
+PASS
+ok  	ratelimit-service/tests/e2e	70.743s
+?   	ratelimit-service/tests/e2e/setup	[no test files]
+Stopping port-forwards (profile=local)...
+  stopped redis (pid=66709)
+Port-forwards stopped.
+[0;32m✓ E2E tests passed![0m

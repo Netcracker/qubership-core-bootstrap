@@ -2,6 +2,7 @@
 package api
 
 import (
+    "context"
     "crypto/subtle"
     "encoding/json"
     "net/http"
@@ -24,6 +25,7 @@ type Server struct {
     apiKey           string
     ready            bool
     mu               sync.RWMutex
+    httpServer       *http.Server
 }
 
 type ServerConfig struct {
@@ -221,8 +223,14 @@ func (s *Server) resetUserLimits(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) Run(addr string) error {
+    srv := &http.Server{
+        Addr:    addr,
+        Handler: s.router,
+    }
+
     s.mu.Lock()
     s.ready = true
+    s.httpServer = srv
     s.mu.Unlock()
 
     klog.Infof("API server listening on %s", addr)
@@ -231,7 +239,22 @@ func (s *Server) Run(addr string) error {
     } else {
         klog.Warning("API authentication disabled - set API_KEY environment variable")
     }
-    return http.ListenAndServe(addr, s.router)
+
+    if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+        return err
+    }
+    return nil
+}
+
+// Shutdown gracefully stops the HTTP server with the given context deadline.
+func (s *Server) Shutdown(ctx context.Context) error {
+    s.mu.Lock()
+    srv := s.httpServer
+    s.mu.Unlock()
+    if srv == nil {
+        return nil
+    }
+    return srv.Shutdown(ctx)
 }
 
 func respondWithJSON(w http.ResponseWriter, status int, data interface{}) {

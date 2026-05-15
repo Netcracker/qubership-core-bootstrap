@@ -176,7 +176,9 @@ func TestCloudE2E_TwoUsersRateLimit(t *testing.T) {
 
 	t.Log("\n=== Adding rate limit rules via ConfigMap ===")
 
-	// bad-user gets a tight limit (30/min); everyone else gets a generous default (1000/min).
+	// Both users get explicit rules at priority=100 to override any cluster-level
+	// ratelimit-config rules (typically priority≤50). A catch-all at low priority
+	// is avoided because cluster rules would win and make assertions non-deterministic.
 	configYAML := `
 domain: auth_limit
 separator: "|"
@@ -188,19 +190,20 @@ descriptors:
       requests_per_unit: 30
     algorithm: fixed_window
     priority: 100
-  - key: ""
+  - key: user_id
+    value_regex: "good-user"
     rate_limit:
       unit: minute
       requests_per_unit: 1000
     algorithm: fixed_window
-    priority: 10
+    priority: 100
 `
 	helpers.SetRules(ctx, t, clientset, namespace, "cloud-e2e-two-users", configYAML)
 
 	// Force immediate reconciliation.
 	_, _ = http.Post(operatorURL+"/api/v1/config/reload", "application/json", nil)
 	time.Sleep(3 * time.Second)
-	t.Log("Rate limit rules added (bad-user=30/min, default=1000/min)")
+	t.Log("Rate limit rules added (bad-user=30/min, good-user=1000/min)")
 
 	t.Log("\n=== Verifying rule applied ===")
 
