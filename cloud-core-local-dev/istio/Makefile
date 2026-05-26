@@ -128,6 +128,7 @@ deploy-qubership-istio:
 	@helm upgrade --install $(ISTIO_RELEASE_NAME) $(REPOS_DIR)/qubership-istio/helm-templates/qubership-istio \
 		--namespace $(ISTIO_NAMESPACE) $(CREATE_NAMESPACE_OPTION) \
 		--set global.istioNamespace=$(ISTIO_NAMESPACE) \
+		--set MONITORING_ENABLED=$(MONITORING_ENABLED) \
 		--force-conflicts \
 		$(ISTIO_HELM_EXTRA_ARGS)
 	@echo ""

@@ -12,3 +12,4 @@ CORE_MESH_CONFIG_REPO_BRANCH ?= main
 MESH_HELM_RELEASE_NAME = core-istio-mesh
 # Extra helm args (optional), e.g.: MESH_HELM_EXTRA_ARGS = --set someKey=someValue
 MESH_HELM_EXTRA_ARGS ?=
+MONITORING_ENABLED ?= false

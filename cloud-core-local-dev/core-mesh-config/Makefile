@@ -75,6 +75,7 @@ define install_mesh_helm
 		--set SERVICE_MESH_TYPE=Istio \
 		--set WAYPOINT_CPU_REQUEST=100m \
 		--set CPU_REQUEST=10m \
+		--set MONITORING_ENABLED=$(MONITORING_ENABLED) \
 		--wait \
 		$(MESH_HELM_EXTRA_ARGS);
 endef

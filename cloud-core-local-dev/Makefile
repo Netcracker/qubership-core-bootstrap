@@ -967,7 +967,8 @@ define run_core_mesh_config_operation
 	if (cd core-mesh-config && '$(MAKE)' $(1) CONFIG_FILE=$(MESH_CONFIG_FILE) \
 		ISTIO_NAMESPACE=$(ISTIO_NAMESPACE) \
 		MESH_NAMESPACES=$(CORE_NAMESPACE) \
-		CORE_MESH_CONFIG_REPO_BRANCH=$(CORE_MESH_CONFIG_REPO_BRANCH)); then \
+		CORE_MESH_CONFIG_REPO_BRANCH=$(CORE_MESH_CONFIG_REPO_BRANCH) \
+		MONITORING_ENABLED=$(MONITORING_ENABLED)); then \
 		echo "$(GREEN)=== Core mesh config $(1) completed successfully$(NC)"; \
 	else \
 		echo "$(RED)Error: Core mesh config $(1) failed$(NC)"; \
@@ -987,7 +988,8 @@ define run_istio_operation
 		ISTIO_NAMESPACE=$(ISTIO_NAMESPACE) \
 		SKIP_CRDS=$$SKIP_CRDS \
 		CREATE_NAMESPACE=$(CREATE_NAMESPACE) \
-		ISTIO_REPO_BRANCH=$(ISTIO_REPO_BRANCH)); then \
+		ISTIO_REPO_BRANCH=$(ISTIO_REPO_BRANCH) \
+		MONITORING_ENABLED=$(MONITORING_ENABLED)); then \
 		echo "$(GREEN)=== Istio $(1) completed successfully$(NC)"; \
 	else \
 		echo "$(RED)Error: Istio $(1) failed$(NC)"; \
