@@ -534,6 +534,12 @@ apply-core-operator-crds:
 
 deploy-core-operator: apply-core-operator-crds
 	@echo "$(YELLOW)--- Setting up Core Operator...$(NC)"
+	@echo "$(CYAN)--- Using namespace: $(CORE_NAMESPACE)$(NC)"
+	@echo "$(CYAN)--- Using image repository: $(CORE_OPERATOR_IMAGE_REPOSITORY)$(NC)"
+	@echo "$(CYAN)--- Using tag: $(CORE_OPERATOR_TAG)$(NC)"
+	@echo "$(CYAN)--- Core Operator ConfigMap template:$(NC)"
+	@cat $(REPOS_DIR)/qubership-core-core-operator/helm-templates/core-operator/templates/configmap.yaml
+	@echo ""
 	@$(call update_helm_dependencies,$(REPOS_DIR)/qubership-core-core-operator/helm-templates/core-operator,)
 	helm upgrade --install core-operator $(REPOS_DIR)/qubership-core-core-operator/helm-templates/core-operator -n $(CORE_NAMESPACE) \
 		-f $(REPOS_DIR)/qubership-core-core-operator/helm-templates/core-operator/resource-profiles/dev.yaml \
