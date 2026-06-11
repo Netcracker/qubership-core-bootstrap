@@ -1,6 +1,6 @@
 module github.com/netcracker/core-bootstrap/v2
 
-go 1.26.3
+go 1.26.4
 
 require (
 	github.com/go-resty/resty/v2 v2.17.2
