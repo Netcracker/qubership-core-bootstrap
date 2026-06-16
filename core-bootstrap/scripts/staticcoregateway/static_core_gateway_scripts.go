@@ -16,7 +16,6 @@ var (
 	deleteK8sResourcesActions = []deleteK8sResourceAction{
 		{"static-core-gateway-pod-monitor", utils.DeleteK8sPodMonitor},
 		{"static-core-gateway", utils.DeleteK8sHorizontalPodAutoscalerV2},
-		{"static-core-gateway", utils.DeleteK8sHorizontalPodAutoscalerV2Beta2},
 		{"static-core-gateway", utils.DeleteK8sDeployment},
 		{"static-core-gateway-service", utils.DeleteK8sService},
 		{"static-core-gateway.monitoring-config", utils.DeleteK8sConfigMap},
