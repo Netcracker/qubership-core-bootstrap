@@ -69,6 +69,7 @@ endef
 define install_mesh_helm
 	echo "$(CYAN)--- Installing $(MESH_HELM_RELEASE_NAME) Helm package in $(1)$(NC)"; \
 	echo "MESH_HELM_EXTRA_ARGS: $(MESH_HELM_EXTRA_ARGS)"; \
+	helm version; \
 	helm upgrade --install $(MESH_HELM_RELEASE_NAME) $(REPOS_DIR)/qubership-core-mesh-config/ \
 		-f $(REPOS_DIR)/qubership-core-mesh-config/resource-profiles/dev.yaml \
 		--namespace "$(1)" \
@@ -76,7 +77,7 @@ define install_mesh_helm
 		--set WAYPOINT_CPU_REQUEST=100m \
 		--set CPU_REQUEST=10m \
 		--set MONITORING_ENABLED=$(MONITORING_ENABLED) \
-		--wait \
+		--wait=legacy \
 		--timeout 10m \
 		--debug \
 		$(MESH_HELM_EXTRA_ARGS);
