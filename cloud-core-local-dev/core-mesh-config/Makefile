@@ -95,6 +95,12 @@ define dump_mesh_diagnostics
 	kubectl describe pods -n "$(1)" || true; \
 	echo "$(CYAN)--- Events in $(1)$(NC)"; \
 	kubectl get events -n "$(1)" --sort-by=.lastTimestamp || true; \
+	echo "$(CYAN)--- Gateways in $(1) (did one reappear during the wait?)$(NC)"; \
+	kubectl get gateway.gateway.networking.k8s.io -n "$(1)" \
+		-o custom-columns=NAME:.metadata.name,CLASS:.spec.gatewayClassName,DELETING:.metadata.deletionTimestamp,FINALIZERS:.metadata.finalizers 2>/dev/null || true; \
+	kubectl get gateway.gateway.networking.k8s.io egress-gateway -n "$(1)" -o yaml 2>/dev/null || true; \
+	echo "$(CYAN)--- HTTPRoutes / Services in $(1)$(NC)"; \
+	kubectl get httproute.gateway.networking.k8s.io,svc -n "$(1)" 2>/dev/null || true; \
 	echo "$(CYAN)--- Helm status$(NC)"; \
 	helm status $(MESH_HELM_RELEASE_NAME) -n "$(1)" || true;
 endef
@@ -106,8 +112,6 @@ endef
 # first guarantees deletion completes immediately, so helm's hook-delete finds none.
 define clear_stuck_gateways
 	echo "$(CYAN)--- Pre-cleaning leftover Gateways in $(1)$(NC)"; \
-	kubectl get gateway.gateway.networking.k8s.io -n "$(1)" \
-		-o custom-columns=NAME:.metadata.name,DELETING:.metadata.deletionTimestamp,FINALIZERS:.metadata.finalizers 2>/dev/null || true; \
 	for gw in $$(kubectl get gateway.gateway.networking.k8s.io -n "$(1)" \
 		-o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' 2>/dev/null); do \
 		echo "$(YELLOW)--- Removing finalizers and deleting Gateway $$gw$(NC)"; \
@@ -116,6 +120,30 @@ define clear_stuck_gateways
 		kubectl delete gateway.gateway.networking.k8s.io "$$gw" -n "$(1)" \
 			--ignore-not-found=true --wait=false || true; \
 	done;
+endef
+
+# $(1) - namespace
+# Pre-install inventory: what already exists in the namespace and which
+# controllers run there, to diagnose the helm before-hook-creation delete hang.
+define dump_pre_install_state
+	echo "$(CYAN)--- [diag] Gateways in $(1)$(NC)"; \
+	kubectl get gateway.gateway.networking.k8s.io -n "$(1)" \
+		-o custom-columns=NAME:.metadata.name,DELETING:.metadata.deletionTimestamp,FINALIZERS:.metadata.finalizers 2>/dev/null || true; \
+	echo "$(CYAN)--- [diag] HTTPRoutes in $(1)$(NC)"; \
+	kubectl get httproute.gateway.networking.k8s.io -n "$(1)" 2>/dev/null || true; \
+	echo "$(CYAN)--- [diag] Services in $(1)$(NC)"; \
+	kubectl get svc -n "$(1)" 2>/dev/null || true; \
+	echo "$(CYAN)--- [diag] EnvoyFilters in $(1)$(NC)"; \
+	kubectl get envoyfilter -n "$(1)" 2>/dev/null || true; \
+	echo "$(CYAN)--- [diag] ConfigMaps (pod-options) in $(1)$(NC)"; \
+	kubectl get configmap -n "$(1)" 2>/dev/null | grep -i pod-options || true; \
+	echo "$(CYAN)--- [diag] Anything Terminating in $(1)$(NC)"; \
+	kubectl get all,gateway.gateway.networking.k8s.io,httproute.gateway.networking.k8s.io -n "$(1)" \
+		-o json 2>/dev/null | grep -B2 deletionTimestamp || echo "  (none)"; \
+	echo "$(CYAN)--- [diag] Deployments (controllers) in $(1)$(NC)"; \
+	kubectl get deploy -n "$(1)" 2>/dev/null || true; \
+	echo "$(CYAN)--- [diag] GatewayClasses$(NC)"; \
+	kubectl get gatewayclass 2>/dev/null || true;
 endef
 
 # $(1) - namespace
@@ -184,6 +212,7 @@ enable: setup-repo
 		for ns in $$(echo "$(MESH_NAMESPACES)" | tr ',' ' '); do \
 			if [ -n "$$ns" ]; then \
 				$(call label_namespace_for_mesh,$$ns) \
+				$(call dump_pre_install_state,$$ns) \
 				$(call clear_stuck_gateways,$$ns) \
 				{ $(call install_mesh_helm,$$ns) } || { $(call dump_mesh_diagnostics,$$ns) exit 1; }; \
 				kubectl rollout restart deploy/core-operator -n $$ns; \
