@@ -100,6 +100,19 @@ define dump_mesh_diagnostics
 endef
 
 # $(1) - namespace
+# Force-clear finalizers on Gateways stuck in Terminating, so a leftover from a
+# prior failed run can't block helm's before-hook-creation delete wait (10m hang).
+define clear_stuck_gateways
+	echo "$(CYAN)--- Clearing any stuck (Terminating) Gateways in $(1)$(NC)"; \
+	for gw in $$(kubectl get gateway.gateway.networking.k8s.io -n "$(1)" \
+		-o jsonpath='{range .items[?(@.metadata.deletionTimestamp)]}{.metadata.name}{"\n"}{end}' 2>/dev/null); do \
+		echo "$(YELLOW)--- Removing finalizers from stuck Gateway $$gw$(NC)"; \
+		kubectl patch gateway.gateway.networking.k8s.io "$$gw" -n "$(1)" \
+			--type=merge -p '{"metadata":{"finalizers":[]}}' || true; \
+	done;
+endef
+
+# $(1) - namespace
 define uninstall_mesh_helm
 	echo "$(CYAN)--- Uninstalling $(MESH_HELM_RELEASE_NAME) Helm package in $(1)$(NC)"; \
 	helm uninstall $(MESH_HELM_RELEASE_NAME) -n "$(1)" --ignore-not-found=true || true;
@@ -165,6 +178,7 @@ enable: setup-repo
 		for ns in $$(echo "$(MESH_NAMESPACES)" | tr ',' ' '); do \
 			if [ -n "$$ns" ]; then \
 				$(call label_namespace_for_mesh,$$ns) \
+				$(call clear_stuck_gateways,$$ns) \
 				{ $(call install_mesh_helm,$$ns) } || { $(call dump_mesh_diagnostics,$$ns) exit 1; }; \
 				kubectl rollout restart deploy/core-operator -n $$ns; \
 				if [ "$(RUN_SMOKE_TEST)" = "true" ]; then \
