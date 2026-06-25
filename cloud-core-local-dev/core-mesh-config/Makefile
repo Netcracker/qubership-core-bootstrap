@@ -100,15 +100,21 @@ define dump_mesh_diagnostics
 endef
 
 # $(1) - namespace
-# Force-clear finalizers on Gateways stuck in Terminating, so a leftover from a
-# prior failed run can't block helm's before-hook-creation delete wait (10m hang).
+# Pre-delete ALL leftover Gateways from prior runs before mesh install. Helm's
+# before-hook-creation deletes existing hook Gateways and waits for them to vanish;
+# if istiod can't clear the finalizer the wait blocks 10m. Stripping finalizers
+# first guarantees deletion completes immediately, so helm's hook-delete finds none.
 define clear_stuck_gateways
-	echo "$(CYAN)--- Clearing any stuck (Terminating) Gateways in $(1)$(NC)"; \
+	echo "$(CYAN)--- Pre-cleaning leftover Gateways in $(1)$(NC)"; \
+	kubectl get gateway.gateway.networking.k8s.io -n "$(1)" \
+		-o custom-columns=NAME:.metadata.name,DELETING:.metadata.deletionTimestamp,FINALIZERS:.metadata.finalizers 2>/dev/null || true; \
 	for gw in $$(kubectl get gateway.gateway.networking.k8s.io -n "$(1)" \
-		-o jsonpath='{range .items[?(@.metadata.deletionTimestamp)]}{.metadata.name}{"\n"}{end}' 2>/dev/null); do \
-		echo "$(YELLOW)--- Removing finalizers from stuck Gateway $$gw$(NC)"; \
+		-o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' 2>/dev/null); do \
+		echo "$(YELLOW)--- Removing finalizers and deleting Gateway $$gw$(NC)"; \
 		kubectl patch gateway.gateway.networking.k8s.io "$$gw" -n "$(1)" \
 			--type=merge -p '{"metadata":{"finalizers":[]}}' || true; \
+		kubectl delete gateway.gateway.networking.k8s.io "$$gw" -n "$(1)" \
+			--ignore-not-found=true --wait=false || true; \
 	done;
 endef
 
