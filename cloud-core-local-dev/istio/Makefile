@@ -132,6 +132,9 @@ deploy-qubership-istio:
 		--force-conflicts \
 		$(ISTIO_HELM_EXTRA_ARGS)
 	@echo ""
+	@echo "$(CYAN)--- Waiting for istiod to become ready in $(ISTIO_NAMESPACE)...$(NC)"
+	@kubectl wait --for=condition=available deploy -l app=istiod -n $(ISTIO_NAMESPACE) --timeout=5m
+	@echo ""
 	@echo "$(GREEN)=== Istio deploy completed$(NC)"
 	@echo ""
 
