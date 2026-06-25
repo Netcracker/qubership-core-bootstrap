@@ -77,7 +77,26 @@ define install_mesh_helm
 		--set CPU_REQUEST=10m \
 		--set MONITORING_ENABLED=$(MONITORING_ENABLED) \
 		--wait \
+		--timeout 10m \
+		--debug \
 		$(MESH_HELM_EXTRA_ARGS);
+endef
+
+# $(1) - namespace
+define dump_mesh_diagnostics
+	echo "$(RED)--- Mesh install failed in $(1); dumping diagnostics$(NC)"; \
+	echo "$(CYAN)--- Pods in $(1)$(NC)"; \
+	kubectl get pods -n "$(1)" -o wide || true; \
+	echo "$(CYAN)--- Pods in $(ISTIO_NAMESPACE)$(NC)"; \
+	kubectl get pods -n "$(ISTIO_NAMESPACE)" -o wide || true; \
+	echo "$(CYAN)--- All pods$(NC)"; \
+	kubectl get pods -A -o wide || true; \
+	echo "$(CYAN)--- Describe pods in $(1)$(NC)"; \
+	kubectl describe pods -n "$(1)" || true; \
+	echo "$(CYAN)--- Events in $(1)$(NC)"; \
+	kubectl get events -n "$(1)" --sort-by=.lastTimestamp || true; \
+	echo "$(CYAN)--- Helm status$(NC)"; \
+	helm status $(MESH_HELM_RELEASE_NAME) -n "$(1)" || true;
 endef
 
 # $(1) - namespace
@@ -146,7 +165,7 @@ enable: setup-repo
 		for ns in $$(echo "$(MESH_NAMESPACES)" | tr ',' ' '); do \
 			if [ -n "$$ns" ]; then \
 				$(call label_namespace_for_mesh,$$ns) \
-				$(call install_mesh_helm,$$ns) \
+				{ $(call install_mesh_helm,$$ns) } || { $(call dump_mesh_diagnostics,$$ns) exit 1; }; \
 				kubectl rollout restart deploy/core-operator -n $$ns; \
 				if [ "$(RUN_SMOKE_TEST)" = "true" ]; then \
 					'$(MAKE)' -C ../istio/test full-test NAMESPACE="$$ns" ISTIO_NAMESPACE="$(ISTIO_NAMESPACE)" || { '$(MAKE)' -C ../istio/test collect-logs NAMESPACE="$$ns" ISTIO_NAMESPACE="$(ISTIO_NAMESPACE)"; exit 1; }; \
