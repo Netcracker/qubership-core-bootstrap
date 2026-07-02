@@ -76,7 +76,7 @@ define install_mesh_helm
 		--set WAYPOINT_CPU_REQUEST=100m \
 		--set CPU_REQUEST=10m \
 		--set MONITORING_ENABLED=$(MONITORING_ENABLED) \
-		--wait \
+		--wait=legacy \
 		$(MESH_HELM_EXTRA_ARGS);
 endef
 
