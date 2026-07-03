@@ -494,17 +494,25 @@ deploy-control-plane:
 	@echo ""
 
 deploy-dbaas-agent:
-	@echo "$(YELLOW)--- Setting up DBaaS agent...$(NC)"
-	@$(call update_helm_dependencies,$(REPOS_DIR)/qubership-core-dbaas-agent/helm-templates/dbaas-agent,)
-	helm upgrade --install dbaas-agent $(REPOS_DIR)/qubership-core-dbaas-agent/helm-templates/dbaas-agent -n $(CORE_NAMESPACE) \
-		-f $(REPOS_DIR)/qubership-core-dbaas-agent/helm-templates/dbaas-agent/resource-profiles/dev.yaml \
-		-f ./core-values.yaml \
-		--set TAG=$(DBAAS_AGENT_TAG) \
-		$(HELM_DEBUG_FLAGS)	
+	@if [ "$(KUBERNETES_M2M_ENABLED)" = "true" ]; then \
+		echo "$(CYAN)--- Skipping DBaaS agent installation (KUBERNETES_M2M_ENABLED=true)...$(NC)"; \
+		echo ""; \
+	else \
+		echo "$(YELLOW)--- Setting up DBaaS agent...$(NC)"; \
+		$(call update_helm_dependencies,$(REPOS_DIR)/qubership-core-dbaas-agent/helm-templates/dbaas-agent,); \
+		helm upgrade --install dbaas-agent $(REPOS_DIR)/qubership-core-dbaas-agent/helm-templates/dbaas-agent -n $(CORE_NAMESPACE) \
+			-f $(REPOS_DIR)/qubership-core-dbaas-agent/helm-templates/dbaas-agent/resource-profiles/dev.yaml \
+			-f ./core-values.yaml \
+			--set TAG=$(DBAAS_AGENT_TAG) \
+			$(HELM_DEBUG_FLAGS); \
+	fi
 	@echo ""
 
 deploy-maas-agent:
-	@if [ "$(INSTALL_MAAS)" = "true" ]; then \
+	@if [ "$(KUBERNETES_M2M_ENABLED)" = "true" ]; then \
+		echo "$(CYAN)--- Skipping MaaS agent installation (KUBERNETES_M2M_ENABLED=true)...$(NC)"; \
+		echo ""; \
+	elif [ "$(INSTALL_MAAS)" = "true" ]; then \
 		echo "$(YELLOW)--- Setting up MaaS agent...$(NC)"; \
 		$(call update_helm_dependencies,$(REPOS_DIR)/qubership-core-maas-agent/helm-templates/maas-agent,); \
 		helm upgrade --install maas-agent $(REPOS_DIR)/qubership-core-maas-agent/helm-templates/maas-agent -n $(CORE_NAMESPACE) \
