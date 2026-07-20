@@ -1,8 +1,6 @@
 module github.com/netcracker/cr-synchronizer
 
-go 1.26.0
-
-toolchain go1.26.4
+go 1.26.5
 
 require (
 	github.com/stretchr/testify v1.11.1
