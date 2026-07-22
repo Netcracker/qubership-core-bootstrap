@@ -6,6 +6,9 @@ include $(CONFIG_FILE)
 
 # Repository directory
 REPOS_DIR ?= ./.tmp
+MAAS_REPO_URL ?= https://github.com/Netcracker/qubership-maas.git
+# TAG=latest -> checkout main; otherwise checkout the matching GitHub tag
+MAAS_REPO_REF := $(if $(filter latest,$(TAG)),main,$(TAG))
 
 # Define colors for output
 CYAN := \033[0;36m
@@ -52,6 +55,7 @@ show-config:
 	@echo "$(CYAN)--- DBaaS namespace: $(NC)$(DBAAS_NAMESPACE)"
 	@echo "$(CYAN)--- DBaaS aggregator address: $(NC)$(DBAAS_AGGREGATOR_ADDRESS)"
 	@echo "$(CYAN)--- Image tag: $(NC)$(TAG)"
+	@echo "$(CYAN)--- Repo ref: $(NC)$(MAAS_REPO_REF)"
 	@echo "$(CYAN)--- MAAS_ACCOUNT_MANAGER_USERNAME: $(NC)$(MAAS_ACCOUNT_MANAGER_USERNAME)"
 	@echo "$(CYAN)--- MAAS_DEPLOYER_CLIENT_USERNAME: $(NC)$(MAAS_DEPLOYER_CLIENT_USERNAME)"
 	@echo "$(CYAN)--- DBAAS_CLUSTER_DBA_CREDENTIALS_USERNAME: $(NC)$(DBAAS_CLUSTER_DBA_CREDENTIALS_USERNAME)"
@@ -104,7 +108,29 @@ setup-repos:
 	@echo "$(BLUE)=== STAGE 1: Repository Setup ===$(NC)"
 	@echo "$(CYAN)--- Stage 1 BEGIN: Cloning repositories...$(NC)"
 	@mkdir -p $(REPOS_DIR)
-	@git clone --depth 1 https://github.com/Netcracker/qubership-maas.git $(REPOS_DIR)/qubership-maas 2>/dev/null || echo "Directory already exists"
+ifeq ($(TAG),latest)
+	@echo "$(CYAN)--- TAG=latest, checking out branch: main$(NC)"
+else
+	@echo "$(CYAN)--- Looking up GitHub tag: $(TAG)$(NC)"
+	@if [ -z "$$(git ls-remote --tags --refs $(MAAS_REPO_URL) refs/tags/$(TAG) 2>/dev/null)" ]; then \
+		echo "$(RED)Error: GitHub tag '$(TAG)' not found in qubership-maas$(NC)"; \
+		exit 1; \
+	fi
+	@echo "$(CYAN)--- Found tag $(TAG), checking it out$(NC)"
+endif
+	@if [ -d "$(REPOS_DIR)/qubership-maas/.git" ]; then \
+		echo "$(CYAN)--- Updating qubership-maas to ref: $(MAAS_REPO_REF)...$(NC)"; \
+		(cd $(REPOS_DIR)/qubership-maas && \
+			git fetch --depth 1 origin $(MAAS_REPO_REF) && \
+			git checkout -f FETCH_HEAD); \
+	elif [ ! -e "$(REPOS_DIR)/qubership-maas" ]; then \
+		echo "$(CYAN)--- Cloning qubership-maas (ref: $(MAAS_REPO_REF))...$(NC)"; \
+		git clone --depth 1 -b $(MAAS_REPO_REF) $(MAAS_REPO_URL) $(REPOS_DIR)/qubership-maas; \
+	else \
+		echo "$(RED)Error: $(REPOS_DIR)/qubership-maas exists but is not a git repository$(NC)"; \
+		echo "$(CYAN)Please remove it and retry: rm -rf $(REPOS_DIR)/qubership-maas$(NC)"; \
+		exit 1; \
+	fi
 	@echo "$(GREEN)--- Stage 1 END: Repositories ready$(NC)"
 	@echo ""
 
