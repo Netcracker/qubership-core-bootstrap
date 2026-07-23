@@ -54,6 +54,10 @@
 CONFIG_FILE ?= local.mk
 include $(CONFIG_FILE)
 
+# Load dependency versions (tags/refs). Profiles may override DEPENDENCIES_FILE.
+DEPENDENCIES_FILE ?= dependencies.mk
+include $(DEPENDENCIES_FILE)
+
 # Ensure recipes (incl. envsubst) see Make variables in the environment.
 # This includes config-loaded vars and `make VAR=...` overrides.
 .EXPORT_ALL_VARIABLES:
@@ -86,11 +90,12 @@ help:
 	@echo "$(BLUE)=== Cloud Core Local Development Makefile ===$(NC)"
 	@echo ""
 	@echo "$(CYAN)USAGE:$(NC)"
-	@echo "  make [target] [CONFIG_FILE=local.mk] [DEBUG=true]"
+	@echo "  make [target] [CONFIG_FILE=local.mk] [DEPENDENCIES_FILE=dependencies.mk] [DEBUG=true]"
 	@echo ""
 	@echo "$(CYAN)CONFIGURATION VARIABLES:$(NC)"
-	@echo "  CONFIG_FILE=local.mk    # Configuration file (default: local.mk)"
-	@echo "  DEBUG=true              # Enable debug mode with --debug --dry-run"
+	@echo "  CONFIG_FILE=local.mk           # Configuration file (default: local.mk)"
+	@echo "  DEPENDENCIES_FILE=dependencies.mk  # Dependency tags/versions (default: dependencies.mk)"
+	@echo "  DEBUG=true                     # Enable debug mode with --debug --dry-run"
 	@echo ""
 	@echo "$(CYAN)MAIN TARGETS:$(NC)"
 	@echo "  install                 # Complete installation: validate prerequisites, deploy Cloud Core and dependencies, mesh connectivity smoke test"
@@ -942,6 +947,7 @@ endef
 define run_maas_operation
 	set -e; \
 	echo "$(CYAN)--- Using config file: $(MAAS_CONFIG_FILE)$(NC)"; \
+	echo "$(CYAN)--- Using MAAS tag: $(MAAS_TAG)$(NC)"; \
 	echo "$(CYAN)--- Using MAAS namespace: $(MAAS_NAMESPACE)$(NC)"; \
 	echo "$(CYAN)--- Using RabbitMQ namespace: $(RABBIT_NAMESPACE)$(NC)"; \
 	echo "$(CYAN)--- Using Kafka namespace: $(KAFKA_NAMESPACE)$(NC)"; \
@@ -949,7 +955,7 @@ define run_maas_operation
 	echo "$(CYAN)--- Using RabbitMQ instances: $(RABBIT_INSTANCES)$(NC)"; \
 	echo "$(CYAN)--- Using DBAAS namespace: $(DBAAS_NAMESPACE)$(NC)"; \
 	echo "$(CYAN)--- Using DBAAS service name: $(DBAAS_SERVICE_NAME)$(NC)"; \
-	if (cd maas && '$(MAKE)' $(1) CONFIG_FILE=$(MAAS_CONFIG_FILE) MAAS_NAMESPACE=$(MAAS_NAMESPACE) RABBIT_NAMESPACE=$(RABBIT_NAMESPACE) KAFKA_NAMESPACE=$(KAFKA_NAMESPACE) KAFKA_INSTANCES='$(KAFKA_INSTANCES)' RABBIT_INSTANCES='$(RABBIT_INSTANCES)' CREATE_NAMESPACE=$(CREATE_NAMESPACE) DBAAS_NAMESPACE=$(DBAAS_NAMESPACE) DBAAS_SERVICE_NAME=$(DBAAS_SERVICE_NAME)); then \
+	if (cd maas && '$(MAKE)' $(1) CONFIG_FILE=$(MAAS_CONFIG_FILE) TAG=$(MAAS_TAG) MAAS_NAMESPACE=$(MAAS_NAMESPACE) RABBIT_NAMESPACE=$(RABBIT_NAMESPACE) KAFKA_NAMESPACE=$(KAFKA_NAMESPACE) KAFKA_INSTANCES='$(KAFKA_INSTANCES)' RABBIT_INSTANCES='$(RABBIT_INSTANCES)' CREATE_NAMESPACE=$(CREATE_NAMESPACE) DBAAS_NAMESPACE=$(DBAAS_NAMESPACE) DBAAS_SERVICE_NAME=$(DBAAS_SERVICE_NAME)); then \
 		echo "$(GREEN)=== MAAS $(1) completed successfully$(NC)"; \
 	else \
 		echo "$(RED)Error: MAAS $(1) failed$(NC)"; \
