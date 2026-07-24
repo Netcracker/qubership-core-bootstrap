@@ -959,17 +959,21 @@ define run_maas_operation
 endef
 
 # Helper function to run core-mesh-config operations
+# SERVICE_MESH_TYPE: when Istio is installed use Istio (even if profile says Core);
+# otherwise propagate Core.
 define run_core_mesh_config_operation
 	set -e; \
 	echo "$(CYAN)--- Using core-mesh-config config file: core-mesh-config/$(MESH_CONFIG_FILE)$(NC)"; \
 	echo "$(CYAN)--- Using Istio namespace: $(ISTIO_NAMESPACE)$(NC)"; \
 	echo "$(CYAN)--- Using core-mesh-config branch: $(CORE_MESH_CONFIG_REPO_BRANCH)$(NC)"; \
 	echo "$(CYAN)--- Enable mesh for namespaces: $(CORE_NAMESPACE)$(NC)"; \
+	echo "$(CYAN)--- Using SERVICE_MESH_TYPE: $(if $(filter true,$(INSTALL_ISTIO)),Istio,Core)$(NC)"; \
 	if (cd core-mesh-config && '$(MAKE)' $(1) CONFIG_FILE=$(MESH_CONFIG_FILE) \
 		ISTIO_NAMESPACE=$(ISTIO_NAMESPACE) \
 		MESH_NAMESPACES=$(CORE_NAMESPACE) \
 		CORE_MESH_CONFIG_REPO_BRANCH=$(CORE_MESH_CONFIG_REPO_BRANCH) \
-		MONITORING_ENABLED=$(MONITORING_ENABLED)); then \
+		MONITORING_ENABLED=$(MONITORING_ENABLED) \
+		SERVICE_MESH_TYPE=$(if $(filter true,$(INSTALL_ISTIO)),Istio,Core)); then \
 		echo "$(GREEN)=== Core mesh config $(1) completed successfully$(NC)"; \
 	else \
 		echo "$(RED)Error: Core mesh config $(1) failed$(NC)"; \

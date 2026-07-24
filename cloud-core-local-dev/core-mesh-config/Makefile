@@ -72,7 +72,7 @@ define install_mesh_helm
 	helm upgrade --install $(MESH_HELM_RELEASE_NAME) $(REPOS_DIR)/qubership-core-mesh-config/ \
 		-f $(REPOS_DIR)/qubership-core-mesh-config/resource-profiles/dev.yaml \
 		--namespace "$(1)" \
-		--set SERVICE_MESH_TYPE=Istio \
+		--set SERVICE_MESH_TYPE=$(SERVICE_MESH_TYPE) \
 		--set WAYPOINT_CPU_REQUEST=100m \
 		--set CPU_REQUEST=10m \
 		--set MONITORING_ENABLED=$(MONITORING_ENABLED) \
