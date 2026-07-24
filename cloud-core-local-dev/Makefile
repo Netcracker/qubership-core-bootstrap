@@ -421,7 +421,7 @@ deploy-cloud-core-configuration:
 
 # ------------------ cloud core ---------------------------
 
-deploy-cloud-core-components: deploy-cloud-core-print-start deploy-facade-operator deploy-ingress-gateway deploy-control-plane deploy-paas-mediation deploy-dbaas-agent deploy-maas-agent deploy-core-operator deploy-config-server deploy-site-management deploy-istio
+deploy-cloud-core-components: deploy-cloud-core-print-start deploy-facade-operator deploy-ingress-gateway deploy-control-plane deploy-paas-mediation deploy-dbaas-agent deploy-maas-agent deploy-core-operator deploy-config-server deploy-site-management
 	@echo "$(GREEN)=== Cloud Core components deployment completed$(NC)"
 	@echo ""
 
@@ -824,12 +824,7 @@ uninstall-istio:
 deploy-core-mesh-config:
 	@echo "$(GREEN)=== Starting core mesh config installation...$(NC)"
 	@echo ""
-	@if [ "$(INSTALL_ISTIO)" = "true" ]; then \
-		$(call run_core_mesh_config_operation,enable); \
-	else \
-		echo "$(CYAN)--- Skipping core mesh config installation (INSTALL_ISTIO=false)...$(NC)"; \
-		echo ""; \
-	fi
+	@$(call run_core_mesh_config_operation,enable);
 	@echo ""
 
 uninstall-core-mesh-config:
