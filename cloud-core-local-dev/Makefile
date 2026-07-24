@@ -830,12 +830,7 @@ deploy-core-mesh-config:
 uninstall-core-mesh-config:
 	@echo "$(GREEN)=== Starting core mesh config uninstallation...$(NC)"
 	@echo ""
-	@if [ "$(INSTALL_ISTIO)" = "true" ]; then \
-		$(call run_core_mesh_config_operation,disable); \
-	else \
-		echo "$(CYAN)--- Skipping core mesh config uninstallation (INSTALL_ISTIO=false)...$(NC)"; \
-		echo ""; \
-	fi
+	@$(call run_core_mesh_config_operation,disable);
 	@echo ""
 
 
