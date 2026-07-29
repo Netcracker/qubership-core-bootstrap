@@ -568,7 +568,7 @@ uninstall: uninstall-istio uninstall-maas uninstall-core uninstall-dependencies 
 	@echo "$(GREEN)=== Complete cleanup finished$(NC)"
 	@echo ""
 
-uninstall-core: uninstall-core-mesh-config uninstall-cloud-core-components uninstall-cloud-core-configuration
+uninstall-core: uninstall-core-mesh-config delete-control-plane-database uninstall-cloud-core-components uninstall-cloud-core-configuration
 	@echo "$(GREEN)=== Core uninstallation completed$(NC)"
 	@echo ""
 
@@ -603,6 +603,8 @@ uninstall-facade-operator:
 uninstall-ingress-gateway:
 	@echo "$(YELLOW)--- Uninstalling ingress-gateway...$(NC)"
 	helm uninstall ingress-gateway -n $(CORE_NAMESPACE) --ignore-not-found=true || true
+	@echo "$(YELLOW)--- Removing leftover FacadeService helm hook (core-egress-gateway)...$(NC)"
+	kubectl delete facadeservice.v1alpha.netcracker.com core-egress-gateway -n $(CORE_NAMESPACE) --ignore-not-found=true || true
 	@echo ""
 
 uninstall-site-management:
