@@ -596,6 +596,8 @@ uninstall-control-plane-db-credentials:
 uninstall-facade-operator:
 	@echo "$(YELLOW)--- Uninstalling facade-operator...$(NC)"
 	helm uninstall facade-operator -n $(CORE_NAMESPACE) --ignore-not-found=true || true
+	@echo "$(YELLOW)--- Removing leftover facade-operator deployments...$(NC)"
+	kubectl delete deployment -n $(CORE_NAMESPACE) -l app.kubernetes.io/name=facade-operator --ignore-not-found=true || true
 	@echo ""
 
 uninstall-ingress-gateway:

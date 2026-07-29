@@ -10,6 +10,8 @@ RUN_SMOKE_TEST ?= true
 CORE_MESH_CONFIG_REPO_URL ?= https://github.com/Netcracker/qubership-core-mesh-config.git
 CORE_MESH_CONFIG_REPO_BRANCH ?= main
 MESH_HELM_RELEASE_NAME = core-istio-mesh
+COMPONENT_LABEL_VALUE ?= qubership-core-mesh
+
 # Extra helm args (optional), e.g.: MESH_HELM_EXTRA_ARGS = --set someKey=someValue
 MESH_HELM_EXTRA_ARGS ?=
 MONITORING_ENABLED ?= false

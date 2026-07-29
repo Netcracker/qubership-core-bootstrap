@@ -76,14 +76,29 @@ define install_mesh_helm
 		--set WAYPOINT_CPU_REQUEST=100m \
 		--set CPU_REQUEST=10m \
 		--set MONITORING_ENABLED=$(MONITORING_ENABLED) \
+		--set SERVICE_NAME=$(COMPONENT_LABEL_VALUE) \
 		--wait=legacy \
 		$(MESH_HELM_EXTRA_ARGS);
 endef
 
 # $(1) - namespace
+# Helm hook resources are not removed by `helm uninstall` and may lack
+# meta.helm.sh/release-name; delete leftovers by chart component label.
+# Use fully-qualified Gateway API kinds so we do not touch networking.istio.io Gateways.
 define uninstall_mesh_helm
 	echo "$(CYAN)--- Uninstalling $(MESH_HELM_RELEASE_NAME) Helm package in $(1)$(NC)"; \
-	helm uninstall $(MESH_HELM_RELEASE_NAME) -n "$(1)" --ignore-not-found=true || true;
+	helm uninstall $(MESH_HELM_RELEASE_NAME) -n "$(1)" --ignore-not-found=true || true; \
+	echo "$(CYAN)--- Cleaning up Helm hook leftovers in $(1) (label: app.kubernetes.io/component=$(COMPONENT_LABEL_VALUE))$(NC)"; \
+	kubectl delete Gateway.gateway.networking.k8s.io,HTTPRoute.gateway.networking.k8s.io,configmap,envoyfilters.networking.istio.io \
+		-n "$(1)" -l app.kubernetes.io/component=$(COMPONENT_LABEL_VALUE) --ignore-not-found=true || true; \
+	echo "$(CYAN)--- Cleaning up leftover mesh services in $(1)$(NC)"; \
+	kubectl delete service \
+		egress-gateway \
+		public-fallback-service \
+		egress-fallback-service \
+		internal-fallback-service \
+		private-fallback-service \
+		-n "$(1)" --ignore-not-found=true || true;
 endef
 
 # =============================================================================
