@@ -72,18 +72,33 @@ define install_mesh_helm
 	helm upgrade --install $(MESH_HELM_RELEASE_NAME) $(REPOS_DIR)/qubership-core-mesh-config/ \
 		-f $(REPOS_DIR)/qubership-core-mesh-config/resource-profiles/dev.yaml \
 		--namespace "$(1)" \
-		--set SERVICE_MESH_TYPE=Istio \
+		--set SERVICE_MESH_TYPE=$(SERVICE_MESH_TYPE) \
 		--set WAYPOINT_CPU_REQUEST=100m \
 		--set CPU_REQUEST=10m \
 		--set MONITORING_ENABLED=$(MONITORING_ENABLED) \
+		--set SERVICE_NAME=$(COMPONENT_LABEL_VALUE) \
 		--wait=legacy \
 		$(MESH_HELM_EXTRA_ARGS);
 endef
 
 # $(1) - namespace
+# Helm hook resources are not removed by `helm uninstall` and may lack
+# meta.helm.sh/release-name; delete leftovers by chart component label.
+# Use fully-qualified Gateway API kinds so we do not touch networking.istio.io Gateways.
 define uninstall_mesh_helm
 	echo "$(CYAN)--- Uninstalling $(MESH_HELM_RELEASE_NAME) Helm package in $(1)$(NC)"; \
-	helm uninstall $(MESH_HELM_RELEASE_NAME) -n "$(1)" --ignore-not-found=true || true;
+	helm uninstall $(MESH_HELM_RELEASE_NAME) -n "$(1)" --ignore-not-found=true || true; \
+	echo "$(CYAN)--- Cleaning up Helm hook leftovers in $(1) (label: app.kubernetes.io/component=$(COMPONENT_LABEL_VALUE))$(NC)"; \
+	kubectl delete Gateway.gateway.networking.k8s.io,HTTPRoute.gateway.networking.k8s.io,configmap,envoyfilters.networking.istio.io \
+		-n "$(1)" -l app.kubernetes.io/component=$(COMPONENT_LABEL_VALUE) --ignore-not-found=true || true; \
+	echo "$(CYAN)--- Cleaning up leftover mesh services in $(1)$(NC)"; \
+	kubectl delete service \
+		egress-gateway \
+		public-fallback-service \
+		egress-fallback-service \
+		internal-fallback-service \
+		private-fallback-service \
+		-n "$(1)" --ignore-not-found=true || true;
 endef
 
 # =============================================================================
@@ -142,16 +157,22 @@ enable: setup-repo
 	@if [ -z "$(MESH_NAMESPACES)" ]; then \
 		echo "$(YELLOW)--- Skipping mesh enablement (MESH_NAMESPACES is empty)...$(NC)"; \
 	else \
-		echo "$(BLUE)=== Enabling mesh for namespaces: $(MESH_NAMESPACES)$(NC)"; \
+		echo "$(BLUE)=== Enabling mesh for namespaces: $(MESH_NAMESPACES) (SERVICE_MESH_TYPE=$(SERVICE_MESH_TYPE))$(NC)"; \
 		for ns in $$(echo "$(MESH_NAMESPACES)" | tr ',' ' '); do \
 			if [ -n "$$ns" ]; then \
-				$(call label_namespace_for_mesh,$$ns) \
+				if [ "$(SERVICE_MESH_TYPE)" = "Istio" ]; then \
+					$(call label_namespace_for_mesh,$$ns) \
+				fi; \
 				$(call install_mesh_helm,$$ns) \
-				kubectl rollout restart deploy/core-operator -n $$ns; \
-				if [ "$(RUN_SMOKE_TEST)" = "true" ]; then \
-					'$(MAKE)' -C ../istio/test full-test NAMESPACE="$$ns" ISTIO_NAMESPACE="$(ISTIO_NAMESPACE)" || { '$(MAKE)' -C ../istio/test collect-logs NAMESPACE="$$ns" ISTIO_NAMESPACE="$(ISTIO_NAMESPACE)"; exit 1; }; \
+				if [ "$(SERVICE_MESH_TYPE)" = "Istio" ]; then \
+					kubectl rollout restart deploy/core-operator -n $$ns; \
+					if [ "$(RUN_SMOKE_TEST)" = "true" ]; then \
+						'$(MAKE)' -C ../istio/test full-test NAMESPACE="$$ns" ISTIO_NAMESPACE="$(ISTIO_NAMESPACE)" || { '$(MAKE)' -C ../istio/test collect-logs NAMESPACE="$$ns" ISTIO_NAMESPACE="$(ISTIO_NAMESPACE)"; exit 1; }; \
+					else \
+						echo "$(YELLOW)--- Skipping smoke test (RUN_SMOKE_TEST is not true)$(NC)"; \
+					fi; \
 				else \
-					echo "$(YELLOW)--- Skipping smoke test (RUN_SMOKE_TEST is not true)$(NC)"; \
+					echo "$(CYAN)--- Skipping Istio labels, core-operator restart and smoke test (SERVICE_MESH_TYPE=$(SERVICE_MESH_TYPE))$(NC)"; \
 				fi; \
 				echo ""; \
 			fi; \
@@ -163,11 +184,15 @@ disable:
 	@if [ -z "$(MESH_NAMESPACES)" ]; then \
 		echo "$(YELLOW)--- Skipping mesh disabling (MESH_NAMESPACES is empty)...$(NC)"; \
 	else \
-		echo "$(BLUE)=== Disabling mesh for namespaces: $(MESH_NAMESPACES)$(NC)"; \
+		echo "$(BLUE)=== Disabling mesh for namespaces: $(MESH_NAMESPACES) (SERVICE_MESH_TYPE=$(SERVICE_MESH_TYPE))$(NC)"; \
 		for ns in $$(echo "$(MESH_NAMESPACES)" | tr ',' ' '); do \
 			if [ -n "$$ns" ]; then \
 				$(call uninstall_mesh_helm,$$ns) \
-				$(call unlabel_namespace_for_mesh,$$ns) \
+				if [ "$(SERVICE_MESH_TYPE)" = "Istio" ]; then \
+					$(call unlabel_namespace_for_mesh,$$ns) \
+				else \
+					echo "$(CYAN)--- Skipping Istio unlabel (SERVICE_MESH_TYPE=$(SERVICE_MESH_TYPE))$(NC)"; \
+				fi; \
 				echo "$(GREEN)--- Mesh disabled for namespace $$ns$(NC)"; \
 				echo ""; \
 			fi; \

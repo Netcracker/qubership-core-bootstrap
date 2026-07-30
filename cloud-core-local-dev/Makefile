@@ -421,7 +421,7 @@ deploy-cloud-core-configuration:
 
 # ------------------ cloud core ---------------------------
 
-deploy-cloud-core-components: deploy-cloud-core-print-start deploy-facade-operator deploy-ingress-gateway deploy-control-plane deploy-paas-mediation deploy-dbaas-agent deploy-maas-agent deploy-core-operator deploy-config-server deploy-site-management deploy-istio
+deploy-cloud-core-components: deploy-cloud-core-print-start deploy-facade-operator deploy-ingress-gateway deploy-control-plane deploy-paas-mediation deploy-dbaas-agent deploy-maas-agent deploy-core-operator deploy-config-server deploy-site-management
 	@echo "$(GREEN)=== Cloud Core components deployment completed$(NC)"
 	@echo ""
 
@@ -568,7 +568,7 @@ uninstall: uninstall-istio uninstall-maas uninstall-core uninstall-dependencies 
 	@echo "$(GREEN)=== Complete cleanup finished$(NC)"
 	@echo ""
 
-uninstall-core: uninstall-core-mesh-config uninstall-cloud-core-components uninstall-cloud-core-configuration
+uninstall-core: uninstall-core-mesh-config delete-control-plane-database uninstall-cloud-core-components uninstall-cloud-core-configuration
 	@echo "$(GREEN)=== Core uninstallation completed$(NC)"
 	@echo ""
 
@@ -596,11 +596,15 @@ uninstall-control-plane-db-credentials:
 uninstall-facade-operator:
 	@echo "$(YELLOW)--- Uninstalling facade-operator...$(NC)"
 	helm uninstall facade-operator -n $(CORE_NAMESPACE) --ignore-not-found=true || true
+	@echo "$(YELLOW)--- Removing leftover facade-operator deployments...$(NC)"
+	kubectl delete deployment -n $(CORE_NAMESPACE) -l app.kubernetes.io/name=facade-operator --ignore-not-found=true || true
 	@echo ""
 
 uninstall-ingress-gateway:
 	@echo "$(YELLOW)--- Uninstalling ingress-gateway...$(NC)"
 	helm uninstall ingress-gateway -n $(CORE_NAMESPACE) --ignore-not-found=true || true
+	@echo "$(YELLOW)--- Removing leftover FacadeService helm hook (core-egress-gateway)...$(NC)"
+	kubectl delete facadeservice.v1alpha.netcracker.com core-egress-gateway -n $(CORE_NAMESPACE) --ignore-not-found=true || true
 	@echo ""
 
 uninstall-site-management:
@@ -824,23 +828,13 @@ uninstall-istio:
 deploy-core-mesh-config:
 	@echo "$(GREEN)=== Starting core mesh config installation...$(NC)"
 	@echo ""
-	@if [ "$(INSTALL_ISTIO)" = "true" ]; then \
-		$(call run_core_mesh_config_operation,enable); \
-	else \
-		echo "$(CYAN)--- Skipping core mesh config installation (INSTALL_ISTIO=false)...$(NC)"; \
-		echo ""; \
-	fi
+	@$(call run_core_mesh_config_operation,enable);
 	@echo ""
 
 uninstall-core-mesh-config:
 	@echo "$(GREEN)=== Starting core mesh config uninstallation...$(NC)"
 	@echo ""
-	@if [ "$(INSTALL_ISTIO)" = "true" ]; then \
-		$(call run_core_mesh_config_operation,disable); \
-	else \
-		echo "$(CYAN)--- Skipping core mesh config uninstallation (INSTALL_ISTIO=false)...$(NC)"; \
-		echo ""; \
-	fi
+	@$(call run_core_mesh_config_operation,disable);
 	@echo ""
 
 
@@ -964,17 +958,21 @@ define run_maas_operation
 endef
 
 # Helper function to run core-mesh-config operations
+# SERVICE_MESH_TYPE: when Istio is installed use Istio (even if profile says Core);
+# otherwise propagate Core.
 define run_core_mesh_config_operation
 	set -e; \
 	echo "$(CYAN)--- Using core-mesh-config config file: core-mesh-config/$(MESH_CONFIG_FILE)$(NC)"; \
 	echo "$(CYAN)--- Using Istio namespace: $(ISTIO_NAMESPACE)$(NC)"; \
 	echo "$(CYAN)--- Using core-mesh-config branch: $(CORE_MESH_CONFIG_REPO_BRANCH)$(NC)"; \
 	echo "$(CYAN)--- Enable mesh for namespaces: $(CORE_NAMESPACE)$(NC)"; \
+	echo "$(CYAN)--- Using SERVICE_MESH_TYPE: $(if $(filter true,$(INSTALL_ISTIO)),Istio,Core)$(NC)"; \
 	if (cd core-mesh-config && '$(MAKE)' $(1) CONFIG_FILE=$(MESH_CONFIG_FILE) \
 		ISTIO_NAMESPACE=$(ISTIO_NAMESPACE) \
 		MESH_NAMESPACES=$(CORE_NAMESPACE) \
 		CORE_MESH_CONFIG_REPO_BRANCH=$(CORE_MESH_CONFIG_REPO_BRANCH) \
-		MONITORING_ENABLED=$(MONITORING_ENABLED)); then \
+		MONITORING_ENABLED=$(MONITORING_ENABLED) \
+		SERVICE_MESH_TYPE=$(if $(filter true,$(INSTALL_ISTIO)),Istio,Core)); then \
 		echo "$(GREEN)=== Core mesh config $(1) completed successfully$(NC)"; \
 	else \
 		echo "$(RED)Error: Core mesh config $(1) failed$(NC)"; \
