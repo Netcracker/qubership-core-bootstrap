@@ -81,6 +81,10 @@ else
   HELM_DEBUG_FLAGS :=
 endif
 
+HELM_TIMEOUT ?= 15m
+RESOURCE_POLLING_TIMEOUT ?= 600
+HELM_HOOK_FLAGS := --timeout $(HELM_TIMEOUT) --set RESOURCE_POLLING_TIMEOUT=$(RESOURCE_POLLING_TIMEOUT)
+
 # =============================================================================
 # HELP
 # =============================================================================
@@ -96,6 +100,8 @@ help:
 	@echo "  CONFIG_FILE=local.mk           # Configuration file (default: local.mk)"
 	@echo "  DEPENDENCIES_FILE=dependencies.mk  # Dependency tags/versions (default: dependencies.mk)"
 	@echo "  DEBUG=true                     # Enable debug mode with --debug --dry-run"
+	@echo "  HELM_TIMEOUT=15m               # helm --timeout for Cloud Core components (default: 15m)"
+	@echo "  RESOURCE_POLLING_TIMEOUT=600   # post-install hook wait for declarative CRs, seconds (must stay below HELM_TIMEOUT)"
 	@echo ""
 	@echo "$(CYAN)MAIN TARGETS:$(NC)"
 	@echo "  install                 # Complete installation: validate prerequisites, deploy Cloud Core and dependencies, mesh connectivity smoke test"
@@ -416,6 +422,7 @@ deploy-cloud-core-configuration:
 		--set MAAS_INTERNAL_ADDRESS=$(CORE_CONFIG_MAAS_INTERNAL_ADDRESS) \
 		--set NAMESPACE=$(CORE_NAMESPACE) \
 		--set CORE_BOOTSTRAP_IMAGE=$(CORE_BOOTSTRAP_IMAGE) \
+		$(HELM_HOOK_FLAGS) \
 		$(HELM_DEBUG_FLAGS)
 	@echo ""
 
@@ -447,6 +454,7 @@ deploy-facade-operator: apply-facade-operator-crds
 		-f $(REPOS_DIR)/qubership-core-facade-operator/helm-templates/facade-operator/resource-profiles/dev.yaml \
 		-f ./core-values.yaml \
 		--set TAG=$(FACADE_OPERATOR_TAG) \
+		$(HELM_HOOK_FLAGS) \
 		$(HELM_DEBUG_FLAGS)
 	@echo ""
 
@@ -462,6 +470,7 @@ deploy-ingress-gateway:
 		--set CLOUD_PRIVATE_HOST=$(INGRESS_GATEWAY_CLOUD_PRIVATE_HOST) \
 		--set TAG=$(INGRESS_GATEWAY_TAG) \
 		--set SERVICE_MESH_TYPE=$(if $(filter true,$(INSTALL_ISTIO)),Istio,Core) \
+		$(HELM_HOOK_FLAGS) \
 		$(HELM_DEBUG_FLAGS)
 	@echo ""
 
@@ -472,6 +481,7 @@ deploy-site-management:
 		-f $(REPOS_DIR)/qubership-core-site-management/helm-templates/site-management/resource-profiles/dev.yaml \
 		-f ./core-values.yaml \
 		--set TAG=$(SITE_MANAGEMENT_TAG) \
+		$(HELM_HOOK_FLAGS) \
 		$(HELM_DEBUG_FLAGS)
 	@echo ""
 
@@ -484,6 +494,7 @@ deploy-paas-mediation:
 		-f ./core-values.yaml \
 		--set TAG=$(PAAS_MEDIATION_TAG) \
 		--set CONSUL_ENABLED=false \
+		$(HELM_HOOK_FLAGS) \
 		$(HELM_DEBUG_FLAGS)
 	@echo ""
 
@@ -495,6 +506,7 @@ deploy-control-plane:
 		-f $(REPOS_DIR)/qubership-core-control-plane/helm-templates/control-plane/resource-profiles/dev.yaml \
 		-f ./core-values.yaml \
 		--set TAG=$(CONTROL_PLANE_TAG) \
+		$(HELM_HOOK_FLAGS) \
 		$(HELM_DEBUG_FLAGS)
 	@echo ""
 
@@ -505,7 +517,8 @@ deploy-dbaas-agent:
 		-f $(REPOS_DIR)/qubership-core-dbaas-agent/helm-templates/dbaas-agent/resource-profiles/dev.yaml \
 		-f ./core-values.yaml \
 		--set TAG=$(DBAAS_AGENT_TAG) \
-		$(HELM_DEBUG_FLAGS)	
+		$(HELM_HOOK_FLAGS) \
+		$(HELM_DEBUG_FLAGS)
 	@echo ""
 
 deploy-maas-agent:
@@ -519,6 +532,7 @@ deploy-maas-agent:
 			--set TAG=$(MAAS_AGENT_TAG) \
 			--set MAAS_ENABLED=$(CORE_CONFIG_MAAS_ENABLED) \
 			--set MAAS_INTERNAL_ADDRESS=$(CORE_CONFIG_MAAS_INTERNAL_ADDRESS) \
+			$(HELM_HOOK_FLAGS) \
 			$(HELM_DEBUG_FLAGS); \
 		echo ""; \
 	else \
@@ -545,6 +559,7 @@ deploy-core-operator: apply-core-operator-crds
 		-f ./core-values.yaml \
 		--set IMAGE_REPOSITORY=$(CORE_OPERATOR_IMAGE_REPOSITORY) \
 		--set TAG=$(CORE_OPERATOR_TAG) \
+		$(HELM_HOOK_FLAGS) \
 		$(HELM_DEBUG_FLAGS)
 	@echo ""
 
@@ -557,6 +572,7 @@ deploy-config-server:
 		--set IMAGE_REPOSITORY=$(CONFIG_SERVER_IMAGE_REPOSITORY) \
 		--set TAG=$(CONFIG_SERVER_TAG) \
 		--set CONSUL_ENABLED=$(CONFIG_SERVER_CONSUL_ENABLED) \
+		$(HELM_HOOK_FLAGS) \
 		$(HELM_DEBUG_FLAGS)
 	@echo ""
 
