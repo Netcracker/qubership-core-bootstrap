@@ -25,3 +25,6 @@ PAAS_VERSION: "v1.33.1"
 
 # ============== Kubernetes M2M ============================
 KUBERNETES_M2M_ENABLED: ${KUBERNETES_M2M_ENABLED}
+
+# ============== Monitoring ============================
+MONITORING_ENABLED: ${MONITORING_ENABLED}
