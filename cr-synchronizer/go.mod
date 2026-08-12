@@ -5,6 +5,7 @@ go 1.26.5
 require (
 	github.com/stretchr/testify v1.11.1
 	k8s.io/client-go v0.36.2
+	k8s.io/klog v1.0.0
 )
 
 require (
@@ -48,7 +49,6 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	k8s.io/api v0.36.2
 	k8s.io/apimachinery v0.36.2
-	k8s.io/klog v1.0.0
 	k8s.io/klog/v2 v2.140.0
 	k8s.io/kube-openapi v0.0.0-20260317180543-43fb72c5454a // indirect
 	k8s.io/utils v0.0.0-20260707023825-cf1189d6abe3
