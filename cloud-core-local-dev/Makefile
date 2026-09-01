@@ -76,7 +76,7 @@ NC := \033[0m
 
 CREATE_NAMESPACE_OPTION ?= $(if $(filter true,$(CREATE_NAMESPACE)), --create-namespace, )
 CONSUL_ACLS_OPTION ?= $(if $(filter true,$(CONSUL_ACLS)), --set global.acls.manageSystemACLs=true, )
-CONSUL_ANONYMOUS_POLICY ?= anonymous-config-access
+CONSUL_ANONYMOUS_POLICY ?= anonymous-kv-access
 CONSUL_ANONYMOUS_TOKEN_ID ?= 00000000-0000-0000-0000-000000000002
 
 ifeq ($(DEBUG),true)
@@ -365,7 +365,7 @@ wait-for-consul: install-consul
 
 configure-consul-anonymous-policy:
 	@if [ "$(INSTALL_CONSUL)" = "true" ] && [ "$(CONSUL_ACLS)" = "true" ]; then \
-		echo "$(YELLOW)--- Granting the anonymous token access to config/...$(NC)"; \
+		echo "$(YELLOW)--- Granting the anonymous token access to the KV store...$(NC)"; \
 		SECRET=$$(kubectl -n $(CONSUL_NAMESPACE) get secret -o name | grep bootstrap-acl-token | head -1); \
 		if [ -z "$$SECRET" ]; then \
 			echo "$(RED)Error: no bootstrap ACL token secret in namespace $(CONSUL_NAMESPACE)$(NC)"; \
@@ -381,12 +381,12 @@ configure-consul-anonymous-policy:
 			consul acl policy read -name $(CONSUL_ANONYMOUS_POLICY) >/dev/null 2>&1; then \
 			kubectl -n $(CONSUL_NAMESPACE) exec $$POD -- env CONSUL_HTTP_TOKEN=$$TOKEN \
 				consul acl policy create -name $(CONSUL_ANONYMOUS_POLICY) \
-				-description 'Cloud Core reads and updates its properties without a token' \
-				-rules 'key_prefix "config/" { policy = "write" }' >/dev/null; \
+				-description 'Cloud Core works with the KV store without a token' \
+				-rules 'key_prefix "" { policy = "write" }' >/dev/null; \
 		fi; \
 		kubectl -n $(CONSUL_NAMESPACE) exec $$POD -- env CONSUL_HTTP_TOKEN=$$TOKEN \
 			consul acl token update -id $(CONSUL_ANONYMOUS_TOKEN_ID) -policy-name $(CONSUL_ANONYMOUS_POLICY) -merge-policies >/dev/null; \
-		echo "$(GREEN)--- The anonymous token can read and update config/$(NC)"; \
+		echo "$(GREEN)--- The anonymous token can work with the KV store$(NC)"; \
 		echo ""; \
 	fi
 
