@@ -9,7 +9,6 @@
 .PHONY: deploy deploy-dependencies deploy-core \
 	clone-repos template-values-files \
 	deploy-consul deploy-consul-old deploy-consul-print-start install-consul wait-for-consul check-consul-connectivity \
-	configure-consul-anonymous-policy \
 	deploy-monitoring deploy-metrics-server \
 	deploy-istio \
 	deploy-core-mesh-config \
@@ -76,8 +75,6 @@ NC := \033[0m
 
 CREATE_NAMESPACE_OPTION ?= $(if $(filter true,$(CREATE_NAMESPACE)), --create-namespace, )
 CONSUL_ACLS_OPTION ?= $(if $(filter true,$(CONSUL_ACLS)), --set global.acls.manageSystemACLs=true, )
-CONSUL_ANONYMOUS_POLICY ?= anonymous-kv-access
-CONSUL_ANONYMOUS_TOKEN_ID ?= 00000000-0000-0000-0000-000000000002
 
 ifeq ($(DEBUG),true)
   HELM_DEBUG_FLAGS := --debug --dry-run
@@ -266,7 +263,7 @@ deploy-consul-old:
 	@echo "$(GREEN)=== Consul is deployed$(NC)"
 	@echo ""
 
-deploy-consul: deploy-consul-print-start validate-consul-namespace ensure-core-namespace clone-consul-repo change-consul-values wait-for-consul configure-consul-anonymous-policy check-consul-connectivity
+deploy-consul: deploy-consul-print-start validate-consul-namespace ensure-core-namespace clone-consul-repo change-consul-values wait-for-consul check-consul-connectivity
 	@echo "$(GREEN)=== Consul setup completed...$(NC)"
 	@echo ""
 
@@ -360,33 +357,6 @@ wait-for-consul: install-consul
 		echo ""; \
 	else \
 		echo "$(YELLOW)--- Skipping Consul wait (INSTALL_CONSUL=false)...$(NC)"; \
-		echo ""; \
-	fi
-
-configure-consul-anonymous-policy:
-	@if [ "$(INSTALL_CONSUL)" = "true" ] && [ "$(CONSUL_ACLS)" = "true" ]; then \
-		echo "$(YELLOW)--- Granting the anonymous token access to the KV store...$(NC)"; \
-		SECRET=$$(kubectl -n $(CONSUL_NAMESPACE) get secret -o name | grep bootstrap-acl-token | head -1); \
-		if [ -z "$$SECRET" ]; then \
-			echo "$(RED)Error: no bootstrap ACL token secret in namespace $(CONSUL_NAMESPACE)$(NC)"; \
-			exit 1; \
-		fi; \
-		TOKEN=$$(kubectl -n $(CONSUL_NAMESPACE) get $$SECRET -o jsonpath='{.data.token}' | base64 -d); \
-		POD=$$(kubectl -n $(CONSUL_NAMESPACE) get pods --selector=app=consul,component=server -o name | head -1); \
-		if [ -z "$$POD" ]; then \
-			echo "$(RED)Error: no Consul server pod in namespace $(CONSUL_NAMESPACE)$(NC)"; \
-			exit 1; \
-		fi; \
-		if ! kubectl -n $(CONSUL_NAMESPACE) exec $$POD -- env CONSUL_HTTP_TOKEN=$$TOKEN \
-			consul acl policy read -name $(CONSUL_ANONYMOUS_POLICY) >/dev/null 2>&1; then \
-			kubectl -n $(CONSUL_NAMESPACE) exec $$POD -- env CONSUL_HTTP_TOKEN=$$TOKEN \
-				consul acl policy create -name $(CONSUL_ANONYMOUS_POLICY) \
-				-description 'Cloud Core works with the KV store without a token' \
-				-rules 'key_prefix "" { policy = "write" }' >/dev/null; \
-		fi; \
-		kubectl -n $(CONSUL_NAMESPACE) exec $$POD -- env CONSUL_HTTP_TOKEN=$$TOKEN \
-			consul acl token update -id $(CONSUL_ANONYMOUS_TOKEN_ID) -policy-name $(CONSUL_ANONYMOUS_POLICY) -merge-policies >/dev/null; \
-		echo "$(GREEN)--- The anonymous token can work with the KV store$(NC)"; \
 		echo ""; \
 	fi
 
