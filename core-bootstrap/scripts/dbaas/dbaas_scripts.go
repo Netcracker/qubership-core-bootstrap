@@ -19,6 +19,7 @@ type Configurer struct {
 	password                     string
 	GlobalAutobalanceRules       []string
 	MicroserviceAutobalanceRules string
+	dbaasOperatorEnabled         bool
 }
 
 type DbConnectionProperties struct {
@@ -46,6 +47,7 @@ func (c *Configurer) Configure(accessor func(string) string) error {
 	c.ApiDbaasAddress = utils.MustGetEnv(accessor, "API_DBAAS_ADDRESS")
 	c.Username = utils.MustGetEnv(accessor, "DBAAS_CLUSTER_DBA_CREDENTIALS_USERNAME")
 	c.password = utils.MustGetEnv(accessor, "DBAAS_CLUSTER_DBA_CREDENTIALS_PASSWORD")
+	c.dbaasOperatorEnabled = utils.GetEnvBoolean(accessor, "DBAAS_OPERATOR_ENABLED")
 
 	raw := accessor("DBAAS_LODB_PER_NAMESPACE_AUTOBALANCE_RULES")
 	c.GlobalAutobalanceRules = strings.Split(strings.ReplaceAll(raw, " ", ""), "||")
@@ -77,6 +79,11 @@ func (c *Configurer) Execute(ctx context.Context) error {
 }
 
 func (c *Configurer) CreateDatabase(ctx context.Context, microserviceName string, secretName string, namingMapper map[string]string) error {
+	if c.dbaasOperatorEnabled {
+		logger.InfoC(ctx, "DBaaS Operator CRDs are available, skipping %s database creation via REST API", microserviceName)
+		return nil
+	}
+
 	dbProperties, err := c.getOrCreateDb(ctx, microserviceName)
 	if err != nil {
 		return fmt.Errorf("error get or create database for `%s': %w", microserviceName, err)
