@@ -181,6 +181,7 @@ The script uses a `.mk` configuration file to define all installation parameters
 | `MAAS_CONFIG_FILE` | `local.mk` | MAAS configuration file path (relative path will be resolved upon ./maas folder, where sub-Makefile is placed)|
 | `INSTALL_ISTIO` | `true`/`false` | Install Istio service mesh |
 | `ISTIO_CONFIG_FILE` | `local.mk` | Istio configuration file path (relative path will be resolved upon ./istio folder, where sub-Makefile is placed)|
+| `ISTIO_REPO_BRANCH` | `main` | qubership-istio branch. By default the chart comes from the `qubership-istio-transfer` image built from that branch, with the Istio sub-charts already vendored, so nothing is fetched from the upstream Istio chart repository; set `ISTIO_CHART_SOURCE=git` to clone the repository and resolve sub-charts upstream instead. `ISTIO_IMAGE_TAG` pins a specific image tag, e.g. `1.30.2` |
 
 ### Values Files
 

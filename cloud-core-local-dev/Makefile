@@ -986,6 +986,7 @@ define run_istio_operation
 	echo "$(CYAN)--- Using istio config file: istio/$(ISTIO_CONFIG_FILE)$(NC)"; \
 	echo "$(CYAN)--- Using Istio namespace: $(ISTIO_NAMESPACE)$(NC)"; \
 	echo "$(CYAN)--- Using Istio repo branch: $(ISTIO_REPO_BRANCH)$(NC)"; \
+	echo "$(CYAN)--- Using Istio chart source: $(if $(ISTIO_CHART_SOURCE),$(ISTIO_CHART_SOURCE),image (istio/$(ISTIO_CONFIG_FILE) default))$(NC)"; \
 	SKIP_CRDS=$(if $(filter true,$(INSTALL_CRDS)),false,true); \
 	echo "$(CYAN)--- Using skip crds: $$SKIP_CRDS$(NC)"; \
 	if (cd istio && '$(MAKE)' $(1) CONFIG_FILE=$(ISTIO_CONFIG_FILE) \

@@ -17,7 +17,8 @@ MAAS_CONFIG_FILE ?= aws.mk
 INSTALL_ISTIO ?= false
 # config file for istio installation - relative path will be resolved upon ./istio folder
 ISTIO_CONFIG_FILE ?= aws.mk
-# branch of qubership-istio-distr repository to use
+# branch of qubership-istio to use; with the default ISTIO_CHART_SOURCE=image it selects
+# the qubership-istio-transfer image tag built from that branch (see istio/local.mk)
 ISTIO_REPO_BRANCH ?= main
 # config file for core-mesh-config - relative path will be resolved upon ./core-mesh-config folder
 MESH_CONFIG_FILE ?= aws.mk
