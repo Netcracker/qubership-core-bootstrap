@@ -53,7 +53,7 @@ KAFKA_INSTANCES ?= kafka-1
 RABBIT_INSTANCES ?= 
 
 # Core bootstrap configuration
-CORE_BOOTSTRAP_IMAGE ?= ghcr.io/netcracker/core-bootstrap:latest 
+CORE_BOOTSTRAP_IMAGE ?= ghcr.io/netcracker/core-bootstrap:migrate-on-Declarative-DbaaS-e6a1469
 CORE_CONFIG_CONSUL_ENABLED ?= false
 CORE_CONFIG_MAAS_ENABLED ?= false
 CORE_CONFIG_MAAS_INTERNAL_ADDRESS ?= http://maas-service.maas:8080
