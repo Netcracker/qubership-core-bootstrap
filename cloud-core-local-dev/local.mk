@@ -8,6 +8,7 @@ INSTALL_CRDS ?= true
 INSTALL_METRICS_SERVER ?= true
 INSTALL_MONITORING ?= false
 INSTALL_CONSUL ?= true
+CONSUL_ACLS ?= false
 INSTALL_DBAAS ?= true
 # config file for dbaas installation - relative path will be resolved upon ./dbaas folder
 DBAAS_CONFIG_FILE ?= local.mk

@@ -74,6 +74,7 @@ CYAN := \033[0;36m
 NC := \033[0m
 
 CREATE_NAMESPACE_OPTION ?= $(if $(filter true,$(CREATE_NAMESPACE)), --create-namespace, )
+CONSUL_ACLS_OPTION ?= $(if $(filter true,$(CONSUL_ACLS)), --set global.acls.manageSystemACLs=true, )
 
 ifeq ($(DEBUG),true)
   HELM_DEBUG_FLAGS := --debug --dry-run
@@ -324,6 +325,7 @@ install-consul:
 			--set server.securityContext.runAsNonRoot=false \
 			--set server.securityContext.runAsUser=0 \
 			--set connectInject.enabled=false \
+			$(CONSUL_ACLS_OPTION) \
 			--set server.storage=1Gi \
 			--set global.imageK8S='docker.io/hashicorp/consul-k8s-control-plane:latest' \
 			--set global.image='docker.io/hashicorp/consul:latest'; \
