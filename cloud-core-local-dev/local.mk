@@ -65,7 +65,7 @@ INGRESS_GATEWAY_TAG ?= latest
 INGRESS_GATEWAY_CLOUD_PUBLIC_HOST ?= svc.cluster.local
 INGRESS_GATEWAY_CLOUD_PRIVATE_HOST ?= svc.cluster.local
 
-CONTROL_PLANE_TAG ?= latest
+CONTROL_PLANE_TAG ?= migrate-on-Declarative-DbaaS-snapshot
 
 PAAS_MEDIATION_TAG ?= latest
 
@@ -77,7 +77,7 @@ MAAS_AGENT_IMAGE_REPOSITORY ?= ghcr.io/netcracker/qubership-core-maas-agent
 CORE_OPERATOR_TAG ?= latest
 CORE_OPERATOR_IMAGE_REPOSITORY ?= ghcr.io/netcracker/qubership-core-core-operator
 
-CONFIG_SERVER_TAG ?= latest
+CONFIG_SERVER_TAG ?= migrate-on-Declarative-DbaaS-snapshot
 CONFIG_SERVER_IMAGE_REPOSITORY ?= ghcr.io/netcracker/qubership-core-config-server
 CONFIG_SERVER_CONSUL_ENABLED ?= false
 
@@ -85,7 +85,7 @@ SITE_MANAGEMENT_TAG ?= latest
 
 SERVICE_MESH_TYPE ?= Core
 
-TEST_BRANCH ?= main
+TEST_BRANCH ?= migrate-on-Declarative-DbaaS
 
 ORIGIN_NAMESPACE ?= ${CORE_NAMESPACE}
 
