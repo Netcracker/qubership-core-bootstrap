@@ -12,6 +12,8 @@ CONSUL_ACLS ?= false
 INSTALL_DBAAS ?= true
 # config file for dbaas installation - relative path will be resolved upon ./dbaas folder
 DBAAS_CONFIG_FILE ?= local.mk
+# install dbaas-operator together with DBaaS
+DBAAS_OPERATOR_ENABLED ?= false
 INSTALL_MAAS ?= false
 # config file for maas installation - relative path will be resolved upon ./maas folder
 MAAS_CONFIG_FILE ?= local.mk
@@ -54,7 +56,7 @@ KAFKA_INSTANCES ?= kafka-1
 RABBIT_INSTANCES ?= 
 
 # Core bootstrap configuration
-CORE_BOOTSTRAP_IMAGE ?= ghcr.io/netcracker/core-bootstrap:latest 
+CORE_BOOTSTRAP_IMAGE ?= ghcr.io/netcracker/core-bootstrap:migrate-on-Declarative-DbaaS-snapshot
 CORE_CONFIG_CONSUL_ENABLED ?= false
 CORE_CONFIG_MAAS_ENABLED ?= false
 CORE_CONFIG_MAAS_INTERNAL_ADDRESS ?= http://maas-service.maas:8080

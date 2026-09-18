@@ -43,6 +43,13 @@
           "description": "Internal DBaaS address inside cloud",
           "internal": true
         },
+        "DBAAS_OPERATOR_SERVICE_NAME": {
+          "$id": "#/properties/DBAAS_OPERATOR_SERVICE_NAME",
+          "type": "string",
+          "description": "ServiceAccount name of dbaas-operator, bound for Secret access in this namespace",
+          "default": "dbaas-operator",
+          "internal": true
+        },
         "DBAAS_CLUSTER_DBA_CREDENTIALS_USERNAME": {
           "$id": "#/properties/DBAAS_CLUSTER_DBA_CREDENTIALS_USERNAME",
           "type": "string",
