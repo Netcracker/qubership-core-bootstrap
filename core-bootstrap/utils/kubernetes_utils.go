@@ -2,6 +2,7 @@ package utils
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -63,6 +64,12 @@ var (
 func init() {
 	var err error
 	K8sClient, err = newKubernetesClient()
+	if errors.Is(err, rest.ErrNotInCluster) {
+		// Outside a pod, as in unit tests, there is no cluster to connect to. Leave both clients unset
+		// instead of aborting the process; any other failure to build them still panics below.
+		logger.Warn("Not running in a Kubernetes cluster; Kubernetes clients are not created")
+		return
+	}
 	if err != nil {
 		logger.Panic("error creating kubernetes client: %v", err)
 	}
@@ -131,7 +138,7 @@ func CreateSecretWithDbCredsData(ctx context.Context, namespace string, secretNa
 		return LogError(logger, ctx, "Error creating db secret: %v", err)
 	}
 
-	logger.InfoC(ctx, fmt.Sprintf("Secret %s created successfully", secretName))
+	logger.InfoC(ctx, "Secret %s created successfully", secretName)
 	return nil
 }
 

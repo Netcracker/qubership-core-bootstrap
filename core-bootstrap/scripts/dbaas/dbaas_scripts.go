@@ -111,7 +111,7 @@ func mapSecretName(name string, namingMapper map[string]string) string {
 
 func (c *Configurer) getOrCreateDb(ctx context.Context, microserviceName string) (DbConnectionProperties, error) {
 	dbaasCreateDbURL := fmt.Sprintf("%s/api/v3/dbaas/%s/databases", c.ApiDbaasAddress, c.Namespace)
-	logger.InfoC(ctx, fmt.Sprintf("Registering %s database in DbaaS, URL: %s", microserviceName, dbaasCreateDbURL))
+	logger.InfoC(ctx, "Registering %s database in DbaaS, URL: %s", microserviceName, dbaasCreateDbURL)
 
 	classifier := map[string]string{
 		"namespace":        c.Namespace,
@@ -153,7 +153,7 @@ func (c *Configurer) getOrCreateDb(ctx context.Context, microserviceName string)
 			logger.InfoC(ctx, "Database already exists, skipping creation")
 		}
 
-		logger.InfoC(ctx, fmt.Sprintf("Database creation successful: %+v", dbResponse))
+		logger.InfoC(ctx, "Database creation successful: %+v", dbResponse)
 		break
 	}
 

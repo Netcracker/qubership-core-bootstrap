@@ -61,7 +61,7 @@ func newRestyClient() *resty.Client {
 
 func LogError(log logging.Logger, ctx context.Context, format string, args ...any) error {
 	s := fmt.Errorf(format, args...)
-	log.ErrorC(ctx, s.Error())
+	log.ErrorC(ctx, "%s", s.Error())
 	return s
 }
 
