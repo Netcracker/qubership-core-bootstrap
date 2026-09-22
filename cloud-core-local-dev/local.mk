@@ -12,6 +12,8 @@ CONSUL_ACLS ?= false
 INSTALL_DBAAS ?= true
 # config file for dbaas installation - relative path will be resolved upon ./dbaas folder
 DBAAS_CONFIG_FILE ?= local.mk
+# install dbaas-operator together with DBaaS
+DBAAS_OPERATOR_ENABLED ?= false
 INSTALL_MAAS ?= false
 # config file for maas installation - relative path will be resolved upon ./maas folder
 MAAS_CONFIG_FILE ?= local.mk

@@ -177,6 +177,7 @@ The script uses a `.mk` configuration file to define all installation parameters
 | `INSTALL_CONSUL` | `true`/`false` | Install Consul |
 | `INSTALL_DBAAS` | `true`/`false` | Install DBaaS components |
 | `DBAAS_CONFIG_FILE` | `local.mk` | DBaaS configuration file path (relative path will be resolved upon ./dbaas folder, where sub-Makefile is placed)|
+| `DBAAS_OPERATOR_ENABLED` | `true`/`false` | Install the DBaaS Operator together with DBaaS. `false` by default in both `local.mk` and `aws.mk` |
 | `INSTALL_MAAS` | `true`/`false` | Install MAAS components |
 | `MAAS_CONFIG_FILE` | `local.mk` | MAAS configuration file path (relative path will be resolved upon ./maas folder, where sub-Makefile is placed)|
 | `INSTALL_ISTIO` | `true`/`false` | Install Istio service mesh |
