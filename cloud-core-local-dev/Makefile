@@ -1266,9 +1266,10 @@ define run_dbaas_operation
 	echo "$(CYAN)--- Using pg namespace: $(PG_NAMESPACE)$(NC)"; \
 	echo "$(CYAN)--- Using dbaas-aggregator tag: $(DBAAS_TAG)$(NC)"; \
 	echo "$(CYAN)--- Using M2M auth mode: $(DBAAS_M2M_AUTH_MODE)$(NC)"; \
+	echo "$(CYAN)--- Using dbaas operator enabled: $(DBAAS_OPERATOR_ENABLED)$(NC)"; \
 	SKIP_CRDS=$(if $(filter true,$(INSTALL_CRDS)),false,true); \
 	echo "$(CYAN)--- Using skip crds: $$SKIP_CRDS$(NC)"; \
-	if ('$(MAKE)' -C .tmp/qubership-dbaas/bootstrap  $(1) CONFIG_FILE=$(DBAAS_CONFIG_FILE) PATRONI_SERVICES_VALUES_FILE=../../../dbaas/patroni-services-values.yaml DBAAS_SERVICE_NAME=$(DBAAS_SERVICE_NAME) DBAAS_NAMESPACE=$(DBAAS_NAMESPACE) PG_NAMESPACE=$(PG_NAMESPACE) SKIP_CRDS=$$SKIP_CRDS CREATE_NAMESPACE=$(CREATE_NAMESPACE) DBAAS_OPERATOR_ENABLED=false TAG=$(DBAAS_TAG) M2M_AUTH_MODE=$(DBAAS_M2M_AUTH_MODE) REPOS_DIR=$(abspath $(REPOS_DIR))); then \
+	if ('$(MAKE)' -C .tmp/qubership-dbaas/bootstrap  $(1) CONFIG_FILE=$(DBAAS_CONFIG_FILE) PATRONI_SERVICES_VALUES_FILE=../../../dbaas/patroni-services-values.yaml DBAAS_SERVICE_NAME=$(DBAAS_SERVICE_NAME) DBAAS_NAMESPACE=$(DBAAS_NAMESPACE) PG_NAMESPACE=$(PG_NAMESPACE) SKIP_CRDS=$$SKIP_CRDS CREATE_NAMESPACE=$(CREATE_NAMESPACE) DBAAS_OPERATOR_ENABLED=$(DBAAS_OPERATOR_ENABLED) TAG=$(DBAAS_TAG) M2M_AUTH_MODE=$(DBAAS_M2M_AUTH_MODE) REPOS_DIR=$(abspath $(REPOS_DIR))); then \
 		echo "$(GREEN)=== DBaaS $(1) completed successfully$(NC)"; \
 	else \
 		echo "$(RED)Error: DBaaS $(1) failed$(NC)"; \
