@@ -539,6 +539,9 @@ apply-core-operator-crds:
 		echo ""; \
 	fi
 
+# When Cloud Core's DBaaS service name is faked (CORE_DBAAS_SERVICE_NAME), core-operator must not send
+# the composite structure to DBaaS: the request goes through dbaas-agent to that name, and the Composite
+# never becomes ready. MaaS, when enabled, stays a receiver.
 deploy-core-operator: apply-core-operator-crds
 	@echo "$(YELLOW)--- Setting up Core Operator...$(NC)"
 	@$(call update_helm_dependencies,$(REPOS_DIR)/qubership-core-core-operator/helm-templates/core-operator,)
@@ -547,6 +550,7 @@ deploy-core-operator: apply-core-operator-crds
 		-f ./core-values.yaml \
 		--set IMAGE_REPOSITORY=$(CORE_OPERATOR_IMAGE_REPOSITORY) \
 		--set TAG=$(CORE_OPERATOR_TAG) \
+		$(if $(filter-out $(DBAAS_SERVICE_NAME),$(CORE_DBAAS_SERVICE_NAME)),--set COMPOSITE_STRUCTURE_XAAS_RECEIVERS=$(if $(filter true,$(CORE_CONFIG_MAAS_ENABLED)),maas,none),) \
 		$(HELM_DEBUG_FLAGS)
 	@echo ""
 
