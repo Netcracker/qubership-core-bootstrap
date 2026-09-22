@@ -13,6 +13,8 @@ INSTALL_MONITORING ?= false
 INSTALL_CONSUL ?= true
 CONSUL_ACLS ?= false
 INSTALL_DBAAS ?= true
+# install dbaas-operator together with DBaaS
+DBAAS_OPERATOR_ENABLED ?= false
 INSTALL_MAAS ?= false
 INSTALL_ISTIO ?= false
 # The agents carry the legacy M2M calls of the core services to DBaaS and MaaS. In the k8s mode the
