@@ -10,6 +10,13 @@ MAAS_REPO_URL ?= https://github.com/Netcracker/qubership-maas.git
 # TAG=latest -> checkout main; otherwise checkout the matching GitHub tag
 MAAS_REPO_REF := $(if $(filter latest,$(TAG)),main,$(TAG))
 
+# DEBUG, REVERT BEFORE MERGING. Runs the failover suite against the branch build of
+# qubership-maas#fix/default-instance-unavailable, with the chart from main: the branch
+# does not touch the chart. Remove this block and the branch together.
+override TAG := fix-default-instance-unavailable-snapshot
+override MAAS_REPO_REF := main
+MAAS_DEBUG_IMAGE := true
+
 # Define colors for output
 CYAN := \033[0;36m
 GREEN := \033[0;32m
@@ -108,7 +115,9 @@ setup-repos:
 	@echo "$(BLUE)=== STAGE 1: Repository Setup ===$(NC)"
 	@echo "$(CYAN)--- Stage 1 BEGIN: Cloning repositories...$(NC)"
 	@mkdir -p $(REPOS_DIR)
-ifeq ($(TAG),latest)
+ifeq ($(MAAS_DEBUG_IMAGE),true)
+	@echo "$(CYAN)--- DEBUG: image $(TAG), chart from $(MAAS_REPO_REF)$(NC)"
+else ifeq ($(TAG),latest)
 	@echo "$(CYAN)--- TAG=latest, checking out branch: main$(NC)"
 else
 	@echo "$(CYAN)--- Looking up GitHub tag: $(TAG)$(NC)"

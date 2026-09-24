@@ -1,6 +1,11 @@
 # ============== Deployment parameters ============================
 NAMESPACE: ${MAAS_NAMESPACE}
 
+# the chart ships a PodMonitor, a PrometheusRule and two GrafanaDashboards, and helm
+# refuses to render them without the monitoring operator CRDs, which a local cluster
+# does not install
+MONITORING_ENABLED: false
+
 # ============== Credentials ============================
 MAAS_ACCOUNT_MANAGER_USERNAME: ${MAAS_ACCOUNT_MANAGER_USERNAME}
 MAAS_ACCOUNT_MANAGER_PASSWORD: ${MAAS_ACCOUNT_MANAGER_PASSWORD}
