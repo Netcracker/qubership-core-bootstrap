@@ -11,6 +11,8 @@ INSTALL_CONSUL ?= false
 INSTALL_DBAAS ?= true
 # config file for dbaas installation - relative path will be resolved upon ./dbaas folder
 DBAAS_CONFIG_FILE ?= aws.mk
+# install dbaas-operator together with DBaaS
+DBAAS_OPERATOR_ENABLED ?= false
 INSTALL_MAAS ?= true
 # config file for maas installation - relative path will be resolved upon ./maas folder
 MAAS_CONFIG_FILE ?= aws.mk
@@ -46,6 +48,9 @@ CONSUL_ENABLED ?= true
 
 # DBaaS configuration
 DBAAS_SERVICE_NAME ?= dbaas-aggregator
+# service name Cloud Core components use to reach DBaaS; defaults to the real aggregator. Integration
+# tests point it at a name that does not resolve to prove no REST fallback happens in operator mode
+CORE_DBAAS_SERVICE_NAME ?= $(DBAAS_SERVICE_NAME)
 
 # MaaS configuration
 KAFKA_INSTANCES ?= kafka-1 kafka-2
