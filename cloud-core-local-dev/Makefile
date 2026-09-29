@@ -232,17 +232,17 @@ ensure-core-namespace:
 clone-repos:
 	@echo "$(YELLOW)--- Cloning required repositories...$(NC)"
 	mkdir -p $(REPOS_DIR)
-	@$(call clone_or_update_repo,qubership-monitoring-operator,https://github.com/Netcracker/qubership-monitoring-operator.git,$(TEST_BRANCH))
-	@$(call clone_or_update_repo,qubership-core-paas-mediation,https://github.com/Netcracker/qubership-core-paas-mediation.git,$(TEST_BRANCH))
-	@$(call clone_or_update_repo,qubership-core-control-plane,https://github.com/Netcracker/qubership-core-control-plane.git,$(TEST_BRANCH))
-	@$(call clone_or_update_repo,qubership-core-ingress-gateway,https://github.com/Netcracker/qubership-core-ingress-gateway.git,$(TEST_BRANCH))
-	@$(call clone_or_update_repo,qubership-core-site-management,https://github.com/Netcracker/qubership-core-site-management.git,$(TEST_BRANCH))
-	@$(call clone_or_update_repo,qubership-core-facade-operator,https://github.com/Netcracker/qubership-core-facade-operator.git,$(TEST_BRANCH))
-	@$(call clone_or_update_repo,qubership-core-dbaas-agent,https://github.com/Netcracker/qubership-core-dbaas-agent.git,$(TEST_BRANCH))
-	@$(call clone_or_update_repo,qubership-core-maas-agent,https://github.com/Netcracker/qubership-core-maas-agent.git,$(TEST_BRANCH))
-	@$(call clone_or_update_repo,qubership-core-core-operator,https://github.com/Netcracker/qubership-core-core-operator.git,$(TEST_BRANCH))
-	@$(call clone_or_update_repo,qubership-core-config-server,https://github.com/Netcracker/qubership-core-config-server.git,$(TEST_BRANCH))
-	@$(call clone_or_update_repo,qubership-dbaas,https://github.com/Netcracker/qubership-dbaas.git,$(TEST_BRANCH))
+	@$(call clone_or_update_repo,qubership-monitoring-operator,https://github.com/Netcracker/qubership-monitoring-operator.git,$(TEST_BRANCH),$(BASELINE_BRANCH))
+	@$(call clone_or_update_repo,qubership-core-paas-mediation,https://github.com/Netcracker/qubership-core-paas-mediation.git,$(TEST_BRANCH),$(BASELINE_BRANCH))
+	@$(call clone_or_update_repo,qubership-core-control-plane,https://github.com/Netcracker/qubership-core-control-plane.git,$(TEST_BRANCH),$(BASELINE_BRANCH))
+	@$(call clone_or_update_repo,qubership-core-ingress-gateway,https://github.com/Netcracker/qubership-core-ingress-gateway.git,$(TEST_BRANCH),$(BASELINE_BRANCH))
+	@$(call clone_or_update_repo,qubership-core-site-management,https://github.com/Netcracker/qubership-core-site-management.git,$(TEST_BRANCH),$(BASELINE_BRANCH))
+	@$(call clone_or_update_repo,qubership-core-facade-operator,https://github.com/Netcracker/qubership-core-facade-operator.git,$(TEST_BRANCH),$(BASELINE_BRANCH))
+	@$(call clone_or_update_repo,qubership-core-dbaas-agent,https://github.com/Netcracker/qubership-core-dbaas-agent.git,$(TEST_BRANCH),$(BASELINE_BRANCH))
+	@$(call clone_or_update_repo,qubership-core-maas-agent,https://github.com/Netcracker/qubership-core-maas-agent.git,$(TEST_BRANCH),$(BASELINE_BRANCH))
+	@$(call clone_or_update_repo,qubership-core-core-operator,https://github.com/Netcracker/qubership-core-core-operator.git,$(TEST_BRANCH),$(BASELINE_BRANCH))
+	@$(call clone_or_update_repo,qubership-core-config-server,https://github.com/Netcracker/qubership-core-config-server.git,$(TEST_BRANCH),$(BASELINE_BRANCH))
+	@$(call clone_or_update_repo,qubership-dbaas,https://github.com/Netcracker/qubership-dbaas.git,$(TEST_BRANCH),$(BASELINE_BRANCH))
 	@echo ""
 
 #---------------------------- values templating ---------------------------------------------
@@ -850,11 +850,15 @@ include utils/reset-control-plane.mk
 # =============================================================================
 
 # Clone a repo into $(REPOS_DIR), replacing any existing directory.
-# Usage: $(call clone_or_update_repo,<local_name>,<git_url>,<branch>)
+# Usage: $(call clone_or_update_repo,<local_name>,<git_url>,<branch>,<baseline_branch>)
 #   $(1) Directory name under $(REPOS_DIR) for the clone.
 #   $(2) Remote repository URL.
-#   $(3) Optional branch: cloned when non-empty and present on remote; otherwise falls back to main, then remote default.
+#   $(3) Optional branch: cloned when non-empty and present on remote; otherwise falls back to $(4).
+#   $(4) Baseline branch (main, or a release line such as lts/26.3): cloned when present on
+#        remote and $(3) is not; otherwise falls back to the remote default. Defaults to main
+#        when left empty, so existing callers that only pass $(1)-$(3) keep working.
 define clone_or_update_repo
+	baseline="$(if $(4),$(4),main)"; \
 	if [ -d "$(REPOS_DIR)/$(1)" ]; then \
 		echo "Cleaning $(1)..."; \
 		rm -rf "$(REPOS_DIR)/$(1)"; \
@@ -862,13 +866,13 @@ define clone_or_update_repo
 	echo "Cloning $(1)..."; \
 	if [ -n "$(3)" ] && [ -n "$$(git ls-remote --heads $(2) $(3) 2>/dev/null)" ]; then \
 		git clone --depth 1 -b $(3) $(2) $(REPOS_DIR)/$(1); \
-	elif [ -n "$$(git ls-remote --heads $(2) main 2>/dev/null)" ]; then \
+	elif [ -n "$$(git ls-remote --heads $(2) "$$baseline" 2>/dev/null)" ]; then \
 		if [ -n "$(3)" ]; then \
-			echo "Branch $(3) not found, cloning main..."; \
+			echo "Branch $(3) not found, cloning $$baseline..."; \
 		fi; \
-		git clone --depth 1 -b main $(2) $(REPOS_DIR)/$(1); \
+		git clone --depth 1 -b "$$baseline" $(2) $(REPOS_DIR)/$(1); \
 	else \
-		echo "Branch main not found on remote, cloning default branch..."; \
+		echo "Branch $$baseline not found on remote, cloning default branch..."; \
 		git clone --depth 1 $(2) $(REPOS_DIR)/$(1); \
 	fi
 endef

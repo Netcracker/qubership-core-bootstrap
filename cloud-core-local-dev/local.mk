@@ -87,6 +87,9 @@ SITE_MANAGEMENT_TAG ?= latest
 SERVICE_MESH_TYPE ?= Core
 
 TEST_BRANCH ?= main
+# fallback when a repository cloned at TEST_BRANCH has no such branch: main, or a release line
+# such as lts/26.3 when TEST_BRANCH itself is being tested against that line
+BASELINE_BRANCH ?= main
 
 ORIGIN_NAMESPACE ?= ${CORE_NAMESPACE}
 
