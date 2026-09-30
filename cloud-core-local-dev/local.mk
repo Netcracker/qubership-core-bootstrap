@@ -72,11 +72,10 @@ CONFIG_SERVER_CONSUL_ENABLED ?= false
 
 SERVICE_MESH_TYPE ?= Core
 
-# branch, tag or commit sha of the core service repositories; see clone_or_update_repo
+# branch of the core service repositories to test; a tag or a commit sha is not accepted
 TEST_BRANCH ?= main
-# fallback when a repository cloned at TEST_BRANCH has no such branch, tag or commit: main, or a
-# release line such as lts/26.3 when TEST_BRANCH itself is being tested against that line. Always
-# a branch, unlike TEST_BRANCH above.
+# fallback when a repository has no TEST_BRANCH branch: main, or a release line such as lts/26.3
+# when TEST_BRANCH itself is being tested against that line
 BASELINE_BRANCH ?= main
 
 ORIGIN_NAMESPACE ?= ${CORE_NAMESPACE}

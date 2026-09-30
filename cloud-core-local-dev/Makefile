@@ -108,7 +108,7 @@ endif
 
 define resolve_tag
 $(strip $(shell \
-	if [ -n "$$(git ls-remote $(1) $(TEST_BRANCH) 2>/dev/null)" ]; then branch="$(TEST_BRANCH)"; \
+	if [ -n "$$(git ls-remote --heads $(1) refs/heads/$(TEST_BRANCH) 2>/dev/null)" ]; then branch="$(TEST_BRANCH)"; \
 	else branch="$(BASELINE_BRANCH)"; fi; \
 	if [ "$$branch" = "main" ]; then echo latest; \
 	else echo "$$(echo "$$branch" | tr '/' '-')-snapshot"; fi \
@@ -153,32 +153,33 @@ endif
 #
 # ISTIO_REPO_BRANCH, CORE_MESH_CONFIG_REPO_BRANCH and DBAAS_REPO_BRANCH are resolved in this order:
 #   1. a value set from outside (make VAR=... or the environment) is used as is;
-#   2. otherwise TEST_BRANCH, if that branch or tag exists in the dependency's repository;
+#   2. otherwise TEST_BRANCH, if that branch exists in the dependency's repository;
 #   3. otherwise the value pinned in dependencies.mk.
 # Step 2 only applies when TEST_BRANCH differs from BASELINE_BRANCH. Equal values mean nothing
 # is being tested on a separate branch, and the pin in dependencies.mk should win over the
 # TEST_BRANCH default of main. The istio and core-mesh-config makefiles clone with git clone -b, so
 # their refs must be a branch or a tag; a commit sha does not work for them. DBAAS_REPO_BRANCH is
-# cloned by clone_or_update_repo and may be a commit sha too, but only when set from outside or
-# pinned in dependencies.mk: a TEST_BRANCH that is a sha is not looked up here.
+# cloned by clone_or_update_repo and may be a commit sha too, when set from outside or pinned in
+# dependencies.mk.
 
-define ref_exists
-$(strip $(shell git ls-remote $(1) $(2) 2>/dev/null))
+# non-empty when repository $(1) has a branch named $(2); a tag or commit of that name does not count
+define branch_exists
+$(strip $(shell git ls-remote --heads $(1) refs/heads/$(2) 2>/dev/null))
 endef
 
 ifneq ($(TEST_BRANCH),$(BASELINE_BRANCH))
 ifdef ISTIO_REPO_BRANCH_UNSET
-ifneq ($(call ref_exists,https://github.com/Netcracker/qubership-istio.git,$(TEST_BRANCH)),)
+ifneq ($(call branch_exists,https://github.com/Netcracker/qubership-istio.git,$(TEST_BRANCH)),)
 ISTIO_REPO_BRANCH := $(TEST_BRANCH)
 endif
 endif
 ifdef CORE_MESH_CONFIG_REPO_BRANCH_UNSET
-ifneq ($(call ref_exists,https://github.com/Netcracker/qubership-core-mesh-config.git,$(TEST_BRANCH)),)
+ifneq ($(call branch_exists,https://github.com/Netcracker/qubership-core-mesh-config.git,$(TEST_BRANCH)),)
 CORE_MESH_CONFIG_REPO_BRANCH := $(TEST_BRANCH)
 endif
 endif
 ifdef DBAAS_REPO_BRANCH_UNSET
-ifneq ($(call ref_exists,https://github.com/Netcracker/qubership-dbaas.git,$(TEST_BRANCH)),)
+ifneq ($(call branch_exists,https://github.com/Netcracker/qubership-dbaas.git,$(TEST_BRANCH)),)
 DBAAS_REPO_BRANCH := $(TEST_BRANCH)
 endif
 endif
