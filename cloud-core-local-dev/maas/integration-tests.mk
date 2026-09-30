@@ -9,7 +9,9 @@ KAFKA_NAMESPACE ?= kafka
 DBAAS_NAMESPACE ?= dbaas
 
 # maas parameters
-TAG ?= latest
+# Branch or tag of qubership-maas to check out. The image tag TAG follows it unless set explicitly:
+# see the Makefile.
+MAAS_BRANCH ?= main
 DBAAS_SERVICE_NAME ?= dbaas-aggregator
 DBAAS_AGGREGATOR_ADDRESS ?= http://${DBAAS_SERVICE_NAME}.${DBAAS_NAMESPACE}.svc.cluster.local:8080
 

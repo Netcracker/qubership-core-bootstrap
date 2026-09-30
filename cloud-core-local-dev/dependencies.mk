@@ -3,16 +3,18 @@
 # designed to work with. An lts/* branch of core-bootstrap should pin these to whatever it shipped
 # with, instead of always tracking each dependency's main.
 #
-# ISTIO_REPO_BRANCH, CORE_MESH_CONFIG_REPO_BRANCH and DBAAS_REPO_BRANCH each accept a branch or a
-# tag, not a commit sha. TEST_BRANCH, unlike these, is a branch only.
+# ISTIO_REPO_BRANCH, CORE_MESH_CONFIG_REPO_BRANCH, DBAAS_REPO_BRANCH and MAAS_BRANCH each accept a
+# branch or a tag, not a commit sha. TEST_BRANCH, unlike these, is a branch only.
 #
 # Override any single value via: make VAR=value install - command-line assignments win over the
 # ?= defaults below regardless of this file. A nightly pipeline that wants main/latest across the
 # board passes ISTIO_REPO_BRANCH=main DBAAS_REPO_BRANCH=main CORE_MESH_CONFIG_REPO_BRANCH=main
-# MAAS_TAG=latest this way, instead of editing this file.
+# MAAS_BRANCH=main this way, instead of editing this file.
 
-# Image/helm tag for MaaS. "latest" checks out main; otherwise checks out the matching GitHub tag.
-MAAS_TAG ?= v5.5.10
+# Branch or tag of the qubership-maas repository, for its charts and for the MaaS image tag, which
+# the maas makefile derives from it: latest for main, the tag itself for a tag such as v5.5.10,
+# <branch>-snapshot for another branch. Resolved like DBAAS_REPO_BRANCH below.
+MAAS_BRANCH ?= v5.5.10
 
 # Branch or tag of the qubership-istio repository (Istio distribution/config). A value set from
 # outside wins; otherwise TEST_BRANCH is used when the repository has a branch of that name and

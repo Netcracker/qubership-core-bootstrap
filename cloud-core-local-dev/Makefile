@@ -61,6 +61,9 @@ endif
 ifeq ($(origin DBAAS_REPO_BRANCH),undefined)
 DBAAS_REPO_BRANCH_UNSET := true
 endif
+ifeq ($(origin MAAS_BRANCH),undefined)
+MAAS_BRANCH_UNSET := true
+endif
 
 # Load configuration from .mk file
 CONFIG_FILE ?= local.mk
@@ -170,7 +173,8 @@ endif
 # DEPENDENCY REFS
 # =============================================================================
 #
-# ISTIO_REPO_BRANCH, CORE_MESH_CONFIG_REPO_BRANCH and DBAAS_REPO_BRANCH are resolved in this order:
+# ISTIO_REPO_BRANCH, CORE_MESH_CONFIG_REPO_BRANCH, DBAAS_REPO_BRANCH and MAAS_BRANCH are resolved in
+# this order:
 #   1. a value set from outside (make VAR=... or the environment) is used as is;
 #   2. otherwise TEST_BRANCH, if it is set and that branch exists in the dependency's repository;
 #   3. otherwise the value pinned in dependencies.mk.
@@ -182,6 +186,9 @@ endif
 # DBAAS_REPO_BRANCH is where the bootstrap scripts and charts of qubership-dbaas are cloned from,
 # and DBAAS_TAG follows it: latest for main, <branch>-snapshot for another branch, and the tag
 # itself (a release such as v6.15.1) for a tag. An explicit DBAAS_TAG always wins.
+#
+# MAAS_BRANCH is passed to the maas makefile, which clones qubership-maas at it and derives the
+# MaaS image tag from it in the same way; see maas/Makefile.
 
 ifneq ($(TEST_BRANCH),$(BASELINE_BRANCH))
 ifdef ISTIO_REPO_BRANCH_UNSET
@@ -197,6 +204,11 @@ endif
 ifdef DBAAS_REPO_BRANCH_UNSET
 ifneq ($(call branch_exists,https://github.com/Netcracker/qubership-dbaas.git,$(TEST_BRANCH)),)
 DBAAS_REPO_BRANCH := $(TEST_BRANCH)
+endif
+endif
+ifdef MAAS_BRANCH_UNSET
+ifneq ($(call branch_exists,https://github.com/Netcracker/qubership-maas.git,$(TEST_BRANCH)),)
+MAAS_BRANCH := $(TEST_BRANCH)
 endif
 endif
 endif
@@ -1091,7 +1103,7 @@ endef
 define run_maas_operation
 	set -e; \
 	echo "$(CYAN)--- Using config file: $(MAAS_CONFIG_FILE)$(NC)"; \
-	echo "$(CYAN)--- Using MAAS tag: $(MAAS_TAG)$(NC)"; \
+	echo "$(CYAN)--- Using MAAS branch or tag: $(MAAS_BRANCH)$(NC)"; \
 	echo "$(CYAN)--- Using MAAS namespace: $(MAAS_NAMESPACE)$(NC)"; \
 	echo "$(CYAN)--- Using RabbitMQ namespace: $(RABBIT_NAMESPACE)$(NC)"; \
 	echo "$(CYAN)--- Using Kafka namespace: $(KAFKA_NAMESPACE)$(NC)"; \
@@ -1099,7 +1111,7 @@ define run_maas_operation
 	echo "$(CYAN)--- Using RabbitMQ instances: $(RABBIT_INSTANCES)$(NC)"; \
 	echo "$(CYAN)--- Using DBAAS namespace: $(DBAAS_NAMESPACE)$(NC)"; \
 	echo "$(CYAN)--- Using DBAAS service name: $(DBAAS_SERVICE_NAME)$(NC)"; \
-	if (cd maas && '$(MAKE)' $(1) CONFIG_FILE=$(MAAS_CONFIG_FILE) TAG=$(MAAS_TAG) MAAS_NAMESPACE=$(MAAS_NAMESPACE) RABBIT_NAMESPACE=$(RABBIT_NAMESPACE) KAFKA_NAMESPACE=$(KAFKA_NAMESPACE) KAFKA_INSTANCES='$(KAFKA_INSTANCES)' RABBIT_INSTANCES='$(RABBIT_INSTANCES)' CREATE_NAMESPACE=$(CREATE_NAMESPACE) DBAAS_NAMESPACE=$(DBAAS_NAMESPACE) DBAAS_SERVICE_NAME=$(DBAAS_SERVICE_NAME)); then \
+	if (cd maas && '$(MAKE)' $(1) CONFIG_FILE=$(MAAS_CONFIG_FILE) MAAS_BRANCH=$(MAAS_BRANCH) MAAS_NAMESPACE=$(MAAS_NAMESPACE) RABBIT_NAMESPACE=$(RABBIT_NAMESPACE) KAFKA_NAMESPACE=$(KAFKA_NAMESPACE) KAFKA_INSTANCES='$(KAFKA_INSTANCES)' RABBIT_INSTANCES='$(RABBIT_INSTANCES)' CREATE_NAMESPACE=$(CREATE_NAMESPACE) DBAAS_NAMESPACE=$(DBAAS_NAMESPACE) DBAAS_SERVICE_NAME=$(DBAAS_SERVICE_NAME)); then \
 		echo "$(GREEN)=== MAAS $(1) completed successfully$(NC)"; \
 	else \
 		echo "$(RED)Error: MAAS $(1) failed$(NC)"; \
