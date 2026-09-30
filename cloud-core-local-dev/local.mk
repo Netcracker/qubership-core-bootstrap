@@ -72,6 +72,11 @@ PAAS_MEDIATION_TAG ?= latest
 
 DBAAS_AGENT_TAG ?= latest
 
+# dbaas-aggregator and its hook image, not dbaas-agent above. Named plain TAG, not
+# DBAAS_AGGREGATOR_TAG, because that is the variable name qubership-dbaas/bootstrap's own
+# Makefile takes; see run_dbaas_operation, which forwards it there explicitly.
+TAG ?= latest
+
 MAAS_AGENT_TAG ?= latest
 MAAS_AGENT_IMAGE_REPOSITORY ?= ghcr.io/netcracker/qubership-core-maas-agent
 
