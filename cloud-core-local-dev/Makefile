@@ -849,14 +849,16 @@ include utils/reset-control-plane.mk
 # HELPER FUNCTIONS
 # =============================================================================
 
-# Clone a repo into $(REPOS_DIR), replacing any existing directory.
-# Usage: $(call clone_or_update_repo,<local_name>,<git_url>,<branch>,<baseline_branch>)
+# Clone a repo into $(REPOS_DIR), replacing any existing directory. $(3) may be a branch, tag or
+# commit sha.
+# Usage: $(call clone_or_update_repo,<local_name>,<git_url>,<ref>,<baseline_branch>)
 #   $(1) Directory name under $(REPOS_DIR) for the clone.
 #   $(2) Remote repository URL.
-#   $(3) Optional branch: cloned when non-empty and present on remote; otherwise falls back to $(4).
+#   $(3) Optional ref: a branch, tag or commit sha. Used when non-empty and it resolves on
+#        remote; otherwise falls back to $(4).
 #   $(4) Baseline branch (main, or a release line such as lts/26.3): cloned when present on
-#        remote and $(3) is not; otherwise falls back to the remote default. Defaults to main
-#        when left empty, so existing callers that only pass $(1)-$(3) keep working.
+#        remote and $(3) does not resolve; otherwise falls back to the remote default. Defaults to
+#        main when left empty, so existing callers that only pass $(1)-$(3) keep working.
 define clone_or_update_repo
 	baseline="$(if $(4),$(4),main)"; \
 	if [ -d "$(REPOS_DIR)/$(1)" ]; then \
@@ -864,11 +866,21 @@ define clone_or_update_repo
 		rm -rf "$(REPOS_DIR)/$(1)"; \
 	fi; \
 	echo "Cloning $(1)..."; \
-	if [ -n "$(3)" ] && [ -n "$$(git ls-remote --heads $(2) $(3) 2>/dev/null)" ]; then \
+	if [ -n "$(3)" ] && [ -n "$$(git ls-remote $(2) $(3) 2>/dev/null)" ]; then \
 		git clone --depth 1 -b $(3) $(2) $(REPOS_DIR)/$(1); \
-	elif [ -n "$$(git ls-remote --heads $(2) "$$baseline" 2>/dev/null)" ]; then \
+	elif echo "$(3)" | grep -qE '^[0-9a-fA-F]{7,40}$$'; then \
+		echo "$(3) is not a branch or tag on remote, fetching it as a commit..."; \
+		mkdir -p $(REPOS_DIR)/$(1); \
+		if (cd $(REPOS_DIR)/$(1) && git init -q && git remote add origin $(2) && git fetch --depth 1 origin $(3) && git checkout -q FETCH_HEAD); then \
+			:; \
+		else \
+			echo "Commit $(3) could not be fetched, cloning $$baseline instead..."; \
+			rm -rf $(REPOS_DIR)/$(1); \
+			git clone --depth 1 -b "$$baseline" $(2) $(REPOS_DIR)/$(1); \
+		fi; \
+	elif [ -n "$$(git ls-remote $(2) "$$baseline" 2>/dev/null)" ]; then \
 		if [ -n "$(3)" ]; then \
-			echo "Branch $(3) not found, cloning $$baseline..."; \
+			echo "Branch, tag or commit $(3) not found, cloning $$baseline..."; \
 		fi; \
 		git clone --depth 1 -b "$$baseline" $(2) $(REPOS_DIR)/$(1); \
 	else \
