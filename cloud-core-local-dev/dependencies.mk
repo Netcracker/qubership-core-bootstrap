@@ -3,15 +3,13 @@
 # designed to work with. An lts/* branch of core-bootstrap should pin these to whatever it shipped
 # with, instead of always tracking each dependency's main.
 #
-# The *_REPO_BRANCH variables (despite the name, and unlike TEST_BRANCH, which is a branch only)
-# each accept a branch, tag or commit sha; see clone_or_update_repo. A ref that does not resolve on the
-# remote falls back to BASELINE_BRANCH (local.mk), then to the remote's default branch.
-# ISTIO_REPO_BRANCH and CORE_MESH_CONFIG_REPO_BRANCH are the exception: they accept a branch or a
-# tag only.
+# ISTIO_REPO_BRANCH and CORE_MESH_CONFIG_REPO_BRANCH each accept a branch or a tag, not a commit sha:
+# the istio and core-mesh-config makefiles clone them with git clone -b. TEST_BRANCH, unlike these
+# two, is a branch only.
 #
 # Override any single value via: make VAR=value install - command-line assignments win over the
 # ?= defaults below regardless of this file. A nightly pipeline that wants main/latest across the
-# board passes ISTIO_REPO_BRANCH=main DBAAS_REPO_BRANCH=main CORE_MESH_CONFIG_REPO_BRANCH=main
+# board passes ISTIO_REPO_BRANCH=main CORE_MESH_CONFIG_REPO_BRANCH=main
 # MAAS_TAG=latest this way, instead of editing this file.
 
 # Image/helm tag for MaaS. "latest" checks out main; otherwise checks out the matching GitHub tag.
@@ -25,9 +23,3 @@ ISTIO_REPO_BRANCH ?= main
 
 # Branch or tag of the qubership-core-mesh-config repository. Resolved like ISTIO_REPO_BRANCH.
 CORE_MESH_CONFIG_REPO_BRANCH ?= main
-
-# Branch, tag or commit of the qubership-dbaas repository's bootstrap scripts and charts. Resolved
-# like ISTIO_REPO_BRANCH: a value set from outside wins; otherwise TEST_BRANCH is used when the
-# repository has a branch of that name and TEST_BRANCH differs from BASELINE_BRANCH; otherwise the
-# value below.
-DBAAS_REPO_BRANCH ?= main

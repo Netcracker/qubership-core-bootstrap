@@ -20,7 +20,7 @@ INSTALL_ISTIO ?= false
 ISTIO_CONFIG_FILE ?= local.mk
 # config file for core-mesh-config - relative path will be resolved upon ./core-mesh-config folder
 MESH_CONFIG_FILE ?= local.mk
-# ISTIO_REPO_BRANCH, DBAAS_REPO_BRANCH and CORE_MESH_CONFIG_REPO_BRANCH: see dependencies.mk
+# ISTIO_REPO_BRANCH and CORE_MESH_CONFIG_REPO_BRANCH: see dependencies.mk
 
 # Namespace configuration
 CORE_NAMESPACE ?= core
@@ -57,7 +57,7 @@ CORE_CONFIG_MAAS_ENABLED ?= false
 CORE_CONFIG_MAAS_INTERNAL_ADDRESS ?= http://maas-service.maas:8080
 
 # Components values
-# *_TAG (incl. DBAAS_TAG, dbaas-aggregator's) defaults: see "CORE SERVICE AND DBAAS IMAGE TAGS" in
+# *_TAG (incl. DBAAS_TAG, dbaas-aggregator's) defaults: see "CORE SERVICE BRANCHES AND IMAGE TAGS" in
 # the main Makefile, resolved from TEST_BRANCH/BASELINE_BRANCH (below in this file) once this
 # whole file has been included, rather than a flat default here.
 INGRESS_GATEWAY_CLOUD_PUBLIC_HOST ?= svc.cluster.local
