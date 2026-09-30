@@ -20,7 +20,7 @@ INSTALL_ISTIO ?= false
 ISTIO_CONFIG_FILE ?= local.mk
 # config file for core-mesh-config - relative path will be resolved upon ./core-mesh-config folder
 MESH_CONFIG_FILE ?= local.mk
-# ISTIO_REPO_BRANCH and CORE_MESH_CONFIG_REPO_BRANCH: see dependencies.mk
+# ISTIO_REPO_BRANCH, DBAAS_REPO_BRANCH and CORE_MESH_CONFIG_REPO_BRANCH: see dependencies.mk
 
 # Namespace configuration
 CORE_NAMESPACE ?= core

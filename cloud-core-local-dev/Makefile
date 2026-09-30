@@ -58,6 +58,9 @@ endif
 ifeq ($(origin CORE_MESH_CONFIG_REPO_BRANCH),undefined)
 CORE_MESH_CONFIG_REPO_BRANCH_UNSET := true
 endif
+ifeq ($(origin DBAAS_REPO_BRANCH),undefined)
+DBAAS_REPO_BRANCH_UNSET := true
+endif
 
 # Load configuration from .mk file
 CONFIG_FILE ?= local.mk
@@ -104,22 +107,22 @@ endif
 # the rolling tag qubership-core-infra's shared docker-build.yaml publishes. An explicit
 # <SERVICE>_TAG (command line or environment) always wins over the tag derived here.
 # <SERVICE> is FACADE_OPERATOR, INGRESS_GATEWAY, CONTROL_PLANE, PAAS_MEDIATION, DBAAS_AGENT,
-# MAAS_AGENT, CORE_OPERATOR, CONFIG_SERVER or SITE_MANAGEMENT. dbaas-aggregator follows the same
-# rule with DBAAS_BRANCH and DBAAS_TAG: its bootstrap scripts and charts come from the same clone.
+# MAAS_AGENT, CORE_OPERATOR, CONFIG_SERVER or SITE_MANAGEMENT. dbaas-aggregator is versioned with
+# semver, not by release line: it falls back to a pin instead of BASELINE_BRANCH; see DEPENDENCY REFS.
 
 # non-empty when repository $(1) has a branch named $(2); a tag or commit of that name does not count
 define branch_exists
-$(strip $(shell git ls-remote --heads $(1) refs/heads/$(2) 2>/dev/null))
+$(if $(2),$(strip $(shell git ls-remote --heads $(1) refs/heads/$(2) 2>/dev/null)))
 endef
 
 # TEST_BRANCH when repository $(1) has it, otherwise BASELINE_BRANCH
 define test_branch_or_baseline
-$(if $(call branch_exists,$(1),$(TEST_BRANCH)),$(TEST_BRANCH),$(BASELINE_BRANCH))
+$(if $(1),$(if $(call branch_exists,$(1),$(TEST_BRANCH)),$(TEST_BRANCH),$(BASELINE_BRANCH)))
 endef
 
 # the branch to use in repository $(1) given the explicit branch $(2), which may be empty
 define service_branch
-$(strip $(if $(2),$(if $(call branch_exists,$(1),$(2)),$(2),$(error Branch '$(2)' not found in $(1))),$(call test_branch_or_baseline,$(1))))
+$(if $(1),$(strip $(if $(2),$(if $(call branch_exists,$(1),$(2)),$(2),$(error Branch '$(2)' not found in $(1))),$(call test_branch_or_baseline,$(1)))))
 endef
 
 # image tag published for branch $(1)
@@ -163,24 +166,22 @@ SITE_MANAGEMENT_CLONE_BRANCH := $(call service_branch,https://github.com/Netcrac
 ifeq ($(origin SITE_MANAGEMENT_TAG),undefined)
 SITE_MANAGEMENT_TAG := $(call tag_for_branch,$(SITE_MANAGEMENT_CLONE_BRANCH))
 endif
-# dbaas-aggregator and its hook image, not dbaas-agent above; see run_dbaas_operation
-DBAAS_CLONE_BRANCH := $(call service_branch,https://github.com/Netcracker/qubership-dbaas.git,$(DBAAS_BRANCH))
-ifeq ($(origin DBAAS_TAG),undefined)
-DBAAS_TAG := $(call tag_for_branch,$(DBAAS_CLONE_BRANCH))
-endif
-
 # =============================================================================
 # DEPENDENCY REFS
 # =============================================================================
 #
-# ISTIO_REPO_BRANCH and CORE_MESH_CONFIG_REPO_BRANCH are resolved in this order:
+# ISTIO_REPO_BRANCH, CORE_MESH_CONFIG_REPO_BRANCH and DBAAS_REPO_BRANCH are resolved in this order:
 #   1. a value set from outside (make VAR=... or the environment) is used as is;
 #   2. otherwise TEST_BRANCH, if that branch exists in the dependency's repository;
 #   3. otherwise the value pinned in dependencies.mk.
 # Step 2 only applies when TEST_BRANCH differs from BASELINE_BRANCH. Equal values mean nothing
 # is being tested on a separate branch, and the pin in dependencies.mk should win over the
-# TEST_BRANCH default of main. The istio and core-mesh-config makefiles clone with git clone -b, so
-# their refs must be a branch or a tag; a commit sha does not work for them.
+# TEST_BRANCH default of main. Each pin and each explicit value is a branch or a tag, not a commit
+# sha; TEST_BRANCH is a branch.
+#
+# DBAAS_REPO_BRANCH is where the bootstrap scripts and charts of qubership-dbaas are cloned from,
+# and DBAAS_TAG follows it: latest for main, <branch>-snapshot for another branch, and the tag
+# itself (a release such as v6.15.1) for a tag. An explicit DBAAS_TAG always wins.
 
 ifneq ($(TEST_BRANCH),$(BASELINE_BRANCH))
 ifdef ISTIO_REPO_BRANCH_UNSET
@@ -193,6 +194,21 @@ ifneq ($(call branch_exists,https://github.com/Netcracker/qubership-core-mesh-co
 CORE_MESH_CONFIG_REPO_BRANCH := $(TEST_BRANCH)
 endif
 endif
+ifdef DBAAS_REPO_BRANCH_UNSET
+ifneq ($(call branch_exists,https://github.com/Netcracker/qubership-dbaas.git,$(TEST_BRANCH)),)
+DBAAS_REPO_BRANCH := $(TEST_BRANCH)
+endif
+endif
+endif
+
+# image tag for ref $(1) of qubership-dbaas: a branch or a tag
+define dbaas_image_tag
+$(if $(1),$(if $(call branch_exists,https://github.com/Netcracker/qubership-dbaas.git,$(1)),$(call tag_for_branch,$(1)),$(if $(strip $(shell git ls-remote --tags https://github.com/Netcracker/qubership-dbaas.git refs/tags/$(1) 2>/dev/null)),$(1),$(error DBAAS_REPO_BRANCH '$(1)' is not a branch or a tag of https://github.com/Netcracker/qubership-dbaas.git))))
+endef
+
+# dbaas-aggregator and its hook image, not dbaas-agent; see run_dbaas_operation
+ifeq ($(origin DBAAS_TAG),undefined)
+DBAAS_TAG := $(call dbaas_image_tag,$(DBAAS_REPO_BRANCH))
 endif
 
 # =============================================================================
@@ -355,7 +371,7 @@ clone-repos:
 	@$(call clone_or_update_repo,qubership-core-maas-agent,https://github.com/Netcracker/qubership-core-maas-agent.git,$(MAAS_AGENT_CLONE_BRANCH),$(BASELINE_BRANCH),branch-only)
 	@$(call clone_or_update_repo,qubership-core-core-operator,https://github.com/Netcracker/qubership-core-core-operator.git,$(CORE_OPERATOR_CLONE_BRANCH),$(BASELINE_BRANCH),branch-only)
 	@$(call clone_or_update_repo,qubership-core-config-server,https://github.com/Netcracker/qubership-core-config-server.git,$(CONFIG_SERVER_CLONE_BRANCH),$(BASELINE_BRANCH),branch-only)
-	@$(call clone_or_update_repo,qubership-dbaas,https://github.com/Netcracker/qubership-dbaas.git,$(DBAAS_CLONE_BRANCH),$(BASELINE_BRANCH),branch-only)
+	@$(call clone_or_update_repo,qubership-dbaas,https://github.com/Netcracker/qubership-dbaas.git,$(DBAAS_REPO_BRANCH),$(BASELINE_BRANCH))
 	@echo ""
 
 #---------------------------- values templating ---------------------------------------------

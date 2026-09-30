@@ -3,13 +3,12 @@
 # designed to work with. An lts/* branch of core-bootstrap should pin these to whatever it shipped
 # with, instead of always tracking each dependency's main.
 #
-# ISTIO_REPO_BRANCH and CORE_MESH_CONFIG_REPO_BRANCH each accept a branch or a tag, not a commit sha:
-# the istio and core-mesh-config makefiles clone them with git clone -b. TEST_BRANCH, unlike these
-# two, is a branch only.
+# ISTIO_REPO_BRANCH, CORE_MESH_CONFIG_REPO_BRANCH and DBAAS_REPO_BRANCH each accept a branch or a
+# tag, not a commit sha. TEST_BRANCH, unlike these, is a branch only.
 #
 # Override any single value via: make VAR=value install - command-line assignments win over the
 # ?= defaults below regardless of this file. A nightly pipeline that wants main/latest across the
-# board passes ISTIO_REPO_BRANCH=main CORE_MESH_CONFIG_REPO_BRANCH=main
+# board passes ISTIO_REPO_BRANCH=main DBAAS_REPO_BRANCH=main CORE_MESH_CONFIG_REPO_BRANCH=main
 # MAAS_TAG=latest this way, instead of editing this file.
 
 # Image/helm tag for MaaS. "latest" checks out main; otherwise checks out the matching GitHub tag.
@@ -23,3 +22,9 @@ ISTIO_REPO_BRANCH ?= main
 
 # Branch or tag of the qubership-core-mesh-config repository. Resolved like ISTIO_REPO_BRANCH.
 CORE_MESH_CONFIG_REPO_BRANCH ?= main
+
+# Branch or tag of the qubership-dbaas repository, for its bootstrap scripts and charts and for the
+# image tag of dbaas-aggregator. Resolved like ISTIO_REPO_BRANCH, so this pin replaces
+# BASELINE_BRANCH as the fallback: qubership-dbaas is released with semver tags and has no lts/*
+# branches. Pin it to a release tag, e.g. v6.15.1, on a release line of this repository.
+DBAAS_REPO_BRANCH ?= main
