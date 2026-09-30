@@ -98,7 +98,7 @@ else
 endif
 
 # =============================================================================
-# CORE SERVICE BRANCHES AND IMAGE TAGS
+# BRANCH AND IMAGE TAG RESOLUTION
 # =============================================================================
 #
 # Each core service repository is cloned at, and its image tag follows, the first of:
@@ -110,68 +110,7 @@ endif
 # the rolling tag qubership-core-infra's shared docker-build.yaml publishes. An explicit
 # <SERVICE>_TAG (command line or environment) always wins over the tag derived here.
 # <SERVICE> is FACADE_OPERATOR, INGRESS_GATEWAY, CONTROL_PLANE, PAAS_MEDIATION, DBAAS_AGENT,
-# MAAS_AGENT, CORE_OPERATOR, CONFIG_SERVER or SITE_MANAGEMENT. dbaas-aggregator is versioned with
-# semver, not by release line: it falls back to a pin instead of BASELINE_BRANCH; see DEPENDENCY REFS.
-
-# non-empty when repository $(1) has a branch named $(2); a tag or commit of that name does not count
-define branch_exists
-$(if $(2),$(strip $(shell git ls-remote --heads $(1) refs/heads/$(2) 2>/dev/null)))
-endef
-
-# TEST_BRANCH when repository $(1) has it, otherwise BASELINE_BRANCH
-define test_branch_or_baseline
-$(if $(1),$(if $(call branch_exists,$(1),$(TEST_BRANCH)),$(TEST_BRANCH),$(BASELINE_BRANCH)))
-endef
-
-# the branch to use in repository $(1) given the explicit branch $(2), which may be empty
-define service_branch
-$(if $(1),$(strip $(if $(2),$(if $(call branch_exists,$(1),$(2)),$(2),$(error Branch '$(2)' not found in $(1))),$(call test_branch_or_baseline,$(1)))))
-endef
-
-# image tag published for branch $(1)
-define tag_for_branch
-$(if $(filter main,$(1)),latest,$(subst /,-,$(1))-snapshot)
-endef
-
-FACADE_OPERATOR_CLONE_BRANCH := $(call service_branch,https://github.com/Netcracker/qubership-core-facade-operator.git,$(FACADE_OPERATOR_BRANCH))
-ifeq ($(origin FACADE_OPERATOR_TAG),undefined)
-FACADE_OPERATOR_TAG := $(call tag_for_branch,$(FACADE_OPERATOR_CLONE_BRANCH))
-endif
-INGRESS_GATEWAY_CLONE_BRANCH := $(call service_branch,https://github.com/Netcracker/qubership-core-ingress-gateway.git,$(INGRESS_GATEWAY_BRANCH))
-ifeq ($(origin INGRESS_GATEWAY_TAG),undefined)
-INGRESS_GATEWAY_TAG := $(call tag_for_branch,$(INGRESS_GATEWAY_CLONE_BRANCH))
-endif
-CONTROL_PLANE_CLONE_BRANCH := $(call service_branch,https://github.com/Netcracker/qubership-core-control-plane.git,$(CONTROL_PLANE_BRANCH))
-ifeq ($(origin CONTROL_PLANE_TAG),undefined)
-CONTROL_PLANE_TAG := $(call tag_for_branch,$(CONTROL_PLANE_CLONE_BRANCH))
-endif
-PAAS_MEDIATION_CLONE_BRANCH := $(call service_branch,https://github.com/Netcracker/qubership-core-paas-mediation.git,$(PAAS_MEDIATION_BRANCH))
-ifeq ($(origin PAAS_MEDIATION_TAG),undefined)
-PAAS_MEDIATION_TAG := $(call tag_for_branch,$(PAAS_MEDIATION_CLONE_BRANCH))
-endif
-DBAAS_AGENT_CLONE_BRANCH := $(call service_branch,https://github.com/Netcracker/qubership-core-dbaas-agent.git,$(DBAAS_AGENT_BRANCH))
-ifeq ($(origin DBAAS_AGENT_TAG),undefined)
-DBAAS_AGENT_TAG := $(call tag_for_branch,$(DBAAS_AGENT_CLONE_BRANCH))
-endif
-MAAS_AGENT_CLONE_BRANCH := $(call service_branch,https://github.com/Netcracker/qubership-core-maas-agent.git,$(MAAS_AGENT_BRANCH))
-ifeq ($(origin MAAS_AGENT_TAG),undefined)
-MAAS_AGENT_TAG := $(call tag_for_branch,$(MAAS_AGENT_CLONE_BRANCH))
-endif
-CORE_OPERATOR_CLONE_BRANCH := $(call service_branch,https://github.com/Netcracker/qubership-core-core-operator.git,$(CORE_OPERATOR_BRANCH))
-ifeq ($(origin CORE_OPERATOR_TAG),undefined)
-CORE_OPERATOR_TAG := $(call tag_for_branch,$(CORE_OPERATOR_CLONE_BRANCH))
-endif
-CONFIG_SERVER_CLONE_BRANCH := $(call service_branch,https://github.com/Netcracker/qubership-core-config-server.git,$(CONFIG_SERVER_BRANCH))
-ifeq ($(origin CONFIG_SERVER_TAG),undefined)
-CONFIG_SERVER_TAG := $(call tag_for_branch,$(CONFIG_SERVER_CLONE_BRANCH))
-endif
-SITE_MANAGEMENT_CLONE_BRANCH := $(call service_branch,https://github.com/Netcracker/qubership-core-site-management.git,$(SITE_MANAGEMENT_BRANCH))
-ifeq ($(origin SITE_MANAGEMENT_TAG),undefined)
-SITE_MANAGEMENT_TAG := $(call tag_for_branch,$(SITE_MANAGEMENT_CLONE_BRANCH))
-endif
-# =============================================================================
-# DEPENDENCY REFS
-# =============================================================================
+# MAAS_AGENT, CORE_OPERATOR, CONFIG_SERVER or SITE_MANAGEMENT.
 #
 # ISTIO_REPO_BRANCH, CORE_MESH_CONFIG_REPO_BRANCH, DBAAS_REPO_BRANCH and MAAS_BRANCH are resolved in
 # this order:
@@ -181,47 +120,136 @@ endif
 # Step 2 only applies when TEST_BRANCH differs from BASELINE_BRANCH. Equal values mean nothing
 # is being tested on a separate branch, and the pin in dependencies.mk should win over
 # TEST_BRANCH. Each pin and each explicit value is a branch or a tag, not a commit sha;
-# TEST_BRANCH is a branch.
+# TEST_BRANCH is a branch. These are the versions of qubership-dbaas, which is released with semver
+# tags rather than by release line, and of qubership-maas, istio and core-mesh-config.
 #
-# DBAAS_REPO_BRANCH is where the bootstrap scripts and charts of qubership-dbaas are cloned from,
-# and DBAAS_TAG follows it: latest for main, <branch>-snapshot for another branch, and the tag
-# itself (a release such as v6.15.1) for a tag. An explicit DBAAS_TAG always wins.
-#
+# DBAAS_TAG follows DBAAS_REPO_BRANCH: latest for main, <branch>-snapshot for another branch, and
+# the tag itself (a release such as v6.15.1) for a tag. An explicit DBAAS_TAG always wins.
 # MAAS_BRANCH is passed to the maas makefile, which clones qubership-maas at it and derives the
 # MaaS image tag from it in the same way; see maas/Makefile.
+#
+# The resolved values and where each came from are reported by the resolved-refs target, which
+# install runs first; see below.
 
-ifneq ($(TEST_BRANCH),$(BASELINE_BRANCH))
-ifdef ISTIO_REPO_BRANCH_UNSET
-ifneq ($(call branch_exists,https://github.com/Netcracker/qubership-istio.git,$(TEST_BRANCH)),)
-ISTIO_REPO_BRANCH := $(TEST_BRANCH)
-endif
-endif
-ifdef CORE_MESH_CONFIG_REPO_BRANCH_UNSET
-ifneq ($(call branch_exists,https://github.com/Netcracker/qubership-core-mesh-config.git,$(TEST_BRANCH)),)
-CORE_MESH_CONFIG_REPO_BRANCH := $(TEST_BRANCH)
-endif
-endif
-ifdef DBAAS_REPO_BRANCH_UNSET
-ifneq ($(call branch_exists,https://github.com/Netcracker/qubership-dbaas.git,$(TEST_BRANCH)),)
-DBAAS_REPO_BRANCH := $(TEST_BRANCH)
-endif
-endif
-ifdef MAAS_BRANCH_UNSET
-ifneq ($(call branch_exists,https://github.com/Netcracker/qubership-maas.git,$(TEST_BRANCH)),)
-MAAS_BRANCH := $(TEST_BRANCH)
-endif
-endif
-endif
-
-# image tag for ref $(1) of qubership-dbaas: a branch or a tag
-define dbaas_image_tag
-$(if $(1),$(if $(call branch_exists,https://github.com/Netcracker/qubership-dbaas.git,$(1)),$(call tag_for_branch,$(1)),$(if $(strip $(shell git ls-remote --tags https://github.com/Netcracker/qubership-dbaas.git refs/tags/$(1) 2>/dev/null)),$(1),$(error DBAAS_REPO_BRANCH '$(1)' is not a branch or a tag of https://github.com/Netcracker/qubership-dbaas.git))))
+# non-empty when repository $(1) has a branch named $(2); a tag or commit of that name does not count
+define branch_exists
+$(if $(2),$(strip $(shell git ls-remote --heads $(1) refs/heads/$(2) 2>/dev/null)))
 endef
+
+# image tag published for branch $(1)
+define tag_for_branch
+$(if $(filter main,$(1)),latest,$(subst /,-,$(1))-snapshot)
+endef
+
+# image tag for ref $(2) of repository $(1), a branch or a tag; anything else stops make
+define ref_image_tag
+$(if $(2),$(if $(call branch_exists,$(1),$(2)),$(call tag_for_branch,$(2)),$(if $(strip $(shell git ls-remote --tags $(1) refs/tags/$(2) 2>/dev/null)),$(2),$(error '$(2)' is not a branch or a tag of $(1)))))
+endef
+
+# Resolve the branch and the image tag of a core service; $(1) is the variable prefix, e.g.
+# CONFIG_SERVER, and $(2) the URL of its repository. Sets <SERVICE>_CLONE_BRANCH, the branch the
+# repository is cloned at, and <SERVICE>_TAG, with <SERVICE>_BRANCH_SOURCE and <SERVICE>_TAG_SOURCE
+# telling where each came from.
+define core_service
+$(1)_BRANCH_SOURCE := $$(if $$($(1)_BRANCH),explicit,$$(if $$(call branch_exists,$(2),$$(TEST_BRANCH)),TEST_BRANCH,BASELINE_BRANCH))
+$(1)_CLONE_BRANCH := $$(if $$(filter explicit,$$($(1)_BRANCH_SOURCE)),$$(if $$(call branch_exists,$(2),$$($(1)_BRANCH)),$$($(1)_BRANCH),$$(error Branch '$$($(1)_BRANCH)' not found in $(2))),$$(if $$(filter TEST_BRANCH,$$($(1)_BRANCH_SOURCE)),$$(TEST_BRANCH),$$(BASELINE_BRANCH)))
+ifeq ($$(origin $(1)_TAG),undefined)
+$(1)_TAG_SOURCE := derived from the branch
+$(1)_TAG := $$(call tag_for_branch,$$($(1)_CLONE_BRANCH))
+else
+$(1)_TAG_SOURCE := explicit
+endif
+endef
+
+# Resolve a dependency ref; $(1) is the variable, e.g. ISTIO_REPO_BRANCH, and $(2) the URL of its
+# repository. $(1)_SOURCE tells where the value came from. $(1)_UNSET was set before local.mk and
+# dependencies.mk were included, when the caller had not set the variable.
+define dependency_ref
+$(1)_SOURCE := $$(if $$($(1)_UNSET),pin (dependencies.mk),explicit)
+ifneq ($$(TEST_BRANCH),$$(BASELINE_BRANCH))
+ifdef $(1)_UNSET
+ifneq ($$(call branch_exists,$(2),$$(TEST_BRANCH)),)
+$(1) := $$(TEST_BRANCH)
+$(1)_SOURCE := TEST_BRANCH
+endif
+endif
+endif
+endef
+
+CORE_SERVICES := FACADE_OPERATOR INGRESS_GATEWAY CONTROL_PLANE PAAS_MEDIATION DBAAS_AGENT \
+	MAAS_AGENT CORE_OPERATOR CONFIG_SERVER SITE_MANAGEMENT
+
+$(eval $(call core_service,FACADE_OPERATOR,https://github.com/Netcracker/qubership-core-facade-operator.git))
+$(eval $(call core_service,INGRESS_GATEWAY,https://github.com/Netcracker/qubership-core-ingress-gateway.git))
+$(eval $(call core_service,CONTROL_PLANE,https://github.com/Netcracker/qubership-core-control-plane.git))
+$(eval $(call core_service,PAAS_MEDIATION,https://github.com/Netcracker/qubership-core-paas-mediation.git))
+$(eval $(call core_service,DBAAS_AGENT,https://github.com/Netcracker/qubership-core-dbaas-agent.git))
+$(eval $(call core_service,MAAS_AGENT,https://github.com/Netcracker/qubership-core-maas-agent.git))
+$(eval $(call core_service,CORE_OPERATOR,https://github.com/Netcracker/qubership-core-core-operator.git))
+$(eval $(call core_service,CONFIG_SERVER,https://github.com/Netcracker/qubership-core-config-server.git))
+$(eval $(call core_service,SITE_MANAGEMENT,https://github.com/Netcracker/qubership-core-site-management.git))
+
+$(eval $(call dependency_ref,DBAAS_REPO_BRANCH,https://github.com/Netcracker/qubership-dbaas.git))
+$(eval $(call dependency_ref,MAAS_BRANCH,https://github.com/Netcracker/qubership-maas.git))
+$(eval $(call dependency_ref,ISTIO_REPO_BRANCH,https://github.com/Netcracker/qubership-istio.git))
+$(eval $(call dependency_ref,CORE_MESH_CONFIG_REPO_BRANCH,https://github.com/Netcracker/qubership-core-mesh-config.git))
 
 # dbaas-aggregator and its hook image, not dbaas-agent; see run_dbaas_operation
 ifeq ($(origin DBAAS_TAG),undefined)
-DBAAS_TAG := $(call dbaas_image_tag,$(DBAAS_REPO_BRANCH))
+DBAAS_TAG_SOURCE := derived from DBAAS_REPO_BRANCH
+DBAAS_TAG := $(call ref_image_tag,https://github.com/Netcracker/qubership-dbaas.git,$(DBAAS_REPO_BRANCH))
+else
+DBAAS_TAG_SOURCE := explicit
 endif
+
+# The MaaS image tag is derived by the maas makefile; it is worked out here only to report it. A TAG
+# set from outside reaches that makefile and wins there.
+ifeq ($(origin TAG),undefined)
+MAAS_IMAGE_TAG_SOURCE := derived by the maas makefile from MAAS_BRANCH
+MAAS_IMAGE_TAG := $(call ref_image_tag,https://github.com/Netcracker/qubership-maas.git,$(MAAS_BRANCH))
+else
+MAAS_IMAGE_TAG_SOURCE := explicit (TAG)
+MAAS_IMAGE_TAG := $(TAG)
+endif
+
+# =============================================================================
+# RESOLVED BRANCHES AND TAGS REPORT
+# =============================================================================
+#
+# resolved-refs prints every resolved branch and image tag as a Markdown table, with where the
+# value came from: set from outside (explicit), TEST_BRANCH, BASELINE_BRANCH, a pin in
+# dependencies.mk, or derived from a branch. install runs it first, so it is at the top of the log.
+# When RESOLVED_REFS_FILE is set, the table is also appended to that file; a GitHub Actions step
+# can point it at $GITHUB_STEP_SUMMARY to show the table in the run summary.
+
+# one row of the report: $(1) setting, $(2) value, $(3) where the value came from
+define ref_row
+echo "| \`$(1)\` | $(if $(2),\`$(2)\`,(not set)) | $(3) |"
+endef
+
+define resolved_refs_report
+{ \
+	echo ""; \
+	echo "### Resolved branches and image tags"; \
+	echo ""; \
+	echo "| Setting | Value | Source |"; \
+	echo "| --- | --- | --- |"; \
+	$(call ref_row,TEST_BRANCH,$(TEST_BRANCH),$(if $(TEST_BRANCH),explicit,not set)); \
+	$(call ref_row,BASELINE_BRANCH,$(BASELINE_BRANCH),$(if $(filter file default,$(origin BASELINE_BRANCH)),default (local.mk),explicit)); \
+	$(foreach s,$(CORE_SERVICES),$(call ref_row,$(s)_BRANCH,$($(s)_CLONE_BRANCH),$($(s)_BRANCH_SOURCE)); $(call ref_row,$(s)_TAG,$($(s)_TAG),$($(s)_TAG_SOURCE)); ) \
+	$(call ref_row,DBAAS_REPO_BRANCH,$(DBAAS_REPO_BRANCH),$(DBAAS_REPO_BRANCH_SOURCE)); \
+	$(call ref_row,DBAAS_TAG,$(DBAAS_TAG),$(DBAAS_TAG_SOURCE)); \
+	$(call ref_row,MAAS_BRANCH,$(MAAS_BRANCH),$(MAAS_BRANCH_SOURCE)); \
+	$(call ref_row,MaaS image tag,$(MAAS_IMAGE_TAG),$(MAAS_IMAGE_TAG_SOURCE)); \
+	$(call ref_row,ISTIO_REPO_BRANCH,$(ISTIO_REPO_BRANCH),$(ISTIO_REPO_BRANCH_SOURCE)); \
+	$(call ref_row,CORE_MESH_CONFIG_REPO_BRANCH,$(CORE_MESH_CONFIG_REPO_BRANCH),$(CORE_MESH_CONFIG_REPO_BRANCH_SOURCE)); \
+	echo ""; \
+}
+endef
+
+.PHONY: resolved-refs
+resolved-refs:
+	@$(call resolved_refs_report)$(if $(RESOLVED_REFS_FILE), | tee -a '$(RESOLVED_REFS_FILE)')
 
 # =============================================================================
 # HELP
@@ -301,7 +329,7 @@ help:
 # INSTALLATION
 # =============================================================================
 
-install: validate clone-repos template-values-files deploy #mesh-smoke-test
+install: resolved-refs validate clone-repos template-values-files deploy #mesh-smoke-test
 
 deploy: deploy-dependencies deploy-core
 

@@ -102,6 +102,10 @@ RABBIT_INSTANCES ?=
 #
 # These refs are a branch or a tag, not a commit sha.
 #
+# Where each value comes from (set explicitly, TEST_BRANCH, BASELINE_BRANCH, a pin or derived) is
+# printed as a Markdown table by "make resolved-refs", which install runs first. RESOLVED_REFS_FILE
+# names a file to append the table to, for example $GITHUB_STEP_SUMMARY.
+#
 # DBAAS_TAG is either set explicitly or follows DBAAS_REPO_BRANCH. The MaaS image tag follows
 # MAAS_BRANCH the same way, and is derived by the maas makefile. In both cases the tag is latest for
 # main, <branch>-snapshot for another branch, and the tag itself for a tag such as v6.15.1.
