@@ -50,6 +50,15 @@
 # CONFIGURATION
 # =============================================================================
 
+# Note which dependency refs the caller sets from outside (command line or environment): the files
+# included below only ever give them defaults. See "DEPENDENCY REFS" further down.
+ifeq ($(origin ISTIO_REPO_BRANCH),undefined)
+ISTIO_REPO_BRANCH_UNSET := true
+endif
+ifeq ($(origin CORE_MESH_CONFIG_REPO_BRANCH),undefined)
+CORE_MESH_CONFIG_REPO_BRANCH_UNSET := true
+endif
+
 # Load configuration from .mk file
 CONFIG_FILE ?= local.mk
 include $(CONFIG_FILE)
@@ -133,6 +142,36 @@ endif
 # dbaas-aggregator and its hook image, not dbaas-agent above; see run_dbaas_operation
 ifeq ($(origin DBAAS_TAG),undefined)
 DBAAS_TAG := $(call resolve_tag,https://github.com/Netcracker/qubership-dbaas.git)
+endif
+
+# =============================================================================
+# DEPENDENCY REFS
+# =============================================================================
+#
+# ISTIO_REPO_BRANCH and CORE_MESH_CONFIG_REPO_BRANCH are resolved in this order:
+#   1. a value set from outside (make VAR=... or the environment) is used as is;
+#   2. otherwise TEST_BRANCH, if that branch or tag exists in the dependency's repository;
+#   3. otherwise the value pinned in dependencies.mk.
+# Step 2 only applies when TEST_BRANCH differs from BASELINE_BRANCH. Equal values mean nothing
+# is being tested on a separate branch, and the pin in dependencies.mk should win over the
+# TEST_BRANCH default of main. The istio and core-mesh-config makefiles clone with git clone -b, so
+# these refs must be a branch or a tag; a commit sha does not work for them.
+
+define ref_exists
+$(strip $(shell git ls-remote $(1) $(2) 2>/dev/null))
+endef
+
+ifneq ($(TEST_BRANCH),$(BASELINE_BRANCH))
+ifdef ISTIO_REPO_BRANCH_UNSET
+ifneq ($(call ref_exists,https://github.com/Netcracker/qubership-istio.git,$(TEST_BRANCH)),)
+ISTIO_REPO_BRANCH := $(TEST_BRANCH)
+endif
+endif
+ifdef CORE_MESH_CONFIG_REPO_BRANCH_UNSET
+ifneq ($(call ref_exists,https://github.com/Netcracker/qubership-core-mesh-config.git,$(TEST_BRANCH)),)
+CORE_MESH_CONFIG_REPO_BRANCH := $(TEST_BRANCH)
+endif
+endif
 endif
 
 # =============================================================================
