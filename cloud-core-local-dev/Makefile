@@ -101,7 +101,7 @@ endif
 # Each core service repository is cloned at, and its image tag follows, the first of:
 #   1. <SERVICE>_BRANCH, e.g. CONFIG_SERVER_BRANCH, when set from outside (make VAR=... or the
 #      environment). The branch must exist in that repository, or make stops with an error;
-#   2. TEST_BRANCH, if that repository has a branch of that name;
+#   2. TEST_BRANCH, if it is set and that repository has a branch of that name;
 #   3. BASELINE_BRANCH.
 # The image tag is latest for main, and <branch, / replaced by ->-snapshot for any other branch:
 # the rolling tag qubership-core-infra's shared docker-build.yaml publishes. An explicit
@@ -172,12 +172,12 @@ endif
 #
 # ISTIO_REPO_BRANCH, CORE_MESH_CONFIG_REPO_BRANCH and DBAAS_REPO_BRANCH are resolved in this order:
 #   1. a value set from outside (make VAR=... or the environment) is used as is;
-#   2. otherwise TEST_BRANCH, if that branch exists in the dependency's repository;
+#   2. otherwise TEST_BRANCH, if it is set and that branch exists in the dependency's repository;
 #   3. otherwise the value pinned in dependencies.mk.
 # Step 2 only applies when TEST_BRANCH differs from BASELINE_BRANCH. Equal values mean nothing
-# is being tested on a separate branch, and the pin in dependencies.mk should win over the
-# TEST_BRANCH default of main. Each pin and each explicit value is a branch or a tag, not a commit
-# sha; TEST_BRANCH is a branch.
+# is being tested on a separate branch, and the pin in dependencies.mk should win over
+# TEST_BRANCH. Each pin and each explicit value is a branch or a tag, not a commit sha;
+# TEST_BRANCH is a branch.
 #
 # DBAAS_REPO_BRANCH is where the bootstrap scripts and charts of qubership-dbaas are cloned from,
 # and DBAAS_TAG follows it: latest for main, <branch>-snapshot for another branch, and the tag

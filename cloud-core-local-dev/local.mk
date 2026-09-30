@@ -76,8 +76,9 @@ RABBIT_INSTANCES ?=
 #   - the refs of the dependencies (ISTIO_REPO_BRANCH, DBAAS_REPO_BRANCH and
 #     CORE_MESH_CONFIG_REPO_BRANCH): see dependencies.mk.
 
-# Branch of the core service repositories to test. A tag or a commit sha is not accepted.
-TEST_BRANCH ?= main
+# TEST_BRANCH: the branch of the core service repositories to test. It has no default: when it is
+# not set, only BASELINE_BRANCH is used. A tag or a commit sha is not accepted.
+#
 # Fallback when a repository has no TEST_BRANCH branch: main, or a release line such as lts/26.3
 # when TEST_BRANCH itself is being tested against that line.
 BASELINE_BRANCH ?= main
