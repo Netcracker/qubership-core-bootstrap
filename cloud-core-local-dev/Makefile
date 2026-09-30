@@ -242,7 +242,7 @@ clone-repos:
 	@$(call clone_or_update_repo,qubership-core-maas-agent,https://github.com/Netcracker/qubership-core-maas-agent.git,$(TEST_BRANCH),$(BASELINE_BRANCH))
 	@$(call clone_or_update_repo,qubership-core-core-operator,https://github.com/Netcracker/qubership-core-core-operator.git,$(TEST_BRANCH),$(BASELINE_BRANCH))
 	@$(call clone_or_update_repo,qubership-core-config-server,https://github.com/Netcracker/qubership-core-config-server.git,$(TEST_BRANCH),$(BASELINE_BRANCH))
-	@$(call clone_or_update_repo,qubership-dbaas,https://github.com/Netcracker/qubership-dbaas.git,$(TEST_BRANCH),$(BASELINE_BRANCH))
+	@$(call clone_or_update_repo,qubership-dbaas,https://github.com/Netcracker/qubership-dbaas.git,$(DBAAS_REPO_BRANCH),$(BASELINE_BRANCH))
 	@echo ""
 
 #---------------------------- values templating ---------------------------------------------

@@ -1,5 +1,24 @@
-# Dependency versions for cloud-core-local-dev
-# Override via: make DEPENDENCIES_FILE=dependencies.mk ...
+# Dependency versions for cloud-core-local-dev: which branch/tag of each platform-level
+# dependency (as opposed to the core services themselves, see TEST_BRANCH in local.mk) this
+# bootstrap line is designed to work with. An lts/* branch of core-bootstrap should pin these to
+# whatever it shipped with, instead of always tracking each dependency's main.
+#
+# Override any single value via: make VAR=value install - command-line assignments win over the
+# ?= defaults below regardless of this file. A nightly pipeline that wants main/latest across the
+# board passes ISTIO_REPO_BRANCH=main DBAAS_REPO_BRANCH=main CORE_MESH_CONFIG_REPO_BRANCH=main
+# MAAS_TAG=latest this way, instead of editing this file.
 
 # Image/helm tag for MaaS. "latest" checks out main; otherwise checks out the matching GitHub tag.
 MAAS_TAG ?= v5.5.10
+
+# Branch of the qubership-istio-distr repository (Istio distribution/config).
+ISTIO_REPO_BRANCH ?= main
+
+# Branch of the qubership-core-mesh-config repository.
+CORE_MESH_CONFIG_REPO_BRANCH ?= main
+
+# Branch of the qubership-dbaas repository's bootstrap scripts and charts. Defaults to tracking
+# TEST_BRANCH (services-branch of a test-apps run, "dbaas" being one of the repos it names) so
+# that testing a coordinated qubership-dbaas branch alongside a services/java-libs PR keeps working
+# unchanged; set explicitly here or on the command line to pin it independently of TEST_BRANCH.
+DBAAS_REPO_BRANCH ?= $(TEST_BRANCH)
