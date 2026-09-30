@@ -95,56 +95,80 @@ else
 endif
 
 # =============================================================================
-# CORE SERVICE AND DBAAS IMAGE TAGS
+# CORE SERVICE BRANCHES AND IMAGE TAGS
 # =============================================================================
 #
-# Each *_TAG below defaults to whatever TEST_BRANCH's own line resolves to for that repository -
-# the same existence check clone_or_update_repo uses for the source clone - falling back to
-# BASELINE_BRANCH the same way clone_or_update_repo does. main resolves to latest; anything else
-# resolves to <ref, / replaced by ->-snapshot, the rolling tag qubership-core-infra's shared
-# docker-build.yaml publishes for it. This only fires when the caller left the tag unset: an
-# explicit make FOO_TAG=... (command line or environment) always wins, and skips the git
-# ls-remote calls below entirely (see the $(origin) guards).
+# Each core service repository is cloned at, and its image tag follows, the first of:
+#   1. <SERVICE>_BRANCH, e.g. CONFIG_SERVER_BRANCH, when set from outside (make VAR=... or the
+#      environment). The branch must exist in that repository, or make stops with an error;
+#   2. TEST_BRANCH, if that repository has a branch of that name;
+#   3. BASELINE_BRANCH.
+# The image tag is latest for main, and <branch, / replaced by ->-snapshot for any other branch:
+# the rolling tag qubership-core-infra's shared docker-build.yaml publishes. An explicit
+# <SERVICE>_TAG (command line or environment) always wins over the tag derived here.
+# <SERVICE> is FACADE_OPERATOR, INGRESS_GATEWAY, CONTROL_PLANE, PAAS_MEDIATION, DBAAS_AGENT,
+# MAAS_AGENT, CORE_OPERATOR, CONFIG_SERVER or SITE_MANAGEMENT. For dbaas-aggregator use
+# DBAAS_REPO_BRANCH (see DEPENDENCY REFS below).
 
-define resolve_tag
-$(strip $(shell \
-	if [ -n "$$(git ls-remote --heads $(1) refs/heads/$(TEST_BRANCH) 2>/dev/null)" ]; then branch="$(TEST_BRANCH)"; \
-	else branch="$(BASELINE_BRANCH)"; fi; \
-	if [ "$$branch" = "main" ]; then echo latest; \
-	else echo "$$(echo "$$branch" | tr '/' '-')-snapshot"; fi \
-))
+# non-empty when repository $(1) has a branch named $(2); a tag or commit of that name does not count
+define branch_exists
+$(strip $(shell git ls-remote --heads $(1) refs/heads/$(2) 2>/dev/null))
 endef
 
+# TEST_BRANCH when repository $(1) has it, otherwise BASELINE_BRANCH
+define test_branch_or_baseline
+$(if $(call branch_exists,$(1),$(TEST_BRANCH)),$(TEST_BRANCH),$(BASELINE_BRANCH))
+endef
+
+# the branch to use in repository $(1) given the explicit branch $(2), which may be empty
+define service_branch
+$(strip $(if $(2),$(if $(call branch_exists,$(1),$(2)),$(2),$(error Branch '$(2)' not found in $(1))),$(call test_branch_or_baseline,$(1))))
+endef
+
+# image tag published for branch $(1)
+define tag_for_branch
+$(if $(filter main,$(1)),latest,$(subst /,-,$(1))-snapshot)
+endef
+
+FACADE_OPERATOR_CLONE_BRANCH := $(call service_branch,https://github.com/Netcracker/qubership-core-facade-operator.git,$(FACADE_OPERATOR_BRANCH))
 ifeq ($(origin FACADE_OPERATOR_TAG),undefined)
-FACADE_OPERATOR_TAG := $(call resolve_tag,https://github.com/Netcracker/qubership-core-facade-operator.git)
+FACADE_OPERATOR_TAG := $(call tag_for_branch,$(FACADE_OPERATOR_CLONE_BRANCH))
 endif
+INGRESS_GATEWAY_CLONE_BRANCH := $(call service_branch,https://github.com/Netcracker/qubership-core-ingress-gateway.git,$(INGRESS_GATEWAY_BRANCH))
 ifeq ($(origin INGRESS_GATEWAY_TAG),undefined)
-INGRESS_GATEWAY_TAG := $(call resolve_tag,https://github.com/Netcracker/qubership-core-ingress-gateway.git)
+INGRESS_GATEWAY_TAG := $(call tag_for_branch,$(INGRESS_GATEWAY_CLONE_BRANCH))
 endif
+CONTROL_PLANE_CLONE_BRANCH := $(call service_branch,https://github.com/Netcracker/qubership-core-control-plane.git,$(CONTROL_PLANE_BRANCH))
 ifeq ($(origin CONTROL_PLANE_TAG),undefined)
-CONTROL_PLANE_TAG := $(call resolve_tag,https://github.com/Netcracker/qubership-core-control-plane.git)
+CONTROL_PLANE_TAG := $(call tag_for_branch,$(CONTROL_PLANE_CLONE_BRANCH))
 endif
+PAAS_MEDIATION_CLONE_BRANCH := $(call service_branch,https://github.com/Netcracker/qubership-core-paas-mediation.git,$(PAAS_MEDIATION_BRANCH))
 ifeq ($(origin PAAS_MEDIATION_TAG),undefined)
-PAAS_MEDIATION_TAG := $(call resolve_tag,https://github.com/Netcracker/qubership-core-paas-mediation.git)
+PAAS_MEDIATION_TAG := $(call tag_for_branch,$(PAAS_MEDIATION_CLONE_BRANCH))
 endif
+DBAAS_AGENT_CLONE_BRANCH := $(call service_branch,https://github.com/Netcracker/qubership-core-dbaas-agent.git,$(DBAAS_AGENT_BRANCH))
 ifeq ($(origin DBAAS_AGENT_TAG),undefined)
-DBAAS_AGENT_TAG := $(call resolve_tag,https://github.com/Netcracker/qubership-core-dbaas-agent.git)
+DBAAS_AGENT_TAG := $(call tag_for_branch,$(DBAAS_AGENT_CLONE_BRANCH))
 endif
+MAAS_AGENT_CLONE_BRANCH := $(call service_branch,https://github.com/Netcracker/qubership-core-maas-agent.git,$(MAAS_AGENT_BRANCH))
 ifeq ($(origin MAAS_AGENT_TAG),undefined)
-MAAS_AGENT_TAG := $(call resolve_tag,https://github.com/Netcracker/qubership-core-maas-agent.git)
+MAAS_AGENT_TAG := $(call tag_for_branch,$(MAAS_AGENT_CLONE_BRANCH))
 endif
+CORE_OPERATOR_CLONE_BRANCH := $(call service_branch,https://github.com/Netcracker/qubership-core-core-operator.git,$(CORE_OPERATOR_BRANCH))
 ifeq ($(origin CORE_OPERATOR_TAG),undefined)
-CORE_OPERATOR_TAG := $(call resolve_tag,https://github.com/Netcracker/qubership-core-core-operator.git)
+CORE_OPERATOR_TAG := $(call tag_for_branch,$(CORE_OPERATOR_CLONE_BRANCH))
 endif
+CONFIG_SERVER_CLONE_BRANCH := $(call service_branch,https://github.com/Netcracker/qubership-core-config-server.git,$(CONFIG_SERVER_BRANCH))
 ifeq ($(origin CONFIG_SERVER_TAG),undefined)
-CONFIG_SERVER_TAG := $(call resolve_tag,https://github.com/Netcracker/qubership-core-config-server.git)
+CONFIG_SERVER_TAG := $(call tag_for_branch,$(CONFIG_SERVER_CLONE_BRANCH))
 endif
+SITE_MANAGEMENT_CLONE_BRANCH := $(call service_branch,https://github.com/Netcracker/qubership-core-site-management.git,$(SITE_MANAGEMENT_BRANCH))
 ifeq ($(origin SITE_MANAGEMENT_TAG),undefined)
-SITE_MANAGEMENT_TAG := $(call resolve_tag,https://github.com/Netcracker/qubership-core-site-management.git)
+SITE_MANAGEMENT_TAG := $(call tag_for_branch,$(SITE_MANAGEMENT_CLONE_BRANCH))
 endif
 # dbaas-aggregator and its hook image, not dbaas-agent above; see run_dbaas_operation
 ifeq ($(origin DBAAS_TAG),undefined)
-DBAAS_TAG := $(call resolve_tag,https://github.com/Netcracker/qubership-dbaas.git)
+DBAAS_TAG := $(call tag_for_branch,$(call test_branch_or_baseline,https://github.com/Netcracker/qubership-dbaas.git))
 endif
 
 # =============================================================================
@@ -162,12 +186,7 @@ endif
 # cloned by clone_or_update_repo and may be a commit sha too, when set from outside or pinned in
 # dependencies.mk.
 
-# non-empty when repository $(1) has a branch named $(2); a tag or commit of that name does not count
-define branch_exists
-$(strip $(shell git ls-remote --heads $(1) refs/heads/$(2) 2>/dev/null))
-endef
-
-ifneq ($(TEST_BRANCH),$(BASELINE_BRANCH),branch-only)
+ifneq ($(TEST_BRANCH),$(BASELINE_BRANCH))
 ifdef ISTIO_REPO_BRANCH_UNSET
 ifneq ($(call branch_exists,https://github.com/Netcracker/qubership-istio.git,$(TEST_BRANCH)),)
 ISTIO_REPO_BRANCH := $(TEST_BRANCH)
@@ -336,15 +355,15 @@ clone-repos:
 	@echo "$(YELLOW)--- Cloning required repositories...$(NC)"
 	mkdir -p $(REPOS_DIR)
 	@$(call clone_or_update_repo,qubership-monitoring-operator,https://github.com/Netcracker/qubership-monitoring-operator.git,$(TEST_BRANCH),$(BASELINE_BRANCH),branch-only)
-	@$(call clone_or_update_repo,qubership-core-paas-mediation,https://github.com/Netcracker/qubership-core-paas-mediation.git,$(TEST_BRANCH),$(BASELINE_BRANCH),branch-only)
-	@$(call clone_or_update_repo,qubership-core-control-plane,https://github.com/Netcracker/qubership-core-control-plane.git,$(TEST_BRANCH),$(BASELINE_BRANCH),branch-only)
-	@$(call clone_or_update_repo,qubership-core-ingress-gateway,https://github.com/Netcracker/qubership-core-ingress-gateway.git,$(TEST_BRANCH),$(BASELINE_BRANCH),branch-only)
-	@$(call clone_or_update_repo,qubership-core-site-management,https://github.com/Netcracker/qubership-core-site-management.git,$(TEST_BRANCH),$(BASELINE_BRANCH),branch-only)
-	@$(call clone_or_update_repo,qubership-core-facade-operator,https://github.com/Netcracker/qubership-core-facade-operator.git,$(TEST_BRANCH),$(BASELINE_BRANCH),branch-only)
-	@$(call clone_or_update_repo,qubership-core-dbaas-agent,https://github.com/Netcracker/qubership-core-dbaas-agent.git,$(TEST_BRANCH),$(BASELINE_BRANCH),branch-only)
-	@$(call clone_or_update_repo,qubership-core-maas-agent,https://github.com/Netcracker/qubership-core-maas-agent.git,$(TEST_BRANCH),$(BASELINE_BRANCH),branch-only)
-	@$(call clone_or_update_repo,qubership-core-core-operator,https://github.com/Netcracker/qubership-core-core-operator.git,$(TEST_BRANCH),$(BASELINE_BRANCH),branch-only)
-	@$(call clone_or_update_repo,qubership-core-config-server,https://github.com/Netcracker/qubership-core-config-server.git,$(TEST_BRANCH),$(BASELINE_BRANCH),branch-only)
+	@$(call clone_or_update_repo,qubership-core-paas-mediation,https://github.com/Netcracker/qubership-core-paas-mediation.git,$(PAAS_MEDIATION_CLONE_BRANCH),$(BASELINE_BRANCH),branch-only)
+	@$(call clone_or_update_repo,qubership-core-control-plane,https://github.com/Netcracker/qubership-core-control-plane.git,$(CONTROL_PLANE_CLONE_BRANCH),$(BASELINE_BRANCH),branch-only)
+	@$(call clone_or_update_repo,qubership-core-ingress-gateway,https://github.com/Netcracker/qubership-core-ingress-gateway.git,$(INGRESS_GATEWAY_CLONE_BRANCH),$(BASELINE_BRANCH),branch-only)
+	@$(call clone_or_update_repo,qubership-core-site-management,https://github.com/Netcracker/qubership-core-site-management.git,$(SITE_MANAGEMENT_CLONE_BRANCH),$(BASELINE_BRANCH),branch-only)
+	@$(call clone_or_update_repo,qubership-core-facade-operator,https://github.com/Netcracker/qubership-core-facade-operator.git,$(FACADE_OPERATOR_CLONE_BRANCH),$(BASELINE_BRANCH),branch-only)
+	@$(call clone_or_update_repo,qubership-core-dbaas-agent,https://github.com/Netcracker/qubership-core-dbaas-agent.git,$(DBAAS_AGENT_CLONE_BRANCH),$(BASELINE_BRANCH),branch-only)
+	@$(call clone_or_update_repo,qubership-core-maas-agent,https://github.com/Netcracker/qubership-core-maas-agent.git,$(MAAS_AGENT_CLONE_BRANCH),$(BASELINE_BRANCH),branch-only)
+	@$(call clone_or_update_repo,qubership-core-core-operator,https://github.com/Netcracker/qubership-core-core-operator.git,$(CORE_OPERATOR_CLONE_BRANCH),$(BASELINE_BRANCH),branch-only)
+	@$(call clone_or_update_repo,qubership-core-config-server,https://github.com/Netcracker/qubership-core-config-server.git,$(CONFIG_SERVER_CLONE_BRANCH),$(BASELINE_BRANCH),branch-only)
 	@$(call clone_or_update_repo,qubership-dbaas,https://github.com/Netcracker/qubership-dbaas.git,$(DBAAS_REPO_BRANCH),$(BASELINE_BRANCH))
 	@echo ""
 

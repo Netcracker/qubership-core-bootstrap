@@ -73,6 +73,8 @@ CONFIG_SERVER_CONSUL_ENABLED ?= false
 SERVICE_MESH_TYPE ?= Core
 
 # branch of the core service repositories to test; a tag or a commit sha is not accepted
+# A single service can be pointed at another branch with <SERVICE>_BRANCH, e.g. CONFIG_SERVER_BRANCH:
+# see "CORE SERVICE BRANCHES AND IMAGE TAGS" in the main Makefile.
 TEST_BRANCH ?= main
 # fallback when a repository has no TEST_BRANCH branch: main, or a release line such as lts/26.3
 # when TEST_BRANCH itself is being tested against that line
