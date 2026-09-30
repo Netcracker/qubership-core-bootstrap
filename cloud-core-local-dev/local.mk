@@ -95,12 +95,15 @@ RABBIT_INSTANCES ?=
 # in the main Makefile.
 #
 #   Component           Ref variable                    Image tag variable
-#   dbaas-aggregator    DBAAS_REPO_BRANCH               DBAAS_TAG (follows the ref)
+#   dbaas-aggregator    DBAAS_REPO_BRANCH               DBAAS_TAG
 #   istio               ISTIO_REPO_BRANCH               -
 #   core-mesh-config    CORE_MESH_CONFIG_REPO_BRANCH    -
 #   maas                -                               MAAS_TAG
 #
 # These refs are a branch or a tag, not a commit sha.
+#
+# DBAAS_TAG is either set explicitly or follows DBAAS_REPO_BRANCH: latest for main,
+# <branch>-snapshot for another branch, and the tag itself for a tag such as v6.15.1.
 
 # TEST_BRANCH: the branch of the core service repositories to test. It has no default: when it is
 # not set, only BASELINE_BRANCH is used. A tag or a commit sha is not accepted.
