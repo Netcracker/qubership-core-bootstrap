@@ -18,7 +18,7 @@ ISTIO_REPO_BRANCH ?= main
 CORE_MESH_CONFIG_REPO_BRANCH ?= main
 
 # Branch of the qubership-dbaas repository's bootstrap scripts and charts. Defaults to tracking
-# TEST_BRANCH (services-branch of a test-apps run, "dbaas" being one of the repos it names) so
-# that testing a coordinated qubership-dbaas branch alongside a services/java-libs PR keeps working
-# unchanged; set explicitly here or on the command line to pin it independently of TEST_BRANCH.
+# TEST_BRANCH, since a caller testing a coordinated qubership-dbaas branch alongside the core
+# services under TEST_BRANCH expects it to be picked up the same way; set explicitly here or on
+# the command line to pin it independently of TEST_BRANCH.
 DBAAS_REPO_BRANCH ?= $(TEST_BRANCH)
