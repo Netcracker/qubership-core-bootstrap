@@ -25,8 +25,7 @@ ISTIO_REPO_BRANCH ?= main
 # Branch or tag of the qubership-core-mesh-config repository. Resolved like ISTIO_REPO_BRANCH.
 CORE_MESH_CONFIG_REPO_BRANCH ?= main
 
-# Branch, tag or commit of the qubership-dbaas repository's bootstrap scripts and charts. Defaults
-# to tracking TEST_BRANCH, since a caller testing a coordinated qubership-dbaas branch alongside
-# the core services under TEST_BRANCH expects it to be picked up the same way; set explicitly here
-# or on the command line to pin it independently of TEST_BRANCH.
-DBAAS_REPO_BRANCH ?= $(TEST_BRANCH)
+# Branch, tag or commit of the qubership-dbaas repository's bootstrap scripts and charts. Resolved
+# like ISTIO_REPO_BRANCH: a value set from outside wins; otherwise TEST_BRANCH is used when the
+# repository has it and differs from BASELINE_BRANCH; otherwise the value below.
+DBAAS_REPO_BRANCH ?= main
