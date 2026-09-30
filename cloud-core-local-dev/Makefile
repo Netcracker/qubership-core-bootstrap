@@ -167,7 +167,7 @@ define branch_exists
 $(strip $(shell git ls-remote --heads $(1) refs/heads/$(2) 2>/dev/null))
 endef
 
-ifneq ($(TEST_BRANCH),$(BASELINE_BRANCH))
+ifneq ($(TEST_BRANCH),$(BASELINE_BRANCH),branch-only)
 ifdef ISTIO_REPO_BRANCH_UNSET
 ifneq ($(call branch_exists,https://github.com/Netcracker/qubership-istio.git,$(TEST_BRANCH)),)
 ISTIO_REPO_BRANCH := $(TEST_BRANCH)
@@ -335,16 +335,16 @@ ensure-core-namespace:
 clone-repos:
 	@echo "$(YELLOW)--- Cloning required repositories...$(NC)"
 	mkdir -p $(REPOS_DIR)
-	@$(call clone_or_update_repo,qubership-monitoring-operator,https://github.com/Netcracker/qubership-monitoring-operator.git,$(TEST_BRANCH),$(BASELINE_BRANCH))
-	@$(call clone_or_update_repo,qubership-core-paas-mediation,https://github.com/Netcracker/qubership-core-paas-mediation.git,$(TEST_BRANCH),$(BASELINE_BRANCH))
-	@$(call clone_or_update_repo,qubership-core-control-plane,https://github.com/Netcracker/qubership-core-control-plane.git,$(TEST_BRANCH),$(BASELINE_BRANCH))
-	@$(call clone_or_update_repo,qubership-core-ingress-gateway,https://github.com/Netcracker/qubership-core-ingress-gateway.git,$(TEST_BRANCH),$(BASELINE_BRANCH))
-	@$(call clone_or_update_repo,qubership-core-site-management,https://github.com/Netcracker/qubership-core-site-management.git,$(TEST_BRANCH),$(BASELINE_BRANCH))
-	@$(call clone_or_update_repo,qubership-core-facade-operator,https://github.com/Netcracker/qubership-core-facade-operator.git,$(TEST_BRANCH),$(BASELINE_BRANCH))
-	@$(call clone_or_update_repo,qubership-core-dbaas-agent,https://github.com/Netcracker/qubership-core-dbaas-agent.git,$(TEST_BRANCH),$(BASELINE_BRANCH))
-	@$(call clone_or_update_repo,qubership-core-maas-agent,https://github.com/Netcracker/qubership-core-maas-agent.git,$(TEST_BRANCH),$(BASELINE_BRANCH))
-	@$(call clone_or_update_repo,qubership-core-core-operator,https://github.com/Netcracker/qubership-core-core-operator.git,$(TEST_BRANCH),$(BASELINE_BRANCH))
-	@$(call clone_or_update_repo,qubership-core-config-server,https://github.com/Netcracker/qubership-core-config-server.git,$(TEST_BRANCH),$(BASELINE_BRANCH))
+	@$(call clone_or_update_repo,qubership-monitoring-operator,https://github.com/Netcracker/qubership-monitoring-operator.git,$(TEST_BRANCH),$(BASELINE_BRANCH),branch-only)
+	@$(call clone_or_update_repo,qubership-core-paas-mediation,https://github.com/Netcracker/qubership-core-paas-mediation.git,$(TEST_BRANCH),$(BASELINE_BRANCH),branch-only)
+	@$(call clone_or_update_repo,qubership-core-control-plane,https://github.com/Netcracker/qubership-core-control-plane.git,$(TEST_BRANCH),$(BASELINE_BRANCH),branch-only)
+	@$(call clone_or_update_repo,qubership-core-ingress-gateway,https://github.com/Netcracker/qubership-core-ingress-gateway.git,$(TEST_BRANCH),$(BASELINE_BRANCH),branch-only)
+	@$(call clone_or_update_repo,qubership-core-site-management,https://github.com/Netcracker/qubership-core-site-management.git,$(TEST_BRANCH),$(BASELINE_BRANCH),branch-only)
+	@$(call clone_or_update_repo,qubership-core-facade-operator,https://github.com/Netcracker/qubership-core-facade-operator.git,$(TEST_BRANCH),$(BASELINE_BRANCH),branch-only)
+	@$(call clone_or_update_repo,qubership-core-dbaas-agent,https://github.com/Netcracker/qubership-core-dbaas-agent.git,$(TEST_BRANCH),$(BASELINE_BRANCH),branch-only)
+	@$(call clone_or_update_repo,qubership-core-maas-agent,https://github.com/Netcracker/qubership-core-maas-agent.git,$(TEST_BRANCH),$(BASELINE_BRANCH),branch-only)
+	@$(call clone_or_update_repo,qubership-core-core-operator,https://github.com/Netcracker/qubership-core-core-operator.git,$(TEST_BRANCH),$(BASELINE_BRANCH),branch-only)
+	@$(call clone_or_update_repo,qubership-core-config-server,https://github.com/Netcracker/qubership-core-config-server.git,$(TEST_BRANCH),$(BASELINE_BRANCH),branch-only)
 	@$(call clone_or_update_repo,qubership-dbaas,https://github.com/Netcracker/qubership-dbaas.git,$(DBAAS_REPO_BRANCH),$(BASELINE_BRANCH))
 	@echo ""
 
@@ -954,7 +954,7 @@ include utils/reset-control-plane.mk
 
 # Clone a repo into $(REPOS_DIR), replacing any existing directory. $(3) may be a branch, tag or
 # commit sha.
-# Usage: $(call clone_or_update_repo,<local_name>,<git_url>,<ref>,<baseline_branch>)
+# Usage: $(call clone_or_update_repo,<local_name>,<git_url>,<ref>,<baseline_branch>[,<branch_only>])
 #   $(1) Directory name under $(REPOS_DIR) for the clone.
 #   $(2) Remote repository URL.
 #   $(3) Optional ref: a branch, tag or commit sha. Used when non-empty and it resolves on
@@ -962,6 +962,8 @@ include utils/reset-control-plane.mk
 #   $(4) Baseline branch (main, or a release line such as lts/26.3): cloned when present on
 #        remote and $(3) does not resolve; otherwise falls back to the remote default. Defaults to
 #        main when left empty, so existing callers that only pass $(1)-$(3) keep working.
+#   $(5) Optional: when non-empty, $(3) is looked up as a branch only; a tag or a commit sha of
+#        that name does not count. Used for TEST_BRANCH.
 define clone_or_update_repo
 	baseline="$(if $(4),$(4),main)"; \
 	if [ -d "$(REPOS_DIR)/$(1)" ]; then \
@@ -969,9 +971,9 @@ define clone_or_update_repo
 		rm -rf "$(REPOS_DIR)/$(1)"; \
 	fi; \
 	echo "Cloning $(1)..."; \
-	if [ -n "$(3)" ] && [ -n "$$(git ls-remote $(2) $(3) 2>/dev/null)" ]; then \
+	if [ -n "$(3)" ] && [ -n "$$(git ls-remote $(if $(5),--heads) $(2) $(if $(5),refs/heads/)$(3) 2>/dev/null)" ]; then \
 		git clone --depth 1 -b $(3) $(2) $(REPOS_DIR)/$(1); \
-	elif echo "$(3)" | grep -qE '^[0-9a-fA-F]{7,40}$$'; then \
+	elif [ -z "$(5)" ] && echo "$(3)" | grep -qE '^[0-9a-fA-F]{7,40}$$'; then \
 		echo "$(3) is not a branch or tag on remote, fetching it as a commit..."; \
 		mkdir -p $(REPOS_DIR)/$(1); \
 		if (cd $(REPOS_DIR)/$(1) && git init -q && git remote add origin $(2) && git fetch --depth 1 origin $(3) && git checkout -q FETCH_HEAD); then \
@@ -983,7 +985,7 @@ define clone_or_update_repo
 		fi; \
 	elif [ -n "$$(git ls-remote $(2) "$$baseline" 2>/dev/null)" ]; then \
 		if [ -n "$(3)" ]; then \
-			echo "Branch, tag or commit $(3) not found, cloning $$baseline..."; \
+			echo "$(if $(5),Branch,Branch, tag or commit) $(3) not found, cloning $$baseline..."; \
 		fi; \
 		git clone --depth 1 -b "$$baseline" $(2) $(REPOS_DIR)/$(1); \
 	else \
