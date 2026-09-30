@@ -83,6 +83,59 @@ else
 endif
 
 # =============================================================================
+# CORE SERVICE AND DBAAS IMAGE TAGS
+# =============================================================================
+#
+# Each *_TAG below defaults to whatever TEST_BRANCH's own line resolves to for that repository -
+# the same existence check clone_or_update_repo uses for the source clone - falling back to
+# BASELINE_BRANCH the same way clone_or_update_repo does. main resolves to latest; anything else
+# resolves to <ref, / replaced by ->-snapshot, the rolling tag qubership-core-infra's shared
+# docker-build.yaml publishes for it. This only fires when the caller left the tag unset: an
+# explicit make FOO_TAG=... (command line or environment) always wins, and skips the git
+# ls-remote calls below entirely (see the $(origin) guards).
+
+define resolve_tag
+$(strip $(shell \
+	if [ -n "$$(git ls-remote $(1) $(TEST_BRANCH) 2>/dev/null)" ]; then branch="$(TEST_BRANCH)"; \
+	else branch="$(BASELINE_BRANCH)"; fi; \
+	if [ "$$branch" = "main" ]; then echo latest; \
+	else echo "$$(echo "$$branch" | tr '/' '-')-snapshot"; fi \
+))
+endef
+
+ifeq ($(origin FACADE_OPERATOR_TAG),undefined)
+FACADE_OPERATOR_TAG := $(call resolve_tag,https://github.com/Netcracker/qubership-core-facade-operator.git)
+endif
+ifeq ($(origin INGRESS_GATEWAY_TAG),undefined)
+INGRESS_GATEWAY_TAG := $(call resolve_tag,https://github.com/Netcracker/qubership-core-ingress-gateway.git)
+endif
+ifeq ($(origin CONTROL_PLANE_TAG),undefined)
+CONTROL_PLANE_TAG := $(call resolve_tag,https://github.com/Netcracker/qubership-core-control-plane.git)
+endif
+ifeq ($(origin PAAS_MEDIATION_TAG),undefined)
+PAAS_MEDIATION_TAG := $(call resolve_tag,https://github.com/Netcracker/qubership-core-paas-mediation.git)
+endif
+ifeq ($(origin DBAAS_AGENT_TAG),undefined)
+DBAAS_AGENT_TAG := $(call resolve_tag,https://github.com/Netcracker/qubership-core-dbaas-agent.git)
+endif
+ifeq ($(origin MAAS_AGENT_TAG),undefined)
+MAAS_AGENT_TAG := $(call resolve_tag,https://github.com/Netcracker/qubership-core-maas-agent.git)
+endif
+ifeq ($(origin CORE_OPERATOR_TAG),undefined)
+CORE_OPERATOR_TAG := $(call resolve_tag,https://github.com/Netcracker/qubership-core-core-operator.git)
+endif
+ifeq ($(origin CONFIG_SERVER_TAG),undefined)
+CONFIG_SERVER_TAG := $(call resolve_tag,https://github.com/Netcracker/qubership-core-config-server.git)
+endif
+ifeq ($(origin SITE_MANAGEMENT_TAG),undefined)
+SITE_MANAGEMENT_TAG := $(call resolve_tag,https://github.com/Netcracker/qubership-core-site-management.git)
+endif
+# dbaas-aggregator and its hook image, not dbaas-agent above; see run_dbaas_operation
+ifeq ($(origin DBAAS_TAG),undefined)
+DBAAS_TAG := $(call resolve_tag,https://github.com/Netcracker/qubership-dbaas.git)
+endif
+
+# =============================================================================
 # HELP
 # =============================================================================
 

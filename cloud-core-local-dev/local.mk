@@ -57,34 +57,18 @@ CORE_CONFIG_MAAS_ENABLED ?= false
 CORE_CONFIG_MAAS_INTERNAL_ADDRESS ?= http://maas-service.maas:8080
 
 # Components values
-FACADE_OPERATOR_TAG ?= latest
-
-INGRESS_GATEWAY_TAG ?= latest
+# *_TAG (incl. DBAAS_TAG, dbaas-aggregator's) defaults: see "CORE SERVICE AND DBAAS IMAGE TAGS" in
+# the main Makefile, resolved from TEST_BRANCH/BASELINE_BRANCH (below in this file) once this
+# whole file has been included, rather than a flat default here.
 INGRESS_GATEWAY_CLOUD_PUBLIC_HOST ?= svc.cluster.local
 INGRESS_GATEWAY_CLOUD_PRIVATE_HOST ?= svc.cluster.local
 
-CONTROL_PLANE_TAG ?= latest
-
-PAAS_MEDIATION_TAG ?= latest
-
-DBAAS_AGENT_TAG ?= latest
-
-# dbaas-aggregator and its hook image, not dbaas-agent above. run_dbaas_operation forwards this
-# to qubership-dbaas/bootstrap's own Makefile as its plain TAG, which is what that Makefile
-# itself calls it; DBAAS_TAG is this Makefile's own, explicitly named interface to it.
-DBAAS_TAG ?= latest
-
-MAAS_AGENT_TAG ?= latest
 MAAS_AGENT_IMAGE_REPOSITORY ?= ghcr.io/netcracker/qubership-core-maas-agent
 
-CORE_OPERATOR_TAG ?= latest
 CORE_OPERATOR_IMAGE_REPOSITORY ?= ghcr.io/netcracker/qubership-core-core-operator
 
-CONFIG_SERVER_TAG ?= latest
 CONFIG_SERVER_IMAGE_REPOSITORY ?= ghcr.io/netcracker/qubership-core-config-server
 CONFIG_SERVER_CONSUL_ENABLED ?= false
-
-SITE_MANAGEMENT_TAG ?= latest
 
 SERVICE_MESH_TYPE ?= Core
 
