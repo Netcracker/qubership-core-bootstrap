@@ -112,7 +112,8 @@ endif
 # <SERVICE> is FACADE_OPERATOR, INGRESS_GATEWAY, CONTROL_PLANE, PAAS_MEDIATION, DBAAS_AGENT,
 # MAAS_AGENT, CORE_OPERATOR, CONFIG_SERVER or SITE_MANAGEMENT. CORE_BOOTSTRAP and CR_SYNCHRONIZER
 # follow the same rule, for the images built from the repository of this bootstrap; nothing is
-# cloned for them.
+# cloned for them. As a branch of that repository may have no image, the tag is also looked up in
+# ghcr.io, and a TEST_BRANCH without an image falls back to BASELINE_BRANCH, per image.
 #
 # ISTIO_REPO_BRANCH, CORE_MESH_CONFIG_REPO_BRANCH, DBAAS_REPO_BRANCH and MAAS_BRANCH are resolved in
 # this order:
@@ -178,6 +179,39 @@ endif
 endif
 endef
 
+# HTTP status of the manifest of tag $(2) of the image $(1) in ghcr.io; 404 means the tag does not
+# exist. Empty for an image of another registry, or when the registry cannot be reached.
+define ghcr_tag_status
+$(if $(filter ghcr.io/%,$(1)),$(strip $(shell \
+	path="$(patsubst ghcr.io/%,%,$(1))"; \
+	token="$$(curl -fsS "https://ghcr.io/token?scope=repository:$$path:pull" 2>/dev/null | sed -n 's/.*"token":"\([^"]*\)".*/\1/p')"; \
+	curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $$token" \
+		-H 'Accept: application/vnd.oci.image.index.v1+json, application/vnd.oci.image.manifest.v1+json, application/vnd.docker.distribution.manifest.v2+json, application/vnd.docker.distribution.manifest.list.v2+json' \
+		"https://ghcr.io/v2/$$path/manifests/$(2)" 2>/dev/null)))
+endef
+
+# A branch can exist in the repository without an image: the images are built for main, lts
+# branches, tags and pull requests that change them. For the image of $(1), e.g. CORE_BOOTSTRAP,
+# resolved from a branch and not from an explicit tag or image name, check that the tag exists in
+# ghcr.io. If it does not, a TEST_BRANCH falls back to BASELINE_BRANCH, and an explicit
+# <SERVICE>_BRANCH stops make with an error.
+define image_exists_or_baseline
+ifneq ($$(filter derived%,$$($(1)_TAG_SOURCE)),)
+ifneq ($$(filter-out BASELINE_BRANCH,$$($(1)_BRANCH_SOURCE)),)
+ifeq ($$(origin $(1)_IMAGE),file)
+ifeq ($$(call ghcr_tag_status,$$($(1)_IMAGE_REPOSITORY),$$($(1)_TAG)),404)
+ifeq ($$($(1)_BRANCH_SOURCE),explicit)
+$$(error $(1)_BRANCH '$$($(1)_BRANCH)': there is no image $$($(1)_IMAGE_REPOSITORY):$$($(1)_TAG))
+endif
+$(1)_CLONE_BRANCH := $$(BASELINE_BRANCH)
+$(1)_BRANCH_SOURCE := BASELINE_BRANCH (no image for TEST_BRANCH)
+$(1)_TAG := $$(call tag_for_branch,$$($(1)_CLONE_BRANCH))
+endif
+endif
+endif
+endif
+endef
+
 CORE_SERVICES := FACADE_OPERATOR INGRESS_GATEWAY CONTROL_PLANE PAAS_MEDIATION DBAAS_AGENT \
 	MAAS_AGENT CORE_OPERATOR CONFIG_SERVER SITE_MANAGEMENT CORE_BOOTSTRAP CR_SYNCHRONIZER
 
@@ -194,6 +228,8 @@ $(eval $(call core_service,SITE_MANAGEMENT,https://github.com/Netcracker/qubersh
 # Their repository is not cloned: only the image tag is resolved, from the branch of that repository.
 $(eval $(call core_service,CORE_BOOTSTRAP,https://github.com/Netcracker/qubership-core-bootstrap.git))
 $(eval $(call core_service,CR_SYNCHRONIZER,https://github.com/Netcracker/qubership-core-bootstrap.git))
+$(eval $(call image_exists_or_baseline,CORE_BOOTSTRAP))
+$(eval $(call image_exists_or_baseline,CR_SYNCHRONIZER))
 
 $(eval $(call dependency_ref,DBAAS_REPO_BRANCH,https://github.com/Netcracker/qubership-dbaas.git))
 $(eval $(call dependency_ref,MAAS_BRANCH,https://github.com/Netcracker/qubership-maas.git))
