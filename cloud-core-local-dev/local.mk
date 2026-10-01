@@ -77,7 +77,7 @@ RABBIT_INSTANCES ?=
 #
 #   Service             Branch variable           Image tag variable
 #   facade-operator     FACADE_OPERATOR_BRANCH    FACADE_OPERATOR_TAG
-#   ingress-gateway     INGRESS_GATEWAY_BRANCH    INGRESS_GATEWAY_TAG
+#   ingress-gateway (*) INGRESS_GATEWAY_BRANCH    INGRESS_GATEWAY_TAG
 #   control-plane       CONTROL_PLANE_BRANCH      CONTROL_PLANE_TAG
 #   paas-mediation      PAAS_MEDIATION_BRANCH     PAAS_MEDIATION_TAG
 #   dbaas-agent         DBAAS_AGENT_BRANCH        DBAAS_AGENT_TAG
@@ -90,6 +90,10 @@ RABBIT_INSTANCES ?=
 #
 # The last two are images built from the core-bootstrap repository: nothing is cloned for them, only
 # the image tag follows the branch.
+#
+# (*) ingress-gateway is the exception to BASELINE_BRANCH: its repository has no branch for each
+# release line (no lts/*), so its baseline is always main, whatever BASELINE_BRANCH is. TEST_BRANCH
+# and INGRESS_GATEWAY_BRANCH still apply to it.
 #
 # An explicit branch must exist in the service's repository, or make stops with an error.
 # See "CORE SERVICE BRANCHES AND IMAGE TAGS" in the main Makefile.

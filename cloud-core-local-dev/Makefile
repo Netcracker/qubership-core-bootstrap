@@ -105,7 +105,8 @@ endif
 #   1. <SERVICE>_BRANCH, e.g. CONFIG_SERVER_BRANCH, when set from outside (make VAR=... or the
 #      environment). The branch must exist in that repository, or make stops with an error;
 #   2. TEST_BRANCH, if it is set and that repository has a branch of that name;
-#   3. BASELINE_BRANCH.
+#   3. BASELINE_BRANCH; for ingress-gateway always main, whatever BASELINE_BRANCH is, as its
+#      repository has no branch for each release line.
 # The image tag is latest for main, and <branch, / replaced by ->-snapshot for any other branch:
 # the rolling tag qubership-core-infra's shared docker-build.yaml publishes. An explicit
 # <SERVICE>_TAG (command line or environment) always wins over the tag derived here.
@@ -152,10 +153,12 @@ endef
 # Resolve the branch and the image tag of a core service; $(1) is the variable prefix, e.g.
 # CONFIG_SERVER, and $(2) the URL of its repository. Sets <SERVICE>_CLONE_BRANCH, the branch the
 # repository is cloned at, and <SERVICE>_TAG, with <SERVICE>_BRANCH_SOURCE and <SERVICE>_TAG_SOURCE
-# telling where each came from.
+# telling where each came from. The optional $(3) is a fixed baseline branch of this service, used
+# instead of BASELINE_BRANCH, for a repository that has no branch for each release line.
 define core_service
-$(1)_BRANCH_SOURCE := $$(if $$($(1)_BRANCH),explicit,$$(if $$(call branch_exists,$(2),$$(TEST_BRANCH)),TEST_BRANCH,BASELINE_BRANCH))
-$(1)_CLONE_BRANCH := $$(if $$(filter explicit,$$($(1)_BRANCH_SOURCE)),$$(if $$(call branch_exists,$(2),$$($(1)_BRANCH)),$$($(1)_BRANCH),$$(error Branch '$$($(1)_BRANCH)' not found in $(2))),$$(if $$(filter TEST_BRANCH,$$($(1)_BRANCH_SOURCE)),$$(TEST_BRANCH),$$(BASELINE_BRANCH)))
+$(1)_BASELINE := $$(if $(3),$(3),$$(BASELINE_BRANCH))
+$(1)_BRANCH_SOURCE := $$(if $$($(1)_BRANCH),explicit,$$(if $$(call branch_exists,$(2),$$(TEST_BRANCH)),TEST_BRANCH,$$(if $(3),fixed baseline $(3),BASELINE_BRANCH)))
+$(1)_CLONE_BRANCH := $$(if $$(filter explicit,$$($(1)_BRANCH_SOURCE)),$$(if $$(call branch_exists,$(2),$$($(1)_BRANCH)),$$($(1)_BRANCH),$$(error Branch '$$($(1)_BRANCH)' not found in $(2))),$$(if $$(filter TEST_BRANCH,$$($(1)_BRANCH_SOURCE)),$$(TEST_BRANCH),$$($(1)_BASELINE)))
 ifeq ($$(origin $(1)_TAG),undefined)
 $(1)_TAG_SOURCE := derived from the branch
 $(1)_TAG := $$(call tag_for_branch,$$($(1)_CLONE_BRANCH))
@@ -216,7 +219,10 @@ CORE_SERVICES := FACADE_OPERATOR INGRESS_GATEWAY CONTROL_PLANE PAAS_MEDIATION DB
 	MAAS_AGENT CORE_OPERATOR CONFIG_SERVER SITE_MANAGEMENT CORE_BOOTSTRAP CR_SYNCHRONIZER
 
 $(eval $(call core_service,FACADE_OPERATOR,https://github.com/Netcracker/qubership-core-facade-operator.git))
-$(eval $(call core_service,INGRESS_GATEWAY,https://github.com/Netcracker/qubership-core-ingress-gateway.git))
+# ingress-gateway is the exception to BASELINE_BRANCH: its repository has no branch for a release
+# line (no lts/*), so main is its baseline whatever BASELINE_BRANCH is. TEST_BRANCH and an explicit
+# INGRESS_GATEWAY_BRANCH still apply.
+$(eval $(call core_service,INGRESS_GATEWAY,https://github.com/Netcracker/qubership-core-ingress-gateway.git,main))
 $(eval $(call core_service,CONTROL_PLANE,https://github.com/Netcracker/qubership-core-control-plane.git))
 $(eval $(call core_service,PAAS_MEDIATION,https://github.com/Netcracker/qubership-core-paas-mediation.git))
 $(eval $(call core_service,DBAAS_AGENT,https://github.com/Netcracker/qubership-core-dbaas-agent.git))
