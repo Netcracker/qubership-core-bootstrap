@@ -47,7 +47,7 @@ ISTIO_NAMESPACE ?= istio-system
 
 DEPLOYMENT_SESSION_ID ?= cloud-core-local-dev
 SERVICE_MESH_TYPE ?= Core
-KUBERNETES_M2M_ENABLED ?= false
+M2M_AUTH_MODE ?= legacy
 MONITORING_ENABLED ?= false
 CONSUL_ENABLED ?= true
 CONSUL_SERVICE_NAME ?= consul-consul-server
