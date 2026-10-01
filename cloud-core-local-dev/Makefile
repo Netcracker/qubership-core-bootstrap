@@ -294,6 +294,66 @@ resolved-refs:
 	@$(call resolved_refs_report)$(if $(RESOLVED_REFS_FILE), | tee -a '$(RESOLVED_REFS_FILE)')
 
 # =============================================================================
+# IMAGE CHECK
+# =============================================================================
+#
+# Once every tag is resolved, check-images looks each image up in ghcr.io, and stops the install if
+# a tag does not exist: there is no point in waiting for the cluster to fail pulling it. install
+# runs it right after resolved-refs, and the table also goes to RESOLVED_REFS_FILE. An image of
+# another registry, or a registry that cannot be reached, is reported as not checked and does not
+# stop the install. CHECK_IMAGES=false skips the check.
+
+# The images the install pulls, as repository:tag. DBaaS and MaaS install their own images, with
+# the tags resolved above.
+RESOLVED_IMAGES := $(foreach s,$(filter-out CORE_BOOTSTRAP CR_SYNCHRONIZER,$(CORE_SERVICES)),$($(s)_IMAGE_REPOSITORY):$($(s)_TAG)) \
+	$(CORE_BOOTSTRAP_IMAGE) $(CR_SYNCHRONIZER_IMAGE) \
+	$(DBAAS_IMAGE_REPOSITORY):$(DBAAS_TAG) $(DBAAS_VALIDATION_IMAGE_REPOSITORY):$(DBAAS_TAG) \
+	$(MAAS_IMAGE_REPOSITORY):$(MAAS_IMAGE_TAG)
+
+.PHONY: check-images
+check-images:
+ifeq ($(CHECK_IMAGES),true)
+	@report="$$(mktemp)"; \
+	{ \
+		echo ""; \
+		echo "### Images"; \
+		echo ""; \
+		echo "| Image | In the registry |"; \
+		echo "| --- | --- |"; \
+		for ref in $(RESOLVED_IMAGES); do \
+			repo="$${ref%:*}"; tag="$${ref##*:}"; \
+			case "$$repo" in \
+				ghcr.io/*) ;; \
+				*) echo "| \`$$ref\` | not checked, not in ghcr.io |"; continue ;; \
+			esac; \
+			path="$${repo#ghcr.io/}"; \
+			token="$$(curl -fsS "https://ghcr.io/token?scope=repository:$$path:pull" 2>/dev/null | sed -n 's/.*"token":"\([^"]*\)".*/\1/p')"; \
+			code="$$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $$token" \
+				-H 'Accept: application/vnd.oci.image.index.v1+json, application/vnd.oci.image.manifest.v1+json, application/vnd.docker.distribution.manifest.v2+json, application/vnd.docker.distribution.manifest.list.v2+json' \
+				"https://ghcr.io/v2/$$path/manifests/$$tag" 2>/dev/null)"; \
+			case "$$code" in \
+				200) echo "| \`$$ref\` | yes |" ;; \
+				404) echo "| \`$$ref\` | **no** |" ;; \
+				*) echo "| \`$$ref\` | not checked (HTTP $$code) |" ;; \
+			esac; \
+		done; \
+		echo ""; \
+	} > "$$report"; \
+	cat "$$report"; \
+	$(if $(RESOLVED_REFS_FILE),cat "$$report" >> '$(RESOLVED_REFS_FILE)'; ) \
+	if grep -q '\*\*no\*\*' "$$report"; then \
+		echo "$(RED)Error: these images do not exist in ghcr.io:$(NC)"; \
+		grep '\*\*no\*\*' "$$report" | cut -d'|' -f2; \
+		echo "$(CYAN)Set the tag of the service, or TEST_BRANCH, BASELINE_BRANCH or the service's branch, to ones that have an image; CHECK_IMAGES=false skips this check.$(NC)"; \
+		rm -f "$$report"; \
+		exit 1; \
+	fi; \
+	rm -f "$$report"
+else
+	@echo "$(CYAN)--- Skipping the image check (CHECK_IMAGES=$(CHECK_IMAGES))$(NC)"
+endif
+
+# =============================================================================
 # HELP
 # =============================================================================
 
@@ -371,7 +431,7 @@ help:
 # INSTALLATION
 # =============================================================================
 
-install: resolved-refs validate clone-repos template-values-files deploy #mesh-smoke-test
+install: resolved-refs check-images validate clone-repos template-values-files deploy #mesh-smoke-test
 
 deploy: deploy-dependencies deploy-core
 
@@ -659,6 +719,7 @@ deploy-facade-operator: apply-facade-operator-crds
 	helm upgrade --install facade-operator $(REPOS_DIR)/qubership-core-facade-operator/helm-templates/facade-operator -n $(CORE_NAMESPACE) \
 		-f $(REPOS_DIR)/qubership-core-facade-operator/helm-templates/facade-operator/resource-profiles/dev.yaml \
 		-f ./core-values.yaml \
+		--set IMAGE_REPOSITORY=$(FACADE_OPERATOR_IMAGE_REPOSITORY) \
 		--set TAG=$(FACADE_OPERATOR_TAG) \
 		$(HELM_DEBUG_FLAGS)
 	@echo ""
@@ -673,6 +734,7 @@ deploy-ingress-gateway:
 		-f ./core-values.yaml \
 		--set CLOUD_PUBLIC_HOST=$(INGRESS_GATEWAY_CLOUD_PUBLIC_HOST) \
 		--set CLOUD_PRIVATE_HOST=$(INGRESS_GATEWAY_CLOUD_PRIVATE_HOST) \
+		--set IMAGE_REPOSITORY=$(INGRESS_GATEWAY_IMAGE_REPOSITORY) \
 		--set TAG=$(INGRESS_GATEWAY_TAG) \
 		--set SERVICE_MESH_TYPE=$(if $(filter true,$(INSTALL_ISTIO)),Istio,Core) \
 		$(HELM_DEBUG_FLAGS)
@@ -684,6 +746,7 @@ deploy-site-management:
 	helm upgrade --install site-management $(REPOS_DIR)/qubership-core-site-management/helm-templates/site-management -n $(CORE_NAMESPACE) \
 		-f $(REPOS_DIR)/qubership-core-site-management/helm-templates/site-management/resource-profiles/dev.yaml \
 		-f ./core-values.yaml \
+		--set IMAGE_REPOSITORY=$(SITE_MANAGEMENT_IMAGE_REPOSITORY) \
 		--set TAG=$(SITE_MANAGEMENT_TAG) \
 		$(HELM_DEBUG_FLAGS)
 	@echo ""
@@ -695,6 +758,7 @@ deploy-paas-mediation:
 		paas-mediation $(REPOS_DIR)/qubership-core-paas-mediation/helm-templates/paas-mediation \
 		-f $(REPOS_DIR)/qubership-core-paas-mediation/helm-templates/paas-mediation/resource-profiles/dev.yaml \
 		-f ./core-values.yaml \
+		--set IMAGE_REPOSITORY=$(PAAS_MEDIATION_IMAGE_REPOSITORY) \
 		--set TAG=$(PAAS_MEDIATION_TAG) \
 		--set CONSUL_ENABLED=false \
 		$(HELM_DEBUG_FLAGS)
@@ -707,6 +771,7 @@ deploy-control-plane:
 		control-plane $(REPOS_DIR)/qubership-core-control-plane/helm-templates/control-plane \
 		-f $(REPOS_DIR)/qubership-core-control-plane/helm-templates/control-plane/resource-profiles/dev.yaml \
 		-f ./core-values.yaml \
+		--set IMAGE_REPOSITORY=$(CONTROL_PLANE_IMAGE_REPOSITORY) \
 		--set TAG=$(CONTROL_PLANE_TAG) \
 		$(HELM_DEBUG_FLAGS)
 	@echo ""
@@ -717,6 +782,7 @@ deploy-dbaas-agent:
 	helm upgrade --install dbaas-agent $(REPOS_DIR)/qubership-core-dbaas-agent/helm-templates/dbaas-agent -n $(CORE_NAMESPACE) \
 		-f $(REPOS_DIR)/qubership-core-dbaas-agent/helm-templates/dbaas-agent/resource-profiles/dev.yaml \
 		-f ./core-values.yaml \
+		--set IMAGE_REPOSITORY=$(DBAAS_AGENT_IMAGE_REPOSITORY) \
 		--set TAG=$(DBAAS_AGENT_TAG) \
 		$(HELM_DEBUG_FLAGS)	
 	@echo ""

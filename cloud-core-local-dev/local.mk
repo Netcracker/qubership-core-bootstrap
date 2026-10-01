@@ -128,25 +128,47 @@ BASELINE_BRANCH ?= main
 
 INGRESS_GATEWAY_CLOUD_PUBLIC_HOST ?= svc.cluster.local
 INGRESS_GATEWAY_CLOUD_PRIVATE_HOST ?= svc.cluster.local
-
-MAAS_AGENT_IMAGE_REPOSITORY ?= ghcr.io/netcracker/qubership-core-maas-agent
-
-CORE_OPERATOR_IMAGE_REPOSITORY ?= ghcr.io/netcracker/qubership-core-core-operator
-
-CONFIG_SERVER_IMAGE_REPOSITORY ?= ghcr.io/netcracker/qubership-core-config-server
 CONFIG_SERVER_CONSUL_ENABLED ?= false
 
 # -----------------------------------------------------------------------------
-# Core bootstrap
+# Images
 # -----------------------------------------------------------------------------
+#
+# The image of a service is <SERVICE>_IMAGE_REPOSITORY:<SERVICE>_TAG, the tag being resolved as
+# described in "Core service sources" above. The repository is passed to the service's chart as
+# IMAGE_REPOSITORY. Before anything is installed, "make check-images" looks every image up in
+# ghcr.io and stops the install if a tag does not exist; CHECK_IMAGES=false turns that off, for
+# example for images that are not public.
 
-# The images built from the core-bootstrap repository. The tags follow TEST_BRANCH and
-# BASELINE_BRANCH like those of the core services; see "Core service sources" above. The full image
-# name can be overridden as a whole with CORE_BOOTSTRAP_IMAGE and CR_SYNCHRONIZER_IMAGE.
+CHECK_IMAGES ?= true
+
+# Core services
+FACADE_OPERATOR_IMAGE_REPOSITORY ?= ghcr.io/netcracker/qubership-core-facade-operator
+INGRESS_GATEWAY_IMAGE_REPOSITORY ?= ghcr.io/netcracker/qubership-core-ingress-gateway
+CONTROL_PLANE_IMAGE_REPOSITORY ?= ghcr.io/netcracker/qubership-core-control-plane
+PAAS_MEDIATION_IMAGE_REPOSITORY ?= ghcr.io/netcracker/qubership-core-paas-mediation
+DBAAS_AGENT_IMAGE_REPOSITORY ?= ghcr.io/netcracker/qubership-core-dbaas-agent
+MAAS_AGENT_IMAGE_REPOSITORY ?= ghcr.io/netcracker/qubership-core-maas-agent
+CORE_OPERATOR_IMAGE_REPOSITORY ?= ghcr.io/netcracker/qubership-core-core-operator
+CONFIG_SERVER_IMAGE_REPOSITORY ?= ghcr.io/netcracker/qubership-core-config-server
+SITE_MANAGEMENT_IMAGE_REPOSITORY ?= ghcr.io/netcracker/qubership-core-site-management
+
+# Images built from the core-bootstrap repository. The full image name can be overridden as a
+# whole with CORE_BOOTSTRAP_IMAGE and CR_SYNCHRONIZER_IMAGE.
 CORE_BOOTSTRAP_IMAGE_REPOSITORY ?= ghcr.io/netcracker/core-bootstrap
 CORE_BOOTSTRAP_IMAGE ?= $(CORE_BOOTSTRAP_IMAGE_REPOSITORY):$(CORE_BOOTSTRAP_TAG)
 CR_SYNCHRONIZER_IMAGE_REPOSITORY ?= ghcr.io/netcracker/cr-synchronizer
 CR_SYNCHRONIZER_IMAGE ?= $(CR_SYNCHRONIZER_IMAGE_REPOSITORY):$(CR_SYNCHRONIZER_TAG)
+
+# DBaaS and MaaS install their own images, from the value files of their makefiles. These are the
+# repositories those files use, listed here only for the image check.
+DBAAS_IMAGE_REPOSITORY ?= ghcr.io/netcracker/qubership-dbaas
+DBAAS_VALIDATION_IMAGE_REPOSITORY ?= ghcr.io/netcracker/qubership-dbaas-validation-image
+MAAS_IMAGE_REPOSITORY ?= ghcr.io/netcracker/qubership-maas
+
+# -----------------------------------------------------------------------------
+# Core bootstrap
+# -----------------------------------------------------------------------------
 
 CORE_CONFIG_CONSUL_ENABLED ?= false
 CORE_CONFIG_MAAS_ENABLED ?= false

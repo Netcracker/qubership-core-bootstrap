@@ -72,16 +72,28 @@ PAAS_MEDIATION_TAG ?= latest
 DBAAS_AGENT_TAG ?= latest
 
 MAAS_AGENT_TAG ?= latest
-MAAS_AGENT_IMAGE_REPOSITORY ?= ghcr.io/netcracker/qubership-core-maas-agent
 
 CORE_OPERATOR_TAG ?= latest
-CORE_OPERATOR_IMAGE_REPOSITORY ?= ghcr.io/netcracker/qubership-core-core-operator
 
 CONFIG_SERVER_TAG ?= latest
-CONFIG_SERVER_IMAGE_REPOSITORY ?= ghcr.io/netcracker/qubership-core-config-server
 CONFIG_SERVER_CONSUL_ENABLED ?= false
 
 SITE_MANAGEMENT_TAG ?= latest
+
+# Images: see local.mk
+CHECK_IMAGES ?= true
+FACADE_OPERATOR_IMAGE_REPOSITORY ?= ghcr.io/netcracker/qubership-core-facade-operator
+INGRESS_GATEWAY_IMAGE_REPOSITORY ?= ghcr.io/netcracker/qubership-core-ingress-gateway
+CONTROL_PLANE_IMAGE_REPOSITORY ?= ghcr.io/netcracker/qubership-core-control-plane
+PAAS_MEDIATION_IMAGE_REPOSITORY ?= ghcr.io/netcracker/qubership-core-paas-mediation
+DBAAS_AGENT_IMAGE_REPOSITORY ?= ghcr.io/netcracker/qubership-core-dbaas-agent
+MAAS_AGENT_IMAGE_REPOSITORY ?= ghcr.io/netcracker/qubership-core-maas-agent
+CORE_OPERATOR_IMAGE_REPOSITORY ?= ghcr.io/netcracker/qubership-core-core-operator
+CONFIG_SERVER_IMAGE_REPOSITORY ?= ghcr.io/netcracker/qubership-core-config-server
+SITE_MANAGEMENT_IMAGE_REPOSITORY ?= ghcr.io/netcracker/qubership-core-site-management
+DBAAS_IMAGE_REPOSITORY ?= ghcr.io/netcracker/qubership-dbaas
+DBAAS_VALIDATION_IMAGE_REPOSITORY ?= ghcr.io/netcracker/qubership-dbaas-validation-image
+MAAS_IMAGE_REPOSITORY ?= ghcr.io/netcracker/qubership-maas
 
 SERVICE_MESH_TYPE ?= Core
 
