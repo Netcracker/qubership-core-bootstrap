@@ -23,28 +23,27 @@
 # -----------------------------------------------------------------------------
 
 # qubership-dbaas: the bootstrap scripts and charts, and the image tag of dbaas-aggregator, which
-# follows the ref. qubership-dbaas is released with semver tags: pin a release tag, e.g. v6.15.1,
-# on a release line of this repository.
-DBAAS_REPO_BRANCH ?= main
+# follows the ref. qubership-dbaas is released with semver tags, so the pin is a release tag.
+DBAAS_REPO_BRANCH ?= v6.15.1
 
 # -----------------------------------------------------------------------------
 # MaaS
 # -----------------------------------------------------------------------------
 
 # qubership-maas: the charts, and the MaaS image tag, which the maas makefile derives from the ref:
-# latest for main, the tag itself for a tag such as v5.5.10, <branch>-snapshot for another branch.
-MAAS_BRANCH ?= v5.5.10
+# latest for main, the tag itself for a tag such as v5.6.2, <branch>-snapshot for another branch.
+MAAS_BRANCH ?= v5.6.2
 
 # -----------------------------------------------------------------------------
 # Istio
 # -----------------------------------------------------------------------------
 
-# qubership-istio: the Istio distribution and configuration.
-ISTIO_REPO_BRANCH ?= main
+# qubership-istio: the Istio distribution and configuration. Its release tags have no v prefix.
+ISTIO_REPO_BRANCH ?= 1.2.1
 
 # -----------------------------------------------------------------------------
 # Core mesh config
 # -----------------------------------------------------------------------------
 
 # qubership-core-mesh-config: the mesh configuration.
-CORE_MESH_CONFIG_REPO_BRANCH ?= main
+CORE_MESH_CONFIG_REPO_BRANCH ?= v1.0.6
