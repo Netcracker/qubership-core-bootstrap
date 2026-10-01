@@ -110,7 +110,9 @@ endif
 # the rolling tag qubership-core-infra's shared docker-build.yaml publishes. An explicit
 # <SERVICE>_TAG (command line or environment) always wins over the tag derived here.
 # <SERVICE> is FACADE_OPERATOR, INGRESS_GATEWAY, CONTROL_PLANE, PAAS_MEDIATION, DBAAS_AGENT,
-# MAAS_AGENT, CORE_OPERATOR, CONFIG_SERVER or SITE_MANAGEMENT.
+# MAAS_AGENT, CORE_OPERATOR, CONFIG_SERVER or SITE_MANAGEMENT. CORE_BOOTSTRAP and CR_SYNCHRONIZER
+# follow the same rule, for the images built from the repository of this bootstrap; nothing is
+# cloned for them.
 #
 # ISTIO_REPO_BRANCH, CORE_MESH_CONFIG_REPO_BRANCH, DBAAS_REPO_BRANCH and MAAS_BRANCH are resolved in
 # this order:
@@ -177,7 +179,7 @@ endif
 endef
 
 CORE_SERVICES := FACADE_OPERATOR INGRESS_GATEWAY CONTROL_PLANE PAAS_MEDIATION DBAAS_AGENT \
-	MAAS_AGENT CORE_OPERATOR CONFIG_SERVER SITE_MANAGEMENT
+	MAAS_AGENT CORE_OPERATOR CONFIG_SERVER SITE_MANAGEMENT CORE_BOOTSTRAP CR_SYNCHRONIZER
 
 $(eval $(call core_service,FACADE_OPERATOR,https://github.com/Netcracker/qubership-core-facade-operator.git))
 $(eval $(call core_service,INGRESS_GATEWAY,https://github.com/Netcracker/qubership-core-ingress-gateway.git))
@@ -188,6 +190,10 @@ $(eval $(call core_service,MAAS_AGENT,https://github.com/Netcracker/qubership-co
 $(eval $(call core_service,CORE_OPERATOR,https://github.com/Netcracker/qubership-core-core-operator.git))
 $(eval $(call core_service,CONFIG_SERVER,https://github.com/Netcracker/qubership-core-config-server.git))
 $(eval $(call core_service,SITE_MANAGEMENT,https://github.com/Netcracker/qubership-core-site-management.git))
+# core-bootstrap and cr-synchronizer are images built from the repository this makefile lives in.
+# Their repository is not cloned: only the image tag is resolved, from the branch of that repository.
+$(eval $(call core_service,CORE_BOOTSTRAP,https://github.com/Netcracker/qubership-core-bootstrap.git))
+$(eval $(call core_service,CR_SYNCHRONIZER,https://github.com/Netcracker/qubership-core-bootstrap.git))
 
 $(eval $(call dependency_ref,DBAAS_REPO_BRANCH,https://github.com/Netcracker/qubership-dbaas.git))
 $(eval $(call dependency_ref,MAAS_BRANCH,https://github.com/Netcracker/qubership-maas.git))

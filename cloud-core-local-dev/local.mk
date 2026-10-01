@@ -85,6 +85,11 @@ RABBIT_INSTANCES ?=
 #   core-operator       CORE_OPERATOR_BRANCH      CORE_OPERATOR_TAG
 #   config-server       CONFIG_SERVER_BRANCH      CONFIG_SERVER_TAG
 #   site-management     SITE_MANAGEMENT_BRANCH    SITE_MANAGEMENT_TAG
+#   core-bootstrap      CORE_BOOTSTRAP_BRANCH     CORE_BOOTSTRAP_TAG
+#   cr-synchronizer     CR_SYNCHRONIZER_BRANCH    CR_SYNCHRONIZER_TAG
+#
+# The last two are images built from the core-bootstrap repository: nothing is cloned for them, only
+# the image tag follows the branch.
 #
 # An explicit branch must exist in the service's repository, or make stops with an error.
 # See "CORE SERVICE BRANCHES AND IMAGE TAGS" in the main Makefile.
@@ -135,7 +140,14 @@ CONFIG_SERVER_CONSUL_ENABLED ?= false
 # Core bootstrap
 # -----------------------------------------------------------------------------
 
-CORE_BOOTSTRAP_IMAGE ?= ghcr.io/netcracker/core-bootstrap:latest
+# The images built from the core-bootstrap repository. The tags follow TEST_BRANCH and
+# BASELINE_BRANCH like those of the core services; see "Core service sources" above. The full image
+# name can be overridden as a whole with CORE_BOOTSTRAP_IMAGE and CR_SYNCHRONIZER_IMAGE.
+CORE_BOOTSTRAP_IMAGE_REPOSITORY ?= ghcr.io/netcracker/core-bootstrap
+CORE_BOOTSTRAP_IMAGE ?= $(CORE_BOOTSTRAP_IMAGE_REPOSITORY):$(CORE_BOOTSTRAP_TAG)
+CR_SYNCHRONIZER_IMAGE_REPOSITORY ?= ghcr.io/netcracker/cr-synchronizer
+CR_SYNCHRONIZER_IMAGE ?= $(CR_SYNCHRONIZER_IMAGE_REPOSITORY):$(CR_SYNCHRONIZER_TAG)
+
 CORE_CONFIG_CONSUL_ENABLED ?= false
 CORE_CONFIG_MAAS_ENABLED ?= false
 CORE_CONFIG_MAAS_INTERNAL_ADDRESS ?= http://maas-service.maas:8080
