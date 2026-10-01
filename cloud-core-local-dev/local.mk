@@ -136,8 +136,9 @@ CONFIG_SERVER_CONSUL_ENABLED ?= false
 #
 # The image of a service is <SERVICE>_IMAGE_REPOSITORY:<SERVICE>_TAG, the tag being resolved as
 # described in "Core service sources" above. The repository is passed to the service's chart as
-# IMAGE_REPOSITORY. Before anything is installed, "make check-images" looks every image up in
-# ghcr.io and stops the install if a tag does not exist; CHECK_IMAGES=false turns that off, for
+# IMAGE_REPOSITORY. Before anything is installed, "make resolved-refs" prints the resolved
+# branches and tags, then looks every image up in ghcr.io and marks the ones that do not exist; the
+# install stops after that report if any is missing. CHECK_IMAGES=false turns the lookup off, for
 # example for images that are not public.
 
 CHECK_IMAGES ?= true
