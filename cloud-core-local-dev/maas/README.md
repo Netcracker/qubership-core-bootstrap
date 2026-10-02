@@ -126,6 +126,7 @@ The script uses a .mk configuration file to define all installation and helm pac
 | `MONITORING_ENABLED`                     | `false`                              | Install the Grafana and Prometheus resources of MaaS   |
 | `DBAAS_SERVICE_NAME`                     | `dbaas-aggregator`                   | DBaaS service name                                     |
 | `DBAAS_AGGREGATOR_ADDRESS`               | `http://dbaas-aggregator.dbaas:8080` | DBaaS aggregator URL in cluster                        |
+| `M2M_AUTH_MODE`                          | `legacy`                             | M2M authentication mode: legacy, hybrid, or k8s        |
 | **Credentials**                          |
 | `MAAS_ACCOUNT_MANAGER_USERNAME`          | `manager`                            | MaaS account manager username to set                   |
 | `MAAS_ACCOUNT_MANAGER_PASSWORD`          | `manager`                            | MaaS account manager password to set                   |

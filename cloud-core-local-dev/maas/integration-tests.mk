@@ -12,6 +12,7 @@ DBAAS_NAMESPACE ?= dbaas
 # Branch or tag of qubership-maas to check out. The image tag TAG follows it unless set explicitly:
 # see the Makefile.
 MAAS_BRANCH ?= main
+M2M_AUTH_MODE ?= legacy
 # the chart turns monitoring on by default, which fails where the monitoring CRDs are not installed
 MONITORING_ENABLED ?= false
 DBAAS_SERVICE_NAME ?= dbaas-aggregator
@@ -35,6 +36,7 @@ export KAFKA_NAMESPACE
 export DBAAS_NAMESPACE
 export DBAAS_AGGREGATOR_ADDRESS
 export TAG
+export M2M_AUTH_MODE
 export MONITORING_ENABLED
 export MAAS_ACCOUNT_MANAGER_USERNAME
 export MAAS_ACCOUNT_MANAGER_PASSWORD
