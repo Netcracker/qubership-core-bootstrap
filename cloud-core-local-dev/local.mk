@@ -177,4 +177,5 @@ MAAS_IMAGE_REPOSITORY ?= ghcr.io/netcracker/qubership-maas
 
 CORE_CONFIG_CONSUL_ENABLED ?= false
 CORE_CONFIG_MAAS_ENABLED ?= false
-CORE_CONFIG_MAAS_INTERNAL_ADDRESS ?= http://maas-service.maas:8080
+# follows MAAS_NAMESPACE: MaaS is reached in the namespace it is installed in
+CORE_CONFIG_MAAS_INTERNAL_ADDRESS ?= http://maas-service.$(MAAS_NAMESPACE):8080
