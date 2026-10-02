@@ -3,6 +3,36 @@
   "assignAutomerge": true,
   "assigneesFromCodeOwners": true,
   "reviewersFromCodeOwners": true,
+  "extends": [
+    "github>Netcracker/qubership-core-infra:renovate-core-config"
+  ],
+  "baseBranchPatterns": [
+    "$default",
+    "/^lts\\/.*/"
+  ],
+  "packageRules": [
+    {
+      "description": "A release line (lts/*) only takes patch updates, so that a line keeps the minor version it was released with. The branch of an update is named after its base branch.",
+      "matchBaseBranches": [
+        "/^lts\\/.*/"
+      ],
+      "matchUpdateTypes": [
+        "major",
+        "minor"
+      ],
+      "enabled": false
+    },
+    {
+      "description": "The pull requests of a release line are labelled as such, instead of with the branch:main label of the shared preset.",
+      "matchBaseBranches": [
+        "/^lts\\/.*/"
+      ],
+      "labels": [
+        "renovate:core",
+        "branch:lts"
+      ]
+    }
+  ],
   "customManagers": [
     {
       "customType": "regex",
