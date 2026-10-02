@@ -17,6 +17,9 @@
 # To take a dependency from main in a pipeline, pass it on the command line instead of editing this
 # file, for example a nightly run: DBAAS_REPO_BRANCH=main ISTIO_REPO_BRANCH=main
 # CORE_MESH_CONFIG_REPO_BRANCH=main MAAS_BRANCH=main.
+#
+# Renovate keeps the pins up to date. The "# renovate:" line above a pin names the GitHub repository
+# whose release tags it follows; keep that line directly above the variable, see renovate.json.
 
 # -----------------------------------------------------------------------------
 # DBaaS
@@ -24,6 +27,7 @@
 
 # qubership-dbaas: the bootstrap scripts and charts, and the image tag of dbaas-aggregator, which
 # follows the ref. qubership-dbaas is released with semver tags, so the pin is a release tag.
+# renovate: datasource=github-tags depName=Netcracker/qubership-dbaas
 DBAAS_REPO_BRANCH ?= v6.15.1
 
 # -----------------------------------------------------------------------------
@@ -32,6 +36,7 @@ DBAAS_REPO_BRANCH ?= v6.15.1
 
 # qubership-maas: the charts, and the MaaS image tag, which the maas makefile derives from the ref:
 # latest for main, the tag itself for a tag such as v5.6.2, <branch>-snapshot for another branch.
+# renovate: datasource=github-tags depName=Netcracker/qubership-maas
 MAAS_BRANCH ?= v5.6.2
 
 # -----------------------------------------------------------------------------
@@ -39,6 +44,7 @@ MAAS_BRANCH ?= v5.6.2
 # -----------------------------------------------------------------------------
 
 # qubership-istio: the Istio distribution and configuration. Its release tags have no v prefix.
+# renovate: datasource=github-tags depName=Netcracker/qubership-istio
 ISTIO_REPO_BRANCH ?= 1.2.1
 
 # -----------------------------------------------------------------------------
@@ -46,4 +52,5 @@ ISTIO_REPO_BRANCH ?= 1.2.1
 # -----------------------------------------------------------------------------
 
 # qubership-core-mesh-config: the mesh configuration.
+# renovate: datasource=github-tags depName=Netcracker/qubership-core-mesh-config
 CORE_MESH_CONFIG_REPO_BRANCH ?= v1.0.6

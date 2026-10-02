@@ -2,5 +2,17 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "assignAutomerge": true,
   "assigneesFromCodeOwners": true,
-  "reviewersFromCodeOwners": true
+  "reviewersFromCodeOwners": true,
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "Pins of the dependencies in cloud-core-local-dev/dependencies.mk: the release tag of a GitHub repository, named by the renovate comment above the variable",
+      "managerFilePatterns": [
+        "/^cloud-core-local-dev/dependencies\\.mk$/"
+      ],
+      "matchStrings": [
+        "# renovate: datasource=(?<datasource>[a-z-]+) depName=(?<depName>\\S+)\\s+[A-Z_]+ \\?= (?<currentValue>\\S+)"
+      ]
+    }
+  ]
 }
