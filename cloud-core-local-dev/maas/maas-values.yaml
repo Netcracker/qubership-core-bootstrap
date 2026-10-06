@@ -19,6 +19,9 @@ DECLARATIVE_HOOK_IMAGE: "ghcr.io/netcracker/qubership-maas-validation-image:late
 # ============== DBaaS ============================
 DBAAS_AGGREGATOR_ADDRESS: ${DBAAS_AGGREGATOR_ADDRESS}
 
+# ============== Monitoring ============================
+MONITORING_ENABLED: ${MONITORING_ENABLED}
+
 # ============== Cluster ============================
 PAAS_PLATFORM: "KUBERNETES"
 PAAS_VERSION: "v1.33.1"

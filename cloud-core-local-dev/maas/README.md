@@ -123,6 +123,7 @@ The script uses a .mk configuration file to define all installation and helm pac
 | **MaaS Configuration**                   |
 | `MAAS_BRANCH`                            | `main`                               | Branch or tag of qubership-maas to check out           |
 | `TAG`                                    | from `MAAS_BRANCH`                   | Docker image tag: `latest` for `main`, the tag itself for a tag, `<branch>-snapshot` otherwise |
+| `MONITORING_ENABLED`                     | `false`                              | Install the Grafana and Prometheus resources of MaaS   |
 | `DBAAS_SERVICE_NAME`                     | `dbaas-aggregator`                   | DBaaS service name                                     |
 | `DBAAS_AGGREGATOR_ADDRESS`               | `http://dbaas-aggregator.dbaas:8080` | DBaaS aggregator URL in cluster                        |
 | **Credentials**                          |
