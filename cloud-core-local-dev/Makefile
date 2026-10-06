@@ -1245,9 +1245,10 @@ define run_dbaas_operation
 	echo "$(CYAN)--- Using dbaas namespace: $(DBAAS_NAMESPACE)$(NC)"; \
 	echo "$(CYAN)--- Using pg namespace: $(PG_NAMESPACE)$(NC)"; \
 	echo "$(CYAN)--- Using dbaas-aggregator tag: $(DBAAS_TAG)$(NC)"; \
+	echo "$(CYAN)--- Using M2M auth mode: $(M2M_AUTH_MODE)$(NC)"; \
 	SKIP_CRDS=$(if $(filter true,$(INSTALL_CRDS)),false,true); \
 	echo "$(CYAN)--- Using skip crds: $$SKIP_CRDS$(NC)"; \
-	if ('$(MAKE)' -C .tmp/qubership-dbaas/bootstrap  $(1) CONFIG_FILE=$(DBAAS_CONFIG_FILE) PATRONI_SERVICES_VALUES_FILE=../../../dbaas/patroni-services-values.yaml DBAAS_SERVICE_NAME=$(DBAAS_SERVICE_NAME) DBAAS_NAMESPACE=$(DBAAS_NAMESPACE) PG_NAMESPACE=$(PG_NAMESPACE) SKIP_CRDS=$$SKIP_CRDS CREATE_NAMESPACE=$(CREATE_NAMESPACE) DBAAS_OPERATOR_ENABLED=false TAG=$(DBAAS_TAG) REPOS_DIR=$(abspath $(REPOS_DIR))); then \
+	if ('$(MAKE)' -C .tmp/qubership-dbaas/bootstrap  $(1) CONFIG_FILE=$(DBAAS_CONFIG_FILE) PATRONI_SERVICES_VALUES_FILE=../../../dbaas/patroni-services-values.yaml DBAAS_SERVICE_NAME=$(DBAAS_SERVICE_NAME) DBAAS_NAMESPACE=$(DBAAS_NAMESPACE) PG_NAMESPACE=$(PG_NAMESPACE) SKIP_CRDS=$$SKIP_CRDS CREATE_NAMESPACE=$(CREATE_NAMESPACE) DBAAS_OPERATOR_ENABLED=false TAG=$(DBAAS_TAG) M2M_AUTH_MODE=$(M2M_AUTH_MODE) REPOS_DIR=$(abspath $(REPOS_DIR))); then \
 		echo "$(GREEN)=== DBaaS $(1) completed successfully$(NC)"; \
 	else \
 		echo "$(RED)Error: DBaaS $(1) failed$(NC)"; \
@@ -1262,13 +1263,14 @@ define run_maas_operation
 	echo "$(CYAN)--- Using MAAS branch or tag: $(MAAS_BRANCH)$(NC)"; \
 	echo "$(CYAN)--- Using MAAS namespace: $(MAAS_NAMESPACE)$(NC)"; \
 	echo "$(CYAN)--- Using monitoring: $(MONITORING_ENABLED)$(NC)"; \
+	echo "$(CYAN)--- Using M2M auth mode: $(M2M_AUTH_MODE)$(NC)"; \
 	echo "$(CYAN)--- Using RabbitMQ namespace: $(RABBIT_NAMESPACE)$(NC)"; \
 	echo "$(CYAN)--- Using Kafka namespace: $(KAFKA_NAMESPACE)$(NC)"; \
 	echo "$(CYAN)--- Using Kafka instances: $(KAFKA_INSTANCES)$(NC)"; \
 	echo "$(CYAN)--- Using RabbitMQ instances: $(RABBIT_INSTANCES)$(NC)"; \
 	echo "$(CYAN)--- Using DBAAS namespace: $(DBAAS_NAMESPACE)$(NC)"; \
 	echo "$(CYAN)--- Using DBAAS service name: $(DBAAS_SERVICE_NAME)$(NC)"; \
-	if (cd maas && '$(MAKE)' $(1) CONFIG_FILE=$(MAAS_CONFIG_FILE) MAAS_BRANCH=$(MAAS_BRANCH) MAAS_NAMESPACE=$(MAAS_NAMESPACE) RABBIT_NAMESPACE=$(RABBIT_NAMESPACE) KAFKA_NAMESPACE=$(KAFKA_NAMESPACE) KAFKA_INSTANCES='$(KAFKA_INSTANCES)' RABBIT_INSTANCES='$(RABBIT_INSTANCES)' CREATE_NAMESPACE=$(CREATE_NAMESPACE) DBAAS_NAMESPACE=$(DBAAS_NAMESPACE) DBAAS_SERVICE_NAME=$(DBAAS_SERVICE_NAME) MONITORING_ENABLED=$(MONITORING_ENABLED)); then \
+	if (cd maas && '$(MAKE)' $(1) CONFIG_FILE=$(MAAS_CONFIG_FILE) MAAS_BRANCH=$(MAAS_BRANCH) MAAS_NAMESPACE=$(MAAS_NAMESPACE) RABBIT_NAMESPACE=$(RABBIT_NAMESPACE) KAFKA_NAMESPACE=$(KAFKA_NAMESPACE) KAFKA_INSTANCES='$(KAFKA_INSTANCES)' RABBIT_INSTANCES='$(RABBIT_INSTANCES)' CREATE_NAMESPACE=$(CREATE_NAMESPACE) DBAAS_NAMESPACE=$(DBAAS_NAMESPACE) DBAAS_SERVICE_NAME=$(DBAAS_SERVICE_NAME) MONITORING_ENABLED=$(MONITORING_ENABLED) M2M_AUTH_MODE=$(M2M_AUTH_MODE)); then \
 		echo "$(GREEN)=== MAAS $(1) completed successfully$(NC)"; \
 	else \
 		echo "$(RED)Error: MAAS $(1) failed$(NC)"; \
