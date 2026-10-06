@@ -1223,6 +1223,10 @@ define update_helm_dependencies
 endef
 
 # Helper function to run DBaaS operations
+# REPOS_DIR is passed on so that the DBaaS makefile installs the charts of the qubership-dbaas
+# clone made here, at DBAAS_REPO_BRANCH. Left to itself it clones the default branch of
+# qubership-dbaas into a directory of its own, and installs the aggregator chart from that, whatever
+# DBAAS_REPO_BRANCH is: its scripts, its chart and its image would then come from three versions.
 define run_dbaas_operation
 	set -e; \
 	echo "$(CYAN)--- Using config file: $(DBAAS_CONFIG_FILE)$(NC)"; \
@@ -1232,7 +1236,7 @@ define run_dbaas_operation
 	echo "$(CYAN)--- Using dbaas-aggregator tag: $(DBAAS_TAG)$(NC)"; \
 	SKIP_CRDS=$(if $(filter true,$(INSTALL_CRDS)),false,true); \
 	echo "$(CYAN)--- Using skip crds: $$SKIP_CRDS$(NC)"; \
-	if ('$(MAKE)' -C .tmp/qubership-dbaas/bootstrap  $(1) CONFIG_FILE=$(DBAAS_CONFIG_FILE) PATRONI_SERVICES_VALUES_FILE=../../../dbaas/patroni-services-values.yaml DBAAS_SERVICE_NAME=$(DBAAS_SERVICE_NAME) DBAAS_NAMESPACE=$(DBAAS_NAMESPACE) PG_NAMESPACE=$(PG_NAMESPACE) SKIP_CRDS=$$SKIP_CRDS CREATE_NAMESPACE=$(CREATE_NAMESPACE) DBAAS_OPERATOR_ENABLED=false TAG=$(DBAAS_TAG)); then \
+	if ('$(MAKE)' -C .tmp/qubership-dbaas/bootstrap  $(1) CONFIG_FILE=$(DBAAS_CONFIG_FILE) PATRONI_SERVICES_VALUES_FILE=../../../dbaas/patroni-services-values.yaml DBAAS_SERVICE_NAME=$(DBAAS_SERVICE_NAME) DBAAS_NAMESPACE=$(DBAAS_NAMESPACE) PG_NAMESPACE=$(PG_NAMESPACE) SKIP_CRDS=$$SKIP_CRDS CREATE_NAMESPACE=$(CREATE_NAMESPACE) DBAAS_OPERATOR_ENABLED=false TAG=$(DBAAS_TAG) REPOS_DIR=$(abspath $(REPOS_DIR))); then \
 		echo "$(GREEN)=== DBaaS $(1) completed successfully$(NC)"; \
 	else \
 		echo "$(RED)Error: DBaaS $(1) failed$(NC)"; \
