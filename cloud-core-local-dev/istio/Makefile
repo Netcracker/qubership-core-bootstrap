@@ -94,18 +94,18 @@ validate-crds:
 setup-repo:
 	@echo "$(YELLOW)--- Setting up qubership-istio repository...$(NC)"
 	@mkdir -p $(REPOS_DIR)
-	@if [ -d "$(REPOS_DIR)/qubership-istio" ]; then \
-		CURRENT_BRANCH=$$(cd $(REPOS_DIR)/qubership-istio && git rev-parse --abbrev-ref HEAD); \
-		if [ "$$CURRENT_BRANCH" != "$(ISTIO_REPO_BRANCH)" ]; then \
-			echo "$(CYAN)--- Switching qubership-istio from $$CURRENT_BRANCH to $(ISTIO_REPO_BRANCH)...$(NC)"; \
-			(cd $(REPOS_DIR)/qubership-istio && git fetch origin && git checkout $(ISTIO_REPO_BRANCH) && git pull); \
-		else \
-			echo "$(CYAN)--- Updating qubership-istio (branch: $(ISTIO_REPO_BRANCH))...$(NC)"; \
-			(cd $(REPOS_DIR)/qubership-istio && git pull); \
-		fi; \
+	@if [ -d "$(REPOS_DIR)/qubership-istio/.git" ]; then \
+		echo "$(CYAN)--- Updating qubership-istio to ref: $(ISTIO_REPO_BRANCH)...$(NC)"; \
+		(cd $(REPOS_DIR)/qubership-istio && \
+			git fetch --depth 1 origin $(ISTIO_REPO_BRANCH) && \
+			git checkout -f FETCH_HEAD); \
+	elif [ ! -e "$(REPOS_DIR)/qubership-istio" ]; then \
+		echo "$(CYAN)--- Cloning qubership-istio (ref: $(ISTIO_REPO_BRANCH))...$(NC)"; \
+		git clone --depth 1 -b $(ISTIO_REPO_BRANCH) $(ISTIO_REPO_URL) $(REPOS_DIR)/qubership-istio; \
 	else \
-		echo "$(CYAN)--- Cloning qubership-istio (branch: $(ISTIO_REPO_BRANCH))...$(NC)"; \
-		git clone -b $(ISTIO_REPO_BRANCH) $(ISTIO_REPO_URL) $(REPOS_DIR)/qubership-istio; \
+		echo "$(RED)Error: $(REPOS_DIR)/qubership-istio exists but is not a git repository$(NC)"; \
+		echo "$(CYAN)Please remove it and retry: rm -rf $(REPOS_DIR)/qubership-istio$(NC)"; \
+		exit 1; \
 	fi
 	@echo ""
 
