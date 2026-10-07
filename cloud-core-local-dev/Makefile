@@ -50,6 +50,21 @@
 # CONFIGURATION
 # =============================================================================
 
+# Note which dependency refs the caller sets from outside (command line or environment): the files
+# included below only ever give them defaults. See "DEPENDENCY REFS" further down.
+ifeq ($(origin ISTIO_REPO_BRANCH),undefined)
+ISTIO_REPO_BRANCH_UNSET := true
+endif
+ifeq ($(origin CORE_MESH_CONFIG_REPO_BRANCH),undefined)
+CORE_MESH_CONFIG_REPO_BRANCH_UNSET := true
+endif
+ifeq ($(origin DBAAS_REPO_BRANCH),undefined)
+DBAAS_REPO_BRANCH_UNSET := true
+endif
+ifeq ($(origin MAAS_BRANCH),undefined)
+MAAS_BRANCH_UNSET := true
+endif
+
 # Load configuration from .mk file
 CONFIG_FILE ?= local.mk
 include $(CONFIG_FILE)
@@ -81,6 +96,277 @@ ifeq ($(DEBUG),true)
 else
   HELM_DEBUG_FLAGS :=
 endif
+
+# =============================================================================
+# BRANCH AND IMAGE TAG RESOLUTION
+# =============================================================================
+#
+# Each core service repository is cloned at, and its image tag follows, the first of:
+#   1. <SERVICE>_BRANCH, e.g. CONFIG_SERVER_BRANCH, when set from outside (make VAR=... or the
+#      environment). The branch must exist in that repository, or make stops with an error;
+#   2. TEST_BRANCH, if it is set and that repository has a branch of that name;
+#   3. BASELINE_BRANCH; for ingress-gateway always main, whatever BASELINE_BRANCH is, as its
+#      repository has no branch for each release line.
+# The image tag is latest for main, and <branch, / replaced by ->-snapshot for any other branch:
+# the rolling tag qubership-core-infra's shared docker-build.yaml publishes. An explicit
+# <SERVICE>_TAG (command line or environment) always wins over the tag derived here.
+# <SERVICE> is FACADE_OPERATOR, INGRESS_GATEWAY, CONTROL_PLANE, PAAS_MEDIATION, DBAAS_AGENT,
+# MAAS_AGENT, CORE_OPERATOR, CONFIG_SERVER or SITE_MANAGEMENT. CORE_BOOTSTRAP and CR_SYNCHRONIZER
+# follow the same rule, for the images built from the repository of this bootstrap; nothing is
+# cloned for them. As a branch of that repository may have no image, the tag is also looked up in
+# ghcr.io, and a TEST_BRANCH without an image falls back to BASELINE_BRANCH, per image.
+#
+# ISTIO_REPO_BRANCH, CORE_MESH_CONFIG_REPO_BRANCH, DBAAS_REPO_BRANCH and MAAS_BRANCH are resolved in
+# this order:
+#   1. a value set from outside (make VAR=... or the environment) is used as is;
+#   2. otherwise TEST_BRANCH, if it is set and that branch exists in the dependency's repository;
+#   3. otherwise the value pinned in dependencies.mk.
+# Step 2 only applies when TEST_BRANCH differs from BASELINE_BRANCH. Equal values mean nothing
+# is being tested on a separate branch, and the pin in dependencies.mk should win over
+# TEST_BRANCH. Each pin and each explicit value is a branch or a tag, not a commit sha;
+# TEST_BRANCH is a branch. These are the versions of qubership-dbaas, which is released with semver
+# tags rather than by release line, and of qubership-maas, istio and core-mesh-config.
+#
+# DBAAS_TAG follows DBAAS_REPO_BRANCH: latest for main, <branch>-snapshot for another branch, and
+# the tag itself (a release such as v6.15.1) for a tag. An explicit DBAAS_TAG always wins.
+# MAAS_BRANCH is passed to the maas makefile, which clones qubership-maas at it and derives the
+# MaaS image tag from it in the same way; see maas/Makefile.
+#
+# The resolved values and where each came from are reported by the resolved-refs target, which
+# install runs first; see below.
+
+# non-empty when repository $(1) has a branch named $(2); a tag or commit of that name does not count
+define branch_exists
+$(if $(2),$(strip $(shell git ls-remote --heads $(1) refs/heads/$(2) 2>/dev/null)))
+endef
+
+# image tag published for branch $(1)
+define tag_for_branch
+$(if $(filter main,$(1)),latest,$(subst /,-,$(1))-snapshot)
+endef
+
+# image tag for ref $(2) of repository $(1), a branch or a tag; anything else stops make
+define ref_image_tag
+$(if $(2),$(if $(call branch_exists,$(1),$(2)),$(call tag_for_branch,$(2)),$(if $(strip $(shell git ls-remote --tags $(1) refs/tags/$(2) 2>/dev/null)),$(2),$(error '$(2)' is not a branch or a tag of $(1)))))
+endef
+
+# Resolve the branch and the image tag of a core service; $(1) is the variable prefix, e.g.
+# CONFIG_SERVER, and $(2) the URL of its repository. Sets <SERVICE>_CLONE_BRANCH, the branch the
+# repository is cloned at, and <SERVICE>_TAG, with <SERVICE>_BRANCH_SOURCE and <SERVICE>_TAG_SOURCE
+# telling where each came from. The optional $(3) is a fixed baseline branch of this service, used
+# instead of BASELINE_BRANCH, for a repository that has no branch for each release line.
+define core_service
+$(1)_BASELINE := $$(if $(3),$(3),$$(BASELINE_BRANCH))
+$(1)_BRANCH_SOURCE := $$(if $$($(1)_BRANCH),explicit,$$(if $$(call branch_exists,$(2),$$(TEST_BRANCH)),TEST_BRANCH,$$(if $(3),fixed baseline $(3),BASELINE_BRANCH)))
+$(1)_CLONE_BRANCH := $$(if $$(filter explicit,$$($(1)_BRANCH_SOURCE)),$$(if $$(call branch_exists,$(2),$$($(1)_BRANCH)),$$($(1)_BRANCH),$$(error Branch '$$($(1)_BRANCH)' not found in $(2))),$$(if $$(filter TEST_BRANCH,$$($(1)_BRANCH_SOURCE)),$$(TEST_BRANCH),$$($(1)_BASELINE)))
+ifeq ($$(origin $(1)_TAG),undefined)
+$(1)_TAG_SOURCE := derived from the branch
+$(1)_TAG := $$(call tag_for_branch,$$($(1)_CLONE_BRANCH))
+else
+$(1)_TAG_SOURCE := explicit
+endif
+endef
+
+# Resolve a dependency ref; $(1) is the variable, e.g. ISTIO_REPO_BRANCH, and $(2) the URL of its
+# repository. $(1)_SOURCE tells where the value came from. $(1)_UNSET was set before local.mk and
+# dependencies.mk were included, when the caller had not set the variable.
+define dependency_ref
+$(1)_SOURCE := $$(if $$($(1)_UNSET),pin (dependencies.mk),explicit)
+ifneq ($$(TEST_BRANCH),$$(BASELINE_BRANCH))
+ifdef $(1)_UNSET
+ifneq ($$(call branch_exists,$(2),$$(TEST_BRANCH)),)
+$(1) := $$(TEST_BRANCH)
+$(1)_SOURCE := TEST_BRANCH
+endif
+endif
+endif
+endef
+
+# HTTP status of the manifest of tag $(2) of the image $(1) in ghcr.io; 404 means the tag does not
+# exist. Empty for an image of another registry, or when the registry cannot be reached.
+define ghcr_tag_status
+$(if $(filter ghcr.io/%,$(1)),$(strip $(shell \
+	path="$(patsubst ghcr.io/%,%,$(1))"; \
+	token="$$(curl -fsS "https://ghcr.io/token?scope=repository:$$path:pull" 2>/dev/null | sed -n 's/.*"token":"\([^"]*\)".*/\1/p')"; \
+	curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $$token" \
+		-H 'Accept: application/vnd.oci.image.index.v1+json, application/vnd.oci.image.manifest.v1+json, application/vnd.docker.distribution.manifest.v2+json, application/vnd.docker.distribution.manifest.list.v2+json' \
+		"https://ghcr.io/v2/$$path/manifests/$(2)" 2>/dev/null)))
+endef
+
+# A branch can exist in the repository without an image: the images are built for main, lts
+# branches, tags and pull requests that change them. For the image of $(1), e.g. CORE_BOOTSTRAP,
+# resolved from a branch and not from an explicit tag or image name, check that the tag exists in
+# ghcr.io. If it does not, a TEST_BRANCH falls back to BASELINE_BRANCH, and an explicit
+# <SERVICE>_BRANCH stops make with an error.
+define image_exists_or_baseline
+ifneq ($$(filter derived%,$$($(1)_TAG_SOURCE)),)
+ifneq ($$(filter-out BASELINE_BRANCH,$$($(1)_BRANCH_SOURCE)),)
+ifeq ($$(origin $(1)_IMAGE),file)
+ifeq ($$(call ghcr_tag_status,$$($(1)_IMAGE_REPOSITORY),$$($(1)_TAG)),404)
+ifeq ($$($(1)_BRANCH_SOURCE),explicit)
+$$(error $(1)_BRANCH '$$($(1)_BRANCH)': there is no image $$($(1)_IMAGE_REPOSITORY):$$($(1)_TAG))
+endif
+$(1)_CLONE_BRANCH := $$(BASELINE_BRANCH)
+$(1)_BRANCH_SOURCE := BASELINE_BRANCH (no image for TEST_BRANCH)
+$(1)_TAG := $$(call tag_for_branch,$$($(1)_CLONE_BRANCH))
+endif
+endif
+endif
+endif
+endef
+
+CORE_SERVICES := FACADE_OPERATOR INGRESS_GATEWAY CONTROL_PLANE PAAS_MEDIATION DBAAS_AGENT \
+	MAAS_AGENT CORE_OPERATOR CONFIG_SERVER SITE_MANAGEMENT CORE_BOOTSTRAP CR_SYNCHRONIZER
+
+$(eval $(call core_service,FACADE_OPERATOR,https://github.com/Netcracker/qubership-core-facade-operator.git))
+# ingress-gateway is the exception to BASELINE_BRANCH: its repository has no branch for a release
+# line (no lts/*), so main is its baseline whatever BASELINE_BRANCH is. TEST_BRANCH and an explicit
+# INGRESS_GATEWAY_BRANCH still apply.
+$(eval $(call core_service,INGRESS_GATEWAY,https://github.com/Netcracker/qubership-core-ingress-gateway.git,main))
+$(eval $(call core_service,CONTROL_PLANE,https://github.com/Netcracker/qubership-core-control-plane.git))
+$(eval $(call core_service,PAAS_MEDIATION,https://github.com/Netcracker/qubership-core-paas-mediation.git))
+$(eval $(call core_service,DBAAS_AGENT,https://github.com/Netcracker/qubership-core-dbaas-agent.git))
+$(eval $(call core_service,MAAS_AGENT,https://github.com/Netcracker/qubership-core-maas-agent.git))
+$(eval $(call core_service,CORE_OPERATOR,https://github.com/Netcracker/qubership-core-core-operator.git))
+$(eval $(call core_service,CONFIG_SERVER,https://github.com/Netcracker/qubership-core-config-server.git))
+$(eval $(call core_service,SITE_MANAGEMENT,https://github.com/Netcracker/qubership-core-site-management.git))
+# core-bootstrap and cr-synchronizer are images built from the repository this makefile lives in.
+# Their repository is not cloned: only the image tag is resolved, from the branch of that repository.
+$(eval $(call core_service,CORE_BOOTSTRAP,https://github.com/Netcracker/qubership-core-bootstrap.git))
+$(eval $(call core_service,CR_SYNCHRONIZER,https://github.com/Netcracker/qubership-core-bootstrap.git))
+$(eval $(call image_exists_or_baseline,CORE_BOOTSTRAP))
+$(eval $(call image_exists_or_baseline,CR_SYNCHRONIZER))
+
+$(eval $(call dependency_ref,DBAAS_REPO_BRANCH,https://github.com/Netcracker/qubership-dbaas.git))
+$(eval $(call dependency_ref,MAAS_BRANCH,https://github.com/Netcracker/qubership-maas.git))
+$(eval $(call dependency_ref,ISTIO_REPO_BRANCH,https://github.com/Netcracker/qubership-istio.git))
+$(eval $(call dependency_ref,CORE_MESH_CONFIG_REPO_BRANCH,https://github.com/Netcracker/qubership-core-mesh-config.git))
+
+# dbaas-aggregator and its hook image, not dbaas-agent; see run_dbaas_operation
+ifeq ($(origin DBAAS_TAG),undefined)
+DBAAS_TAG_SOURCE := derived from DBAAS_REPO_BRANCH
+DBAAS_TAG := $(call ref_image_tag,https://github.com/Netcracker/qubership-dbaas.git,$(DBAAS_REPO_BRANCH))
+else
+DBAAS_TAG_SOURCE := explicit
+endif
+
+# The MaaS image tag is derived by the maas makefile; it is worked out here only to report it. A TAG
+# set from outside reaches that makefile and wins there.
+ifeq ($(origin TAG),undefined)
+MAAS_IMAGE_TAG_SOURCE := derived by the maas makefile from MAAS_BRANCH
+MAAS_IMAGE_TAG := $(call ref_image_tag,https://github.com/Netcracker/qubership-maas.git,$(MAAS_BRANCH))
+else
+MAAS_IMAGE_TAG_SOURCE := explicit (TAG)
+MAAS_IMAGE_TAG := $(TAG)
+endif
+
+# =============================================================================
+# RESOLVED BRANCHES AND TAGS REPORT
+# =============================================================================
+#
+# resolved-refs prints every resolved branch and image tag as a Markdown table, with where the
+# value came from: set from outside (explicit), TEST_BRANCH, BASELINE_BRANCH, a pin in
+# dependencies.mk, or derived from a branch. Then it looks every image up in ghcr.io and prints a
+# second table with the status of each: found, NOT FOUND, or not checked. install runs it first, so
+# the report is at the top of the log, and it is printed in full before the install stops for an
+# image that does not exist: there is no point in waiting for the cluster to fail pulling it.
+# CHECK_IMAGES=false skips the lookup. When RESOLVED_REFS_FILE is set, the report is also appended
+# to that file; a GitHub Actions step can point it at $GITHUB_STEP_SUMMARY to show it in the run
+# summary.
+
+# one row of the report: $(1) setting, $(2) value, $(3) where the value came from
+define ref_row
+echo "| \`$(1)\` | $(if $(2),\`$(2)\`,(not set)) | $(3) |"
+endef
+
+define resolved_refs_report
+{ \
+	echo ""; \
+	echo "### Resolved branches and image tags"; \
+	echo ""; \
+	echo "| Setting | Value | Source |"; \
+	echo "| --- | --- | --- |"; \
+	$(call ref_row,TEST_BRANCH,$(TEST_BRANCH),$(if $(TEST_BRANCH),explicit,not set)); \
+	$(call ref_row,BASELINE_BRANCH,$(BASELINE_BRANCH),$(if $(filter file default,$(origin BASELINE_BRANCH)),default (local.mk),explicit)); \
+	$(foreach s,$(CORE_SERVICES),$(call ref_row,$(s)_BRANCH,$($(s)_CLONE_BRANCH),$($(s)_BRANCH_SOURCE)); $(call ref_row,$(s)_TAG,$($(s)_TAG),$($(s)_TAG_SOURCE)); ) \
+	$(call ref_row,DBAAS_REPO_BRANCH,$(DBAAS_REPO_BRANCH),$(DBAAS_REPO_BRANCH_SOURCE)); \
+	$(call ref_row,DBAAS_TAG,$(DBAAS_TAG),$(DBAAS_TAG_SOURCE)); \
+	$(call ref_row,MAAS_BRANCH,$(MAAS_BRANCH),$(MAAS_BRANCH_SOURCE)); \
+	$(call ref_row,MaaS image tag,$(MAAS_IMAGE_TAG),$(MAAS_IMAGE_TAG_SOURCE)); \
+	$(call ref_row,ISTIO_REPO_BRANCH,$(ISTIO_REPO_BRANCH),$(ISTIO_REPO_BRANCH_SOURCE)); \
+	$(call ref_row,CORE_MESH_CONFIG_REPO_BRANCH,$(CORE_MESH_CONFIG_REPO_BRANCH),$(CORE_MESH_CONFIG_REPO_BRANCH_SOURCE)); \
+	echo ""; \
+}
+endef
+
+.PHONY: resolved-refs check-images
+
+# The images the install pulls, as repository:tag. DBaaS and MaaS install their own images, with
+# the tags resolved above. The images of a component that is not installed (INSTALL_MAAS or
+# INSTALL_DBAAS is not true) are left out of the lookup, so that a missing one cannot stop an install
+# that does not use it; they are listed in SKIPPED_IMAGES and shown as not installed.
+MAAS_IMAGES := $(MAAS_AGENT_IMAGE_REPOSITORY):$(MAAS_AGENT_TAG) $(MAAS_IMAGE_REPOSITORY):$(MAAS_IMAGE_TAG)
+DBAAS_IMAGES := $(DBAAS_IMAGE_REPOSITORY):$(DBAAS_TAG) $(DBAAS_VALIDATION_IMAGE_REPOSITORY):$(DBAAS_TAG)
+
+RESOLVED_IMAGES := $(foreach s,$(filter-out CORE_BOOTSTRAP CR_SYNCHRONIZER MAAS_AGENT,$(CORE_SERVICES)),$($(s)_IMAGE_REPOSITORY):$($(s)_TAG)) \
+	$(CORE_BOOTSTRAP_IMAGE) $(CR_SYNCHRONIZER_IMAGE) \
+	$(if $(filter true,$(INSTALL_DBAAS)),$(DBAAS_IMAGES)) \
+	$(if $(filter true,$(INSTALL_MAAS)),$(MAAS_IMAGES))
+SKIPPED_IMAGES := $(if $(filter true,$(INSTALL_DBAAS)),,$(DBAAS_IMAGES)) \
+	$(if $(filter true,$(INSTALL_MAAS)),,$(MAAS_IMAGES))
+
+# Looks each image up in ghcr.io and prints a Markdown table: found, not found, or not checked for an
+# image of another registry or a registry that cannot be reached. Only a 404 is "not found".
+define image_check_report
+{ \
+	echo ""; \
+	echo "### Images"; \
+	echo ""; \
+	echo "| Image | Status |"; \
+	echo "| --- | --- |"; \
+	for ref in $(RESOLVED_IMAGES); do \
+		repo="$${ref%:*}"; tag="$${ref##*:}"; \
+		case "$$repo" in \
+			ghcr.io/*) ;; \
+			*) echo "| \`$$ref\` | not checked, not in ghcr.io |"; continue ;; \
+		esac; \
+		path="$${repo#ghcr.io/}"; \
+		token="$$(curl -fsS "https://ghcr.io/token?scope=repository:$$path:pull" 2>/dev/null | sed -n 's/.*"token":"\([^"]*\)".*/\1/p')"; \
+		code="$$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $$token" \
+			-H 'Accept: application/vnd.oci.image.index.v1+json, application/vnd.oci.image.manifest.v1+json, application/vnd.docker.distribution.manifest.v2+json, application/vnd.docker.distribution.manifest.list.v2+json' \
+			"https://ghcr.io/v2/$$path/manifests/$$tag" 2>/dev/null)"; \
+		case "$$code" in \
+			200) echo "| \`$$ref\` | found |" ;; \
+			404) echo "| \`$$ref\` | **NOT FOUND** |" ;; \
+			*) echo "| \`$$ref\` | not checked (HTTP $$code) |" ;; \
+		esac; \
+	done; \
+	for ref in $(SKIPPED_IMAGES); do \
+		echo "| \`$$ref\` | not installed |"; \
+	done; \
+	echo ""; \
+}
+endef
+
+# The branches and tags report, then the image table. The whole report is printed, and appended to
+# RESOLVED_REFS_FILE, before the target fails for an image that does not exist.
+resolved-refs:
+	@report="$$(mktemp)"; \
+	$(call resolved_refs_report) > "$$report"; \
+	$(if $(filter true,$(CHECK_IMAGES)),$(call image_check_report) >> "$$report"; ) \
+	cat "$$report"; \
+	$(if $(RESOLVED_REFS_FILE),cat "$$report" >> '$(RESOLVED_REFS_FILE)'; ) \
+	if grep -q 'NOT FOUND' "$$report"; then \
+		echo "$(RED)Error: these images do not exist in ghcr.io:$(NC)"; \
+		grep 'NOT FOUND' "$$report" | cut -d'|' -f2; \
+		echo "$(CYAN)Set the tag of the service, or TEST_BRANCH, BASELINE_BRANCH or the service's branch, to ones that have an image; CHECK_IMAGES=false skips this check.$(NC)"; \
+		rm -f "$$report"; \
+		exit 1; \
+	fi; \
+	rm -f "$$report"
+
+# kept as the name of the check; it prints the same report
+check-images: resolved-refs
 
 # =============================================================================
 # HELP
@@ -160,7 +446,7 @@ help:
 # INSTALLATION
 # =============================================================================
 
-install: validate clone-repos template-values-files deploy #mesh-smoke-test
+install: resolved-refs validate clone-repos template-values-files deploy #mesh-smoke-test
 
 deploy: deploy-dependencies deploy-core
 
@@ -232,17 +518,17 @@ ensure-core-namespace:
 clone-repos:
 	@echo "$(YELLOW)--- Cloning required repositories...$(NC)"
 	mkdir -p $(REPOS_DIR)
-	@$(call clone_or_update_repo,qubership-monitoring-operator,https://github.com/Netcracker/qubership-monitoring-operator.git,$(TEST_BRANCH))
-	@$(call clone_or_update_repo,qubership-core-paas-mediation,https://github.com/Netcracker/qubership-core-paas-mediation.git,$(TEST_BRANCH))
-	@$(call clone_or_update_repo,qubership-core-control-plane,https://github.com/Netcracker/qubership-core-control-plane.git,$(TEST_BRANCH))
-	@$(call clone_or_update_repo,qubership-core-ingress-gateway,https://github.com/Netcracker/qubership-core-ingress-gateway.git,$(TEST_BRANCH))
-	@$(call clone_or_update_repo,qubership-core-site-management,https://github.com/Netcracker/qubership-core-site-management.git,$(TEST_BRANCH))
-	@$(call clone_or_update_repo,qubership-core-facade-operator,https://github.com/Netcracker/qubership-core-facade-operator.git,$(TEST_BRANCH))
-	@$(call clone_or_update_repo,qubership-core-dbaas-agent,https://github.com/Netcracker/qubership-core-dbaas-agent.git,$(TEST_BRANCH))
-	@$(call clone_or_update_repo,qubership-core-maas-agent,https://github.com/Netcracker/qubership-core-maas-agent.git,$(TEST_BRANCH))
-	@$(call clone_or_update_repo,qubership-core-core-operator,https://github.com/Netcracker/qubership-core-core-operator.git,$(TEST_BRANCH))
-	@$(call clone_or_update_repo,qubership-core-config-server,https://github.com/Netcracker/qubership-core-config-server.git,$(TEST_BRANCH))
-	@$(call clone_or_update_repo,qubership-dbaas,https://github.com/Netcracker/qubership-dbaas.git,$(TEST_BRANCH))
+	@$(call clone_or_update_repo,qubership-monitoring-operator,https://github.com/Netcracker/qubership-monitoring-operator.git,$(TEST_BRANCH),$(BASELINE_BRANCH),branch-only)
+	@$(call clone_or_update_repo,qubership-core-paas-mediation,https://github.com/Netcracker/qubership-core-paas-mediation.git,$(PAAS_MEDIATION_CLONE_BRANCH),$(BASELINE_BRANCH),branch-only)
+	@$(call clone_or_update_repo,qubership-core-control-plane,https://github.com/Netcracker/qubership-core-control-plane.git,$(CONTROL_PLANE_CLONE_BRANCH),$(BASELINE_BRANCH),branch-only)
+	@$(call clone_or_update_repo,qubership-core-ingress-gateway,https://github.com/Netcracker/qubership-core-ingress-gateway.git,$(INGRESS_GATEWAY_CLONE_BRANCH),$(BASELINE_BRANCH),branch-only)
+	@$(call clone_or_update_repo,qubership-core-site-management,https://github.com/Netcracker/qubership-core-site-management.git,$(SITE_MANAGEMENT_CLONE_BRANCH),$(BASELINE_BRANCH),branch-only)
+	@$(call clone_or_update_repo,qubership-core-facade-operator,https://github.com/Netcracker/qubership-core-facade-operator.git,$(FACADE_OPERATOR_CLONE_BRANCH),$(BASELINE_BRANCH),branch-only)
+	@$(call clone_or_update_repo,qubership-core-dbaas-agent,https://github.com/Netcracker/qubership-core-dbaas-agent.git,$(DBAAS_AGENT_CLONE_BRANCH),$(BASELINE_BRANCH),branch-only)
+	@$(call clone_or_update_repo,qubership-core-maas-agent,https://github.com/Netcracker/qubership-core-maas-agent.git,$(MAAS_AGENT_CLONE_BRANCH),$(BASELINE_BRANCH),branch-only)
+	@$(call clone_or_update_repo,qubership-core-core-operator,https://github.com/Netcracker/qubership-core-core-operator.git,$(CORE_OPERATOR_CLONE_BRANCH),$(BASELINE_BRANCH),branch-only)
+	@$(call clone_or_update_repo,qubership-core-config-server,https://github.com/Netcracker/qubership-core-config-server.git,$(CONFIG_SERVER_CLONE_BRANCH),$(BASELINE_BRANCH),branch-only)
+	@$(call clone_or_update_repo,qubership-dbaas,https://github.com/Netcracker/qubership-dbaas.git,$(DBAAS_REPO_BRANCH),$(BASELINE_BRANCH))
 	@echo ""
 
 #---------------------------- values templating ---------------------------------------------
@@ -448,6 +734,7 @@ deploy-facade-operator: apply-facade-operator-crds
 	helm upgrade --install facade-operator $(REPOS_DIR)/qubership-core-facade-operator/helm-templates/facade-operator -n $(CORE_NAMESPACE) \
 		-f $(REPOS_DIR)/qubership-core-facade-operator/helm-templates/facade-operator/resource-profiles/dev.yaml \
 		-f ./core-values.yaml \
+		--set IMAGE_REPOSITORY=$(FACADE_OPERATOR_IMAGE_REPOSITORY) \
 		--set TAG=$(FACADE_OPERATOR_TAG) \
 		$(HELM_DEBUG_FLAGS)
 	@echo ""
@@ -462,6 +749,7 @@ deploy-ingress-gateway:
 		-f ./core-values.yaml \
 		--set CLOUD_PUBLIC_HOST=$(INGRESS_GATEWAY_CLOUD_PUBLIC_HOST) \
 		--set CLOUD_PRIVATE_HOST=$(INGRESS_GATEWAY_CLOUD_PRIVATE_HOST) \
+		--set IMAGE_REPOSITORY=$(INGRESS_GATEWAY_IMAGE_REPOSITORY) \
 		--set TAG=$(INGRESS_GATEWAY_TAG) \
 		--set SERVICE_MESH_TYPE=$(if $(filter true,$(INSTALL_ISTIO)),Istio,Core) \
 		$(HELM_DEBUG_FLAGS)
@@ -473,6 +761,7 @@ deploy-site-management:
 	helm upgrade --install site-management $(REPOS_DIR)/qubership-core-site-management/helm-templates/site-management -n $(CORE_NAMESPACE) \
 		-f $(REPOS_DIR)/qubership-core-site-management/helm-templates/site-management/resource-profiles/dev.yaml \
 		-f ./core-values.yaml \
+		--set IMAGE_REPOSITORY=$(SITE_MANAGEMENT_IMAGE_REPOSITORY) \
 		--set TAG=$(SITE_MANAGEMENT_TAG) \
 		$(HELM_DEBUG_FLAGS)
 	@echo ""
@@ -484,6 +773,7 @@ deploy-paas-mediation:
 		paas-mediation $(REPOS_DIR)/qubership-core-paas-mediation/helm-templates/paas-mediation \
 		-f $(REPOS_DIR)/qubership-core-paas-mediation/helm-templates/paas-mediation/resource-profiles/dev.yaml \
 		-f ./core-values.yaml \
+		--set IMAGE_REPOSITORY=$(PAAS_MEDIATION_IMAGE_REPOSITORY) \
 		--set TAG=$(PAAS_MEDIATION_TAG) \
 		--set CONSUL_ENABLED=false \
 		$(HELM_DEBUG_FLAGS)
@@ -496,6 +786,7 @@ deploy-control-plane:
 		control-plane $(REPOS_DIR)/qubership-core-control-plane/helm-templates/control-plane \
 		-f $(REPOS_DIR)/qubership-core-control-plane/helm-templates/control-plane/resource-profiles/dev.yaml \
 		-f ./core-values.yaml \
+		--set IMAGE_REPOSITORY=$(CONTROL_PLANE_IMAGE_REPOSITORY) \
 		--set TAG=$(CONTROL_PLANE_TAG) \
 		$(HELM_DEBUG_FLAGS)
 	@echo ""
@@ -506,6 +797,7 @@ deploy-dbaas-agent:
 	helm upgrade --install dbaas-agent $(REPOS_DIR)/qubership-core-dbaas-agent/helm-templates/dbaas-agent -n $(CORE_NAMESPACE) \
 		-f $(REPOS_DIR)/qubership-core-dbaas-agent/helm-templates/dbaas-agent/resource-profiles/dev.yaml \
 		-f ./core-values.yaml \
+		--set IMAGE_REPOSITORY=$(DBAAS_AGENT_IMAGE_REPOSITORY) \
 		--set TAG=$(DBAAS_AGENT_TAG) \
 		$(HELM_DEBUG_FLAGS)	
 	@echo ""
@@ -849,26 +1141,44 @@ include utils/reset-control-plane.mk
 # HELPER FUNCTIONS
 # =============================================================================
 
-# Clone a repo into $(REPOS_DIR), replacing any existing directory.
-# Usage: $(call clone_or_update_repo,<local_name>,<git_url>,<branch>)
+# Clone a repo into $(REPOS_DIR), replacing any existing directory. $(3) may be a branch, tag or
+# commit sha.
+# Usage: $(call clone_or_update_repo,<local_name>,<git_url>,<ref>,<baseline_branch>[,<branch_only>])
 #   $(1) Directory name under $(REPOS_DIR) for the clone.
 #   $(2) Remote repository URL.
-#   $(3) Optional branch: cloned when non-empty and present on remote; otherwise falls back to main, then remote default.
+#   $(3) Optional ref: a branch, tag or commit sha. Used when non-empty and it resolves on
+#        remote; otherwise falls back to $(4).
+#   $(4) Baseline branch (main, or a release line such as lts/26.3): cloned when present on
+#        remote and $(3) does not resolve; otherwise falls back to the remote default. Defaults to
+#        main when left empty, so existing callers that only pass $(1)-$(3) keep working.
+#   $(5) Optional: when non-empty, $(3) is looked up as a branch only; a tag or a commit sha of
+#        that name does not count. Used for TEST_BRANCH.
 define clone_or_update_repo
+	baseline="$(if $(4),$(4),main)"; \
 	if [ -d "$(REPOS_DIR)/$(1)" ]; then \
 		echo "Cleaning $(1)..."; \
 		rm -rf "$(REPOS_DIR)/$(1)"; \
 	fi; \
 	echo "Cloning $(1)..."; \
-	if [ -n "$(3)" ] && [ -n "$$(git ls-remote --heads $(2) $(3) 2>/dev/null)" ]; then \
+	if [ -n "$(3)" ] && [ -n "$$(git ls-remote $(if $(5),--heads) $(2) $(if $(5),refs/heads/)$(3) 2>/dev/null)" ]; then \
 		git clone --depth 1 -b $(3) $(2) $(REPOS_DIR)/$(1); \
-	elif [ -n "$$(git ls-remote --heads $(2) main 2>/dev/null)" ]; then \
-		if [ -n "$(3)" ]; then \
-			echo "Branch $(3) not found, cloning main..."; \
+	elif [ -z "$(5)" ] && echo "$(3)" | grep -qE '^[0-9a-fA-F]{7,40}$$'; then \
+		echo "$(3) is not a branch or tag on remote, fetching it as a commit..."; \
+		mkdir -p $(REPOS_DIR)/$(1); \
+		if (cd $(REPOS_DIR)/$(1) && git init -q && git remote add origin $(2) && git fetch --depth 1 origin $(3) && git checkout -q FETCH_HEAD); then \
+			:; \
+		else \
+			echo "Commit $(3) could not be fetched, cloning $$baseline instead..."; \
+			rm -rf $(REPOS_DIR)/$(1); \
+			git clone --depth 1 -b "$$baseline" $(2) $(REPOS_DIR)/$(1); \
 		fi; \
-		git clone --depth 1 -b main $(2) $(REPOS_DIR)/$(1); \
+	elif [ -n "$$(git ls-remote $(2) "$$baseline" 2>/dev/null)" ]; then \
+		if [ -n "$(3)" ]; then \
+			echo "$(if $(5),Branch,Branch, tag or commit) $(3) not found, cloning $$baseline..."; \
+		fi; \
+		git clone --depth 1 -b "$$baseline" $(2) $(REPOS_DIR)/$(1); \
 	else \
-		echo "Branch main not found on remote, cloning default branch..."; \
+		echo "Branch $$baseline not found on remote, cloning default branch..."; \
 		git clone --depth 1 $(2) $(REPOS_DIR)/$(1); \
 	fi
 endef
@@ -923,15 +1233,20 @@ define update_helm_dependencies
 endef
 
 # Helper function to run DBaaS operations
+# REPOS_DIR is passed on so that the DBaaS makefile installs the charts of the qubership-dbaas
+# clone made here, at DBAAS_REPO_BRANCH. Left to itself it clones the default branch of
+# qubership-dbaas into a directory of its own, and installs the aggregator chart from that, whatever
+# DBAAS_REPO_BRANCH is: its scripts, its chart and its image would then come from three versions.
 define run_dbaas_operation
 	set -e; \
 	echo "$(CYAN)--- Using config file: $(DBAAS_CONFIG_FILE)$(NC)"; \
 	echo "$(CYAN)--- Using dbaas service name: $(DBAAS_SERVICE_NAME)$(NC)"; \
 	echo "$(CYAN)--- Using dbaas namespace: $(DBAAS_NAMESPACE)$(NC)"; \
 	echo "$(CYAN)--- Using pg namespace: $(PG_NAMESPACE)$(NC)"; \
+	echo "$(CYAN)--- Using dbaas-aggregator tag: $(DBAAS_TAG)$(NC)"; \
 	SKIP_CRDS=$(if $(filter true,$(INSTALL_CRDS)),false,true); \
 	echo "$(CYAN)--- Using skip crds: $$SKIP_CRDS$(NC)"; \
-	if ('$(MAKE)' -C .tmp/qubership-dbaas/bootstrap  $(1) CONFIG_FILE=$(DBAAS_CONFIG_FILE) PATRONI_SERVICES_VALUES_FILE=../../../dbaas/patroni-services-values.yaml DBAAS_SERVICE_NAME=$(DBAAS_SERVICE_NAME) DBAAS_NAMESPACE=$(DBAAS_NAMESPACE) PG_NAMESPACE=$(PG_NAMESPACE) SKIP_CRDS=$$SKIP_CRDS CREATE_NAMESPACE=$(CREATE_NAMESPACE) DBAAS_OPERATOR_ENABLED=false); then \
+	if ('$(MAKE)' -C .tmp/qubership-dbaas/bootstrap  $(1) CONFIG_FILE=$(DBAAS_CONFIG_FILE) PATRONI_SERVICES_VALUES_FILE=../../../dbaas/patroni-services-values.yaml DBAAS_SERVICE_NAME=$(DBAAS_SERVICE_NAME) DBAAS_NAMESPACE=$(DBAAS_NAMESPACE) PG_NAMESPACE=$(PG_NAMESPACE) SKIP_CRDS=$$SKIP_CRDS CREATE_NAMESPACE=$(CREATE_NAMESPACE) DBAAS_OPERATOR_ENABLED=false TAG=$(DBAAS_TAG) REPOS_DIR=$(abspath $(REPOS_DIR))); then \
 		echo "$(GREEN)=== DBaaS $(1) completed successfully$(NC)"; \
 	else \
 		echo "$(RED)Error: DBaaS $(1) failed$(NC)"; \
@@ -943,15 +1258,16 @@ endef
 define run_maas_operation
 	set -e; \
 	echo "$(CYAN)--- Using config file: $(MAAS_CONFIG_FILE)$(NC)"; \
-	echo "$(CYAN)--- Using MAAS tag: $(MAAS_TAG)$(NC)"; \
+	echo "$(CYAN)--- Using MAAS branch or tag: $(MAAS_BRANCH)$(NC)"; \
 	echo "$(CYAN)--- Using MAAS namespace: $(MAAS_NAMESPACE)$(NC)"; \
+	echo "$(CYAN)--- Using monitoring: $(MONITORING_ENABLED)$(NC)"; \
 	echo "$(CYAN)--- Using RabbitMQ namespace: $(RABBIT_NAMESPACE)$(NC)"; \
 	echo "$(CYAN)--- Using Kafka namespace: $(KAFKA_NAMESPACE)$(NC)"; \
 	echo "$(CYAN)--- Using Kafka instances: $(KAFKA_INSTANCES)$(NC)"; \
 	echo "$(CYAN)--- Using RabbitMQ instances: $(RABBIT_INSTANCES)$(NC)"; \
 	echo "$(CYAN)--- Using DBAAS namespace: $(DBAAS_NAMESPACE)$(NC)"; \
 	echo "$(CYAN)--- Using DBAAS service name: $(DBAAS_SERVICE_NAME)$(NC)"; \
-	if (cd maas && '$(MAKE)' $(1) CONFIG_FILE=$(MAAS_CONFIG_FILE) TAG=$(MAAS_TAG) MAAS_NAMESPACE=$(MAAS_NAMESPACE) RABBIT_NAMESPACE=$(RABBIT_NAMESPACE) KAFKA_NAMESPACE=$(KAFKA_NAMESPACE) KAFKA_INSTANCES='$(KAFKA_INSTANCES)' RABBIT_INSTANCES='$(RABBIT_INSTANCES)' CREATE_NAMESPACE=$(CREATE_NAMESPACE) DBAAS_NAMESPACE=$(DBAAS_NAMESPACE) DBAAS_SERVICE_NAME=$(DBAAS_SERVICE_NAME)); then \
+	if (cd maas && '$(MAKE)' $(1) CONFIG_FILE=$(MAAS_CONFIG_FILE) MAAS_BRANCH=$(MAAS_BRANCH) MAAS_NAMESPACE=$(MAAS_NAMESPACE) RABBIT_NAMESPACE=$(RABBIT_NAMESPACE) KAFKA_NAMESPACE=$(KAFKA_NAMESPACE) KAFKA_INSTANCES='$(KAFKA_INSTANCES)' RABBIT_INSTANCES='$(RABBIT_INSTANCES)' CREATE_NAMESPACE=$(CREATE_NAMESPACE) DBAAS_NAMESPACE=$(DBAAS_NAMESPACE) DBAAS_SERVICE_NAME=$(DBAAS_SERVICE_NAME) MONITORING_ENABLED=$(MONITORING_ENABLED)); then \
 		echo "$(GREEN)=== MAAS $(1) completed successfully$(NC)"; \
 	else \
 		echo "$(RED)Error: MAAS $(1) failed$(NC)"; \

@@ -28,7 +28,7 @@ This repository contains a comprehensive installation script for deploying Cloud
 ### 1. Prepare Configuration File
 The script is distributed with prepared configurations:
 - `local.mk` - for local deployment (default)
-- `aws.mk` - for AWS deployment
+- `aws.mk` - for AWS deployment; it sets only the values that differ from `local.mk` and includes it for the rest
 
 ### 2. Execute Installation Command
 

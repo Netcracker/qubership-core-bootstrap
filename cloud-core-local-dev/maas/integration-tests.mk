@@ -9,7 +9,11 @@ KAFKA_NAMESPACE ?= kafka
 DBAAS_NAMESPACE ?= dbaas
 
 # maas parameters
-TAG ?= latest
+# Branch or tag of qubership-maas to check out. The image tag TAG follows it unless set explicitly:
+# see the Makefile.
+MAAS_BRANCH ?= main
+# the chart turns monitoring on by default, which fails where the monitoring CRDs are not installed
+MONITORING_ENABLED ?= false
 DBAAS_SERVICE_NAME ?= dbaas-aggregator
 DBAAS_AGGREGATOR_ADDRESS ?= http://${DBAAS_SERVICE_NAME}.${DBAAS_NAMESPACE}.svc.cluster.local:8080
 
@@ -31,6 +35,7 @@ export KAFKA_NAMESPACE
 export DBAAS_NAMESPACE
 export DBAAS_AGGREGATOR_ADDRESS
 export TAG
+export MONITORING_ENABLED
 export MAAS_ACCOUNT_MANAGER_USERNAME
 export MAAS_ACCOUNT_MANAGER_PASSWORD
 export MAAS_DEPLOYER_CLIENT_USERNAME

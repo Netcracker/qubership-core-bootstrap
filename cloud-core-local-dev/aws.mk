@@ -1,92 +1,42 @@
-# Configuration file for cloud-core-local-dev
-# This file contains configurable values that can be overridden
+# Configuration file for cloud-core-local-dev on AWS
+#
+# This file only sets the values that differ from local.mk, and then includes local.mk for all the
+# others, so a new parameter, a default or a comment in local.mk reaches the AWS profile without a
+# second edit. The values here come first and use ?=, as those of local.mk do: the first definition
+# wins, so a value set on the command line or in the environment still overrides them, and local.mk
+# only fills in what is left.
 
-# Installation configuration
-# parameters used by script, but not propagated to helm values
+# Installation: no namespace, CRDs, metrics server or consul to install, and MaaS is installed
 CREATE_NAMESPACE ?= false
 INSTALL_CRDS ?= false
 INSTALL_METRICS_SERVER ?= false
-INSTALL_MONITORING ?= false
 INSTALL_CONSUL ?= false
-INSTALL_DBAAS ?= true
-# config file for dbaas installation - relative path will be resolved upon ./dbaas folder
-DBAAS_CONFIG_FILE ?= aws.mk
 INSTALL_MAAS ?= true
-# config file for maas installation - relative path will be resolved upon ./maas folder
-MAAS_CONFIG_FILE ?= aws.mk
-INSTALL_ISTIO ?= false
-# config file for istio installation - relative path will be resolved upon ./istio folder
-ISTIO_CONFIG_FILE ?= aws.mk
-# branch of qubership-istio-distr repository to use
-ISTIO_REPO_BRANCH ?= main
-# config file for core-mesh-config - relative path will be resolved upon ./core-mesh-config folder
-MESH_CONFIG_FILE ?= aws.mk
-# branch of qubership-core-mesh-config repository to use
-CORE_MESH_CONFIG_REPO_BRANCH ?= main
 
-# Namespace configuration
+# Config files of the components installed by their own makefiles, which have an aws.mk of their own
+DBAAS_CONFIG_FILE ?= aws.mk
+MAAS_CONFIG_FILE ?= aws.mk
+ISTIO_CONFIG_FILE ?= aws.mk
+MESH_CONFIG_FILE ?= aws.mk
+
+# Namespaces
 CORE_NAMESPACE ?= core-1-core
-CONSUL_NAMESPACE ?= consul
-MONITORING_NAMESPACE ?= monitoring
-# pg & dbaas namespaces are propagated to dbaas-install
 PG_NAMESPACE ?= core-1-postgres
 DBAAS_NAMESPACE ?= core-1-dbaas
-# below namespaces are propagated to maas-install
 MAAS_NAMESPACE ?= core-1-maas
 RABBIT_NAMESPACE ?= core-1-maas
 KAFKA_NAMESPACE ?= core-1-maas
-# istio namespace is propagated to istio-install
-ISTIO_NAMESPACE ?= istio-system
 
 # General values
 DEPLOYMENT_SESSION_ID ?= cloud-core-aws-dev
-MONITORING_ENABLED ?= false
 CONSUL_SERVICE_NAME ?= consul-server
-CONSUL_ENABLED ?= true
 
-# DBaaS configuration
-DBAAS_SERVICE_NAME ?= dbaas-aggregator
-
-# MaaS configuration
+# MaaS
 KAFKA_INSTANCES ?= kafka-1 kafka-2
-# empty value - skip rabbit installation
 RABBIT_INSTANCES ?= rabbit-1
 
-# Core bootstrap configuration
-CORE_BOOTSTRAP_IMAGE ?= ghcr.io/netcracker/core-bootstrap:latest 
-CORE_CONFIG_CONSUL_ENABLED ?= false
+# Core bootstrap
 CORE_CONFIG_MAAS_ENABLED ?= true
-CORE_CONFIG_MAAS_INTERNAL_ADDRESS ?= http://maas-service.maas:8080
 
-# Components values
-FACADE_OPERATOR_TAG ?= latest
-
-INGRESS_GATEWAY_TAG ?= latest
-INGRESS_GATEWAY_CLOUD_PUBLIC_HOST ?= svc.cluster.local
-INGRESS_GATEWAY_CLOUD_PRIVATE_HOST ?= svc.cluster.local
-
-CONTROL_PLANE_TAG ?= latest
-
-PAAS_MEDIATION_TAG ?= latest
-
-DBAAS_AGENT_TAG ?= latest
-
-MAAS_AGENT_TAG ?= latest
-MAAS_AGENT_IMAGE_REPOSITORY ?= ghcr.io/netcracker/qubership-core-maas-agent
-
-CORE_OPERATOR_TAG ?= latest
-CORE_OPERATOR_IMAGE_REPOSITORY ?= ghcr.io/netcracker/qubership-core-core-operator
-
-CONFIG_SERVER_TAG ?= latest
-CONFIG_SERVER_IMAGE_REPOSITORY ?= ghcr.io/netcracker/qubership-core-config-server
-CONFIG_SERVER_CONSUL_ENABLED ?= false
-
-SITE_MANAGEMENT_TAG ?= latest
-
-SERVICE_MESH_TYPE ?= Core
-
-TEST_BRANCH ?= main
-
-ORIGIN_NAMESPACE ?= ${CORE_NAMESPACE}
-
-KUBERNETES_M2M_ENABLED ?= false
+# Everything else is the same as locally. The path is taken from this file's own location.
+include $(dir $(lastword $(MAKEFILE_LIST)))local.mk

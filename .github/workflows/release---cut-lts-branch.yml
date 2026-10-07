@@ -1,0 +1,110 @@
+name: '[Release] Cut lts branch'
+
+run-name: 'Cut lts/${{ inputs.version }}'
+
+# Cuts the support branch of a release line, lts/<version>, from the default branch, and sets the
+# baseline of the bootstrap on it.
+#
+# The branch name is always lts/ plus the version, which must be a release line written as YY.N, for
+# example 26.3. The new branch gets one commit that sets BASELINE_BRANCH in
+# cloud-core-local-dev/local.mk to the branch itself, so that an install from the line takes the core
+# services from their lts/<version> branches and their <branch>-snapshot images.
+#
+# No tag is created. The images of the new branch are built by starting images---docker-build.yml on
+# it, because a push made with the token of a workflow does not start other workflows.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release line as YY.N, for example 26.3. The branch is lts/<version>.'
+        required: true
+        type: string
+
+permissions:
+  contents: write # creates the branch and pushes the commit
+  actions: write # starts the image build on the new branch
+
+concurrency:
+  group: release-cut-lts-${{ inputs.version }}
+  cancel-in-progress: false
+
+jobs:
+  cut:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      VERSION: ${{ inputs.version }}
+      DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Validate the input
+        run: |
+          if ! [[ "$VERSION" =~ ^[0-9]{2}\.[1-9][0-9]*$ ]]; then
+            echo "::error::'$VERSION' is not a release line. Write it as YY.N, for example 26.3."
+            exit 1
+          fi
+          if [ "$GITHUB_REF" != "refs/heads/$DEFAULT_BRANCH" ]; then
+            echo "::error::A release line is cut from $DEFAULT_BRANCH, but this run is on $GITHUB_REF."
+            exit 1
+          fi
+          echo "BRANCH=lts/$VERSION" >> "$GITHUB_ENV"
+
+      - name: Check out the default branch
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Check that the branch does not exist
+        run: |
+          if git ls-remote --exit-code --heads origin "refs/heads/$BRANCH" > /dev/null; then
+            echo "::error::The branch $BRANCH already exists."
+            exit 1
+          fi
+
+      - name: Create the branch and set the baseline
+        run: |
+          git checkout -b "$BRANCH"
+
+          file=cloud-core-local-dev/local.mk
+          if [ "$(grep -c '^BASELINE_BRANCH ?= main$' "$file")" != "1" ]; then
+            echo "::error::$file has no single line 'BASELINE_BRANCH ?= main' to change."
+            exit 1
+          fi
+          sed -i "s|^BASELINE_BRANCH ?= main\$|BASELINE_BRANCH ?= $BRANCH|" "$file"
+          if ! grep -qx "BASELINE_BRANCH ?= $BRANCH" "$file"; then
+            echo "::error::$file does not have BASELINE_BRANCH ?= $BRANCH after the change."
+            exit 1
+          fi
+
+          git config user.name "GitHub Actions [Bot]"
+          git config user.email "github-actions[bot]@qubership.com"
+          git add "$file"
+          git commit -m "chore(release): set the baseline of $BRANCH to $BRANCH" \
+            -m "Cut from $DEFAULT_BRANCH at $GITHUB_SHA. BASELINE_BRANCH now names this branch, so an install from this line takes the core services from their $BRANCH branches."
+          git push origin "HEAD:refs/heads/$BRANCH"
+          echo "COMMIT=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+
+      - name: Start the image build on the new branch
+        run: |
+          workflow=images---docker-build.yml
+          if [ -f ".github/workflows/$workflow" ]; then
+            gh workflow run "$workflow" --ref "$BRANCH"
+          else
+            echo "::warning::$workflow does not exist on $DEFAULT_BRANCH, so the images of $BRANCH are not built."
+          fi
+
+      - name: Summarize
+        run: |
+          {
+            echo "## Cut \`$BRANCH\`"
+            echo ""
+            echo "- Branch: \`$BRANCH\`, cut from \`$DEFAULT_BRANCH\` at \`$GITHUB_SHA\`"
+            echo "- Commit: \`$COMMIT\`, which sets \`BASELINE_BRANCH ?= $BRANCH\` in \`cloud-core-local-dev/local.mk\`"
+            echo "- The image build of the branch has been started: both bootstrap images are published as" \
+              "\`$(echo "$BRANCH" | tr '/' '-')-snapshot\`"
+            echo ""
+            echo "Still to do:"
+            echo ""
+            echo "1. Run \`make resolved-refs\` on the branch: every image has to be \`found\`."
+            echo "2. Run the integration suites with \`baseline-branch: $BRANCH\`."
+          } >> "$GITHUB_STEP_SUMMARY"
