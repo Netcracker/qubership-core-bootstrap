@@ -302,11 +302,18 @@ endef
 .PHONY: resolved-refs check-images
 
 # The images the install pulls, as repository:tag. DBaaS and MaaS install their own images, with
-# the tags resolved above.
-RESOLVED_IMAGES := $(foreach s,$(filter-out CORE_BOOTSTRAP CR_SYNCHRONIZER,$(CORE_SERVICES)),$($(s)_IMAGE_REPOSITORY):$($(s)_TAG)) \
+# the tags resolved above. The images of a component that is not installed (INSTALL_MAAS or
+# INSTALL_DBAAS is not true) are left out of the lookup, so that a missing one cannot stop an install
+# that does not use it; they are listed in SKIPPED_IMAGES and shown as not installed.
+MAAS_IMAGES := $(MAAS_AGENT_IMAGE_REPOSITORY):$(MAAS_AGENT_TAG) $(MAAS_IMAGE_REPOSITORY):$(MAAS_IMAGE_TAG)
+DBAAS_IMAGES := $(DBAAS_IMAGE_REPOSITORY):$(DBAAS_TAG) $(DBAAS_VALIDATION_IMAGE_REPOSITORY):$(DBAAS_TAG)
+
+RESOLVED_IMAGES := $(foreach s,$(filter-out CORE_BOOTSTRAP CR_SYNCHRONIZER MAAS_AGENT,$(CORE_SERVICES)),$($(s)_IMAGE_REPOSITORY):$($(s)_TAG)) \
 	$(CORE_BOOTSTRAP_IMAGE) $(CR_SYNCHRONIZER_IMAGE) \
-	$(DBAAS_IMAGE_REPOSITORY):$(DBAAS_TAG) $(DBAAS_VALIDATION_IMAGE_REPOSITORY):$(DBAAS_TAG) \
-	$(MAAS_IMAGE_REPOSITORY):$(MAAS_IMAGE_TAG)
+	$(if $(filter true,$(INSTALL_DBAAS)),$(DBAAS_IMAGES)) \
+	$(if $(filter true,$(INSTALL_MAAS)),$(MAAS_IMAGES))
+SKIPPED_IMAGES := $(if $(filter true,$(INSTALL_DBAAS)),,$(DBAAS_IMAGES)) \
+	$(if $(filter true,$(INSTALL_MAAS)),,$(MAAS_IMAGES))
 
 # Looks each image up in ghcr.io and prints a Markdown table: found, not found, or not checked for an
 # image of another registry or a registry that cannot be reached. Only a 404 is "not found".
@@ -333,6 +340,9 @@ define image_check_report
 			404) echo "| \`$$ref\` | **NOT FOUND** |" ;; \
 			*) echo "| \`$$ref\` | not checked (HTTP $$code) |" ;; \
 		esac; \
+	done; \
+	for ref in $(SKIPPED_IMAGES); do \
+		echo "| \`$$ref\` | not installed |"; \
 	done; \
 	echo ""; \
 }
