@@ -289,6 +289,10 @@ define resolved_refs_report
 	$(call ref_row,TEST_BRANCH,$(TEST_BRANCH),$(if $(TEST_BRANCH),explicit,not set)); \
 	$(call ref_row,BASELINE_BRANCH,$(BASELINE_BRANCH),$(if $(filter file default,$(origin BASELINE_BRANCH)),default (local.mk),explicit)); \
 	$(call ref_row,M2M_AUTH_MODE,$(M2M_AUTH_MODE),$(if $(filter file default,$(origin M2M_AUTH_MODE)),default (local.mk),explicit)); \
+	$(call ref_row,DBAAS_M2M_AUTH_MODE,$(DBAAS_M2M_AUTH_MODE),$(if $(filter file default,$(origin DBAAS_M2M_AUTH_MODE)),follows M2M_AUTH_MODE,explicit)); \
+	$(call ref_row,MAAS_M2M_AUTH_MODE,$(MAAS_M2M_AUTH_MODE),$(if $(filter file default,$(origin MAAS_M2M_AUTH_MODE)),follows M2M_AUTH_MODE,explicit)); \
+	$(call ref_row,INSTALL_DBAAS_AGENT,$(INSTALL_DBAAS_AGENT),$(if $(filter file default,$(origin INSTALL_DBAAS_AGENT)),default (off in the k8s mode),explicit)); \
+	$(call ref_row,INSTALL_MAAS_AGENT,$(INSTALL_MAAS_AGENT),$(if $(filter file default,$(origin INSTALL_MAAS_AGENT)),default (off in the k8s mode),explicit)); \
 	$(foreach s,$(CORE_SERVICES),$(call ref_row,$(s)_BRANCH,$($(s)_CLONE_BRANCH),$($(s)_BRANCH_SOURCE)); $(call ref_row,$(s)_TAG,$($(s)_TAG),$($(s)_TAG_SOURCE)); ) \
 	$(call ref_row,DBAAS_REPO_BRANCH,$(DBAAS_REPO_BRANCH),$(DBAAS_REPO_BRANCH_SOURCE)); \
 	$(call ref_row,DBAAS_TAG,$(DBAAS_TAG),$(DBAAS_TAG_SOURCE)); \
@@ -300,20 +304,30 @@ define resolved_refs_report
 }
 endef
 
+# A mode that is not one of the three would be passed on to the charts as it is.
+$(foreach v,M2M_AUTH_MODE DBAAS_M2M_AUTH_MODE MAAS_M2M_AUTH_MODE,$(if $(filter legacy hybrid k8s,$($(v))),,$(error $(v) must be legacy, hybrid or k8s, got '$($(v))')))
+
 .PHONY: resolved-refs check-images
 
 # The images the install pulls, as repository:tag. DBaaS and MaaS install their own images, with
 # the tags resolved above. The images of a component that is not installed (INSTALL_MAAS or
 # INSTALL_DBAAS is not true) are left out of the lookup, so that a missing one cannot stop an install
-# that does not use it; they are listed in SKIPPED_IMAGES and shown as not installed.
-MAAS_IMAGES := $(MAAS_AGENT_IMAGE_REPOSITORY):$(MAAS_AGENT_TAG) $(MAAS_IMAGE_REPOSITORY):$(MAAS_IMAGE_TAG)
+# that does not use it; they are listed in SKIPPED_IMAGES and shown as not installed. The same goes
+# for the images of the agents that INSTALL_DBAAS_AGENT and INSTALL_MAAS_AGENT leave out.
+MAAS_IMAGES := $(MAAS_IMAGE_REPOSITORY):$(MAAS_IMAGE_TAG)
+DBAAS_AGENT_IMAGE := $(DBAAS_AGENT_IMAGE_REPOSITORY):$(DBAAS_AGENT_TAG)
+MAAS_AGENT_IMAGE := $(MAAS_AGENT_IMAGE_REPOSITORY):$(MAAS_AGENT_TAG)
 DBAAS_IMAGES := $(DBAAS_IMAGE_REPOSITORY):$(DBAAS_TAG) $(DBAAS_VALIDATION_IMAGE_REPOSITORY):$(DBAAS_TAG)
 
-RESOLVED_IMAGES := $(foreach s,$(filter-out CORE_BOOTSTRAP CR_SYNCHRONIZER MAAS_AGENT,$(CORE_SERVICES)),$($(s)_IMAGE_REPOSITORY):$($(s)_TAG)) \
+RESOLVED_IMAGES := $(foreach s,$(filter-out CORE_BOOTSTRAP CR_SYNCHRONIZER DBAAS_AGENT MAAS_AGENT,$(CORE_SERVICES)),$($(s)_IMAGE_REPOSITORY):$($(s)_TAG)) \
 	$(CORE_BOOTSTRAP_IMAGE) $(CR_SYNCHRONIZER_IMAGE) \
+	$(if $(filter true,$(INSTALL_DBAAS_AGENT)),$(DBAAS_AGENT_IMAGE)) \
+	$(if $(and $(filter true,$(INSTALL_MAAS)),$(filter true,$(INSTALL_MAAS_AGENT))),$(MAAS_AGENT_IMAGE)) \
 	$(if $(filter true,$(INSTALL_DBAAS)),$(DBAAS_IMAGES)) \
 	$(if $(filter true,$(INSTALL_MAAS)),$(MAAS_IMAGES))
-SKIPPED_IMAGES := $(if $(filter true,$(INSTALL_DBAAS)),,$(DBAAS_IMAGES)) \
+SKIPPED_IMAGES := $(if $(filter true,$(INSTALL_DBAAS_AGENT)),,$(DBAAS_AGENT_IMAGE)) \
+	$(if $(and $(filter true,$(INSTALL_MAAS)),$(filter true,$(INSTALL_MAAS_AGENT))),,$(MAAS_AGENT_IMAGE)) \
+	$(if $(filter true,$(INSTALL_DBAAS)),,$(DBAAS_IMAGES)) \
 	$(if $(filter true,$(INSTALL_MAAS)),,$(MAAS_IMAGES))
 
 # Looks each image up in ghcr.io and prints a Markdown table: found, not found, or not checked for an
@@ -793,18 +807,24 @@ deploy-control-plane:
 	@echo ""
 
 deploy-dbaas-agent:
-	@echo "$(YELLOW)--- Setting up DBaaS agent...$(NC)"
-	@$(call update_helm_dependencies,$(REPOS_DIR)/qubership-core-dbaas-agent/helm-templates/dbaas-agent,)
-	helm upgrade --install dbaas-agent $(REPOS_DIR)/qubership-core-dbaas-agent/helm-templates/dbaas-agent -n $(CORE_NAMESPACE) \
-		-f $(REPOS_DIR)/qubership-core-dbaas-agent/helm-templates/dbaas-agent/resource-profiles/dev.yaml \
-		-f ./core-values.yaml \
-		--set IMAGE_REPOSITORY=$(DBAAS_AGENT_IMAGE_REPOSITORY) \
-		--set TAG=$(DBAAS_AGENT_TAG) \
-		$(HELM_DEBUG_FLAGS)	
+	@if [ "$(INSTALL_DBAAS_AGENT)" = "true" ]; then \
+		echo "$(YELLOW)--- Setting up DBaaS agent...$(NC)"; \
+		$(call update_helm_dependencies,$(REPOS_DIR)/qubership-core-dbaas-agent/helm-templates/dbaas-agent,); \
+		helm upgrade --install dbaas-agent $(REPOS_DIR)/qubership-core-dbaas-agent/helm-templates/dbaas-agent -n $(CORE_NAMESPACE) \
+			-f $(REPOS_DIR)/qubership-core-dbaas-agent/helm-templates/dbaas-agent/resource-profiles/dev.yaml \
+			-f ./core-values.yaml \
+			--set IMAGE_REPOSITORY=$(DBAAS_AGENT_IMAGE_REPOSITORY) \
+			--set TAG=$(DBAAS_AGENT_TAG) \
+			$(HELM_DEBUG_FLAGS); \
+		echo ""; \
+	else \
+		echo "$(CYAN)--- Skipping DBaaS agent installation (INSTALL_DBAAS_AGENT=false)...$(NC)"; \
+		echo ""; \
+	fi
 	@echo ""
 
 deploy-maas-agent:
-	@if [ "$(INSTALL_MAAS)" = "true" ]; then \
+	@if [ "$(INSTALL_MAAS)" = "true" ] && [ "$(INSTALL_MAAS_AGENT)" = "true" ]; then \
 		echo "$(YELLOW)--- Setting up MaaS agent...$(NC)"; \
 		$(call update_helm_dependencies,$(REPOS_DIR)/qubership-core-maas-agent/helm-templates/maas-agent,); \
 		helm upgrade --install maas-agent $(REPOS_DIR)/qubership-core-maas-agent/helm-templates/maas-agent -n $(CORE_NAMESPACE) \
@@ -817,7 +837,7 @@ deploy-maas-agent:
 			$(HELM_DEBUG_FLAGS); \
 		echo ""; \
 	else \
-		echo "$(CYAN)--- Skipping MaaS agent installation (INSTALL_MAAS=false)...$(NC)"; \
+		echo "$(CYAN)--- Skipping MaaS agent installation (INSTALL_MAAS=$(INSTALL_MAAS), INSTALL_MAAS_AGENT=$(INSTALL_MAAS_AGENT))...$(NC)"; \
 		echo ""; \
 	fi
 	@echo ""
@@ -1245,10 +1265,10 @@ define run_dbaas_operation
 	echo "$(CYAN)--- Using dbaas namespace: $(DBAAS_NAMESPACE)$(NC)"; \
 	echo "$(CYAN)--- Using pg namespace: $(PG_NAMESPACE)$(NC)"; \
 	echo "$(CYAN)--- Using dbaas-aggregator tag: $(DBAAS_TAG)$(NC)"; \
-	echo "$(CYAN)--- Using M2M auth mode: $(M2M_AUTH_MODE)$(NC)"; \
+	echo "$(CYAN)--- Using M2M auth mode: $(DBAAS_M2M_AUTH_MODE)$(NC)"; \
 	SKIP_CRDS=$(if $(filter true,$(INSTALL_CRDS)),false,true); \
 	echo "$(CYAN)--- Using skip crds: $$SKIP_CRDS$(NC)"; \
-	if ('$(MAKE)' -C .tmp/qubership-dbaas/bootstrap  $(1) CONFIG_FILE=$(DBAAS_CONFIG_FILE) PATRONI_SERVICES_VALUES_FILE=../../../dbaas/patroni-services-values.yaml DBAAS_SERVICE_NAME=$(DBAAS_SERVICE_NAME) DBAAS_NAMESPACE=$(DBAAS_NAMESPACE) PG_NAMESPACE=$(PG_NAMESPACE) SKIP_CRDS=$$SKIP_CRDS CREATE_NAMESPACE=$(CREATE_NAMESPACE) DBAAS_OPERATOR_ENABLED=false TAG=$(DBAAS_TAG) M2M_AUTH_MODE=$(M2M_AUTH_MODE) REPOS_DIR=$(abspath $(REPOS_DIR))); then \
+	if ('$(MAKE)' -C .tmp/qubership-dbaas/bootstrap  $(1) CONFIG_FILE=$(DBAAS_CONFIG_FILE) PATRONI_SERVICES_VALUES_FILE=../../../dbaas/patroni-services-values.yaml DBAAS_SERVICE_NAME=$(DBAAS_SERVICE_NAME) DBAAS_NAMESPACE=$(DBAAS_NAMESPACE) PG_NAMESPACE=$(PG_NAMESPACE) SKIP_CRDS=$$SKIP_CRDS CREATE_NAMESPACE=$(CREATE_NAMESPACE) DBAAS_OPERATOR_ENABLED=false TAG=$(DBAAS_TAG) M2M_AUTH_MODE=$(DBAAS_M2M_AUTH_MODE) REPOS_DIR=$(abspath $(REPOS_DIR))); then \
 		echo "$(GREEN)=== DBaaS $(1) completed successfully$(NC)"; \
 	else \
 		echo "$(RED)Error: DBaaS $(1) failed$(NC)"; \
@@ -1263,14 +1283,14 @@ define run_maas_operation
 	echo "$(CYAN)--- Using MAAS branch or tag: $(MAAS_BRANCH)$(NC)"; \
 	echo "$(CYAN)--- Using MAAS namespace: $(MAAS_NAMESPACE)$(NC)"; \
 	echo "$(CYAN)--- Using monitoring: $(MONITORING_ENABLED)$(NC)"; \
-	echo "$(CYAN)--- Using M2M auth mode: $(M2M_AUTH_MODE)$(NC)"; \
+	echo "$(CYAN)--- Using M2M auth mode: $(MAAS_M2M_AUTH_MODE)$(NC)"; \
 	echo "$(CYAN)--- Using RabbitMQ namespace: $(RABBIT_NAMESPACE)$(NC)"; \
 	echo "$(CYAN)--- Using Kafka namespace: $(KAFKA_NAMESPACE)$(NC)"; \
 	echo "$(CYAN)--- Using Kafka instances: $(KAFKA_INSTANCES)$(NC)"; \
 	echo "$(CYAN)--- Using RabbitMQ instances: $(RABBIT_INSTANCES)$(NC)"; \
 	echo "$(CYAN)--- Using DBAAS namespace: $(DBAAS_NAMESPACE)$(NC)"; \
 	echo "$(CYAN)--- Using DBAAS service name: $(DBAAS_SERVICE_NAME)$(NC)"; \
-	if (cd maas && '$(MAKE)' $(1) CONFIG_FILE=$(MAAS_CONFIG_FILE) MAAS_BRANCH=$(MAAS_BRANCH) MAAS_NAMESPACE=$(MAAS_NAMESPACE) RABBIT_NAMESPACE=$(RABBIT_NAMESPACE) KAFKA_NAMESPACE=$(KAFKA_NAMESPACE) KAFKA_INSTANCES='$(KAFKA_INSTANCES)' RABBIT_INSTANCES='$(RABBIT_INSTANCES)' CREATE_NAMESPACE=$(CREATE_NAMESPACE) DBAAS_NAMESPACE=$(DBAAS_NAMESPACE) DBAAS_SERVICE_NAME=$(DBAAS_SERVICE_NAME) MONITORING_ENABLED=$(MONITORING_ENABLED) M2M_AUTH_MODE=$(M2M_AUTH_MODE)); then \
+	if (cd maas && '$(MAKE)' $(1) CONFIG_FILE=$(MAAS_CONFIG_FILE) MAAS_BRANCH=$(MAAS_BRANCH) MAAS_NAMESPACE=$(MAAS_NAMESPACE) RABBIT_NAMESPACE=$(RABBIT_NAMESPACE) KAFKA_NAMESPACE=$(KAFKA_NAMESPACE) KAFKA_INSTANCES='$(KAFKA_INSTANCES)' RABBIT_INSTANCES='$(RABBIT_INSTANCES)' CREATE_NAMESPACE=$(CREATE_NAMESPACE) DBAAS_NAMESPACE=$(DBAAS_NAMESPACE) DBAAS_SERVICE_NAME=$(DBAAS_SERVICE_NAME) MONITORING_ENABLED=$(MONITORING_ENABLED) M2M_AUTH_MODE=$(MAAS_M2M_AUTH_MODE)); then \
 		echo "$(GREEN)=== MAAS $(1) completed successfully$(NC)"; \
 	else \
 		echo "$(RED)Error: MAAS $(1) failed$(NC)"; \

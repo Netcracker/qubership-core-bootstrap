@@ -179,6 +179,8 @@ The script uses a `.mk` configuration file to define all installation parameters
 | `DBAAS_CONFIG_FILE` | `local.mk` | DBaaS configuration file path (relative path will be resolved upon ./dbaas folder, where sub-Makefile is placed)|
 | `INSTALL_MAAS` | `true`/`false` | Install MAAS components |
 | `MAAS_CONFIG_FILE` | `local.mk` | MAAS configuration file path (relative path will be resolved upon ./maas folder, where sub-Makefile is placed)|
+| `INSTALL_DBAAS_AGENT` | `true`/`false` | Install the DBaaS agent. Defaults to `false` when `M2M_AUTH_MODE=k8s`, `true` otherwise |
+| `INSTALL_MAAS_AGENT` | `true`/`false` | Install the MaaS agent, which also needs `INSTALL_MAAS=true`. Defaults to `false` when `M2M_AUTH_MODE=k8s`, `true` otherwise |
 | `INSTALL_ISTIO` | `true`/`false` | Install Istio service mesh |
 | `ISTIO_CONFIG_FILE` | `local.mk` | Istio configuration file path (relative path will be resolved upon ./istio folder, where sub-Makefile is placed)|
 
@@ -191,6 +193,28 @@ The script uses several values files:
 3. **`core-bootstrap-helm-repo.yaml`** - Helm repository configuration
 
 The script uses `envsubst` to substitute environment variables in the values file templates.
+
+### M2M authentication mode
+
+`M2M_AUTH_MODE` sets how the core services authenticate their calls to DBaaS and MaaS:
+
+| Mode | Meaning |
+|---|---|
+| `legacy` (default) | The M2M of Cloud Core. The calls go through the DBaaS and MaaS agents |
+| `hybrid` | Kubernetes projected tokens, with a fallback to `legacy` |
+| `k8s` | Kubernetes projected tokens only. The agents are not needed and are not installed |
+
+DBaaS and MaaS take the mode of the core. `DBAAS_M2M_AUTH_MODE` and `MAAS_M2M_AUTH_MODE` set it for either of
+them, to test a core and its dependencies in different modes:
+
+```bash
+# core in k8s mode, DBaaS in hybrid mode, MaaS in legacy mode
+make M2M_AUTH_MODE=k8s DBAAS_M2M_AUTH_MODE=hybrid MAAS_M2M_AUTH_MODE=legacy install
+```
+
+A core service in a mode the other side does not accept cannot call it: `k8s` against a `legacy` DBaaS fails, and
+`hybrid` against it works through the fallback. The report printed by `resolved-refs` shows the mode of each component and
+whether the agents are installed. A value other than the three modes stops the make before anything is installed.
 
 ### MaaS configuration
 
