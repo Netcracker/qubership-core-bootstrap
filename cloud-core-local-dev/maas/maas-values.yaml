@@ -19,6 +19,9 @@ DECLARATIVE_HOOK_IMAGE: "ghcr.io/netcracker/qubership-maas-validation-image:late
 # ============== DBaaS ============================
 DBAAS_AGGREGATOR_ADDRESS: ${DBAAS_AGGREGATOR_ADDRESS}
 
+# ============== M2M ============================
+M2M_AUTH_MODE: ${M2M_AUTH_MODE}
+
 # ============== Monitoring ============================
 MONITORING_ENABLED: ${MONITORING_ENABLED}
 

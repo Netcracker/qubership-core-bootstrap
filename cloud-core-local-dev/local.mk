@@ -15,6 +15,11 @@ CONSUL_ACLS ?= false
 INSTALL_DBAAS ?= true
 INSTALL_MAAS ?= false
 INSTALL_ISTIO ?= false
+# The agents carry the legacy M2M calls of the core services to DBaaS and MaaS. In the k8s mode the
+# core services call DBaaS and MaaS directly, so the agents are left out. The MaaS agent also needs
+# INSTALL_MAAS=true.
+INSTALL_DBAAS_AGENT ?= $(if $(filter k8s,$(M2M_AUTH_MODE)),false,true)
+INSTALL_MAAS_AGENT ?= $(if $(filter k8s,$(M2M_AUTH_MODE)),false,true)
 
 # Config files of the components installed by their own makefiles. A relative path is resolved
 # against the component's folder.
@@ -47,7 +52,12 @@ ISTIO_NAMESPACE ?= istio-system
 
 DEPLOYMENT_SESSION_ID ?= cloud-core-local-dev
 SERVICE_MESH_TYPE ?= Core
-KUBERNETES_M2M_ENABLED ?= false
+# M2M authentication mode of the core services: legacy, hybrid (k8s with a fallback to legacy) or k8s.
+# DBaaS and MaaS take the same mode unless it is set for them, which tests a core and its
+# dependencies in different modes.
+M2M_AUTH_MODE ?= legacy
+DBAAS_M2M_AUTH_MODE ?= $(M2M_AUTH_MODE)
+MAAS_M2M_AUTH_MODE ?= $(M2M_AUTH_MODE)
 MONITORING_ENABLED ?= false
 CONSUL_ENABLED ?= true
 CONSUL_SERVICE_NAME ?= consul-consul-server
