@@ -32,7 +32,7 @@ restart-services: restart-services-start restart-control-plane restart-public-ga
 	kubectl rollout restart deploy/paas-mediation -n $(CORE_NAMESPACE)
 	kubectl rollout restart deploy/site-management -n $(CORE_NAMESPACE)
 	kubectl rollout restart deploy/config-server -n $(CORE_NAMESPACE)
-	kubectl rollout restart deploy/dbaas-agent -n $(CORE_NAMESPACE)
+	kubectl rollout restart deploy/dbaas-agent -n $(CORE_NAMESPACE) 2>/dev/null || true
 	kubectl rollout restart deploy/maas-agent -n $(CORE_NAMESPACE) 2>/dev/null || true
 	kubectl rollout restart deploy/private-frontend-gateway -n $(CORE_NAMESPACE)
 	kubectl rollout restart deploy/internal-gateway -n $(CORE_NAMESPACE)
