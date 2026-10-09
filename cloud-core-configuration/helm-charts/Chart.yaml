@@ -3,3 +3,8 @@ type: application
 name: "Cloud-Core"
 description: Application Helm chart for the Cloud-Core application
 version: 0.0.1
+dependencies:
+  # The library from this repository, so the chart always uses the coretpl it is released with.
+  - name: coretpl
+    version: "0.2.4"
+    repository: "file://../../coretpl"

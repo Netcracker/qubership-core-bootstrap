@@ -13,6 +13,8 @@ INSTALL_MONITORING ?= false
 INSTALL_CONSUL ?= true
 CONSUL_ACLS ?= false
 INSTALL_DBAAS ?= true
+# install dbaas-operator together with DBaaS
+DBAAS_OPERATOR_ENABLED ?= false
 INSTALL_MAAS ?= false
 INSTALL_ISTIO ?= false
 # The agents carry the legacy M2M calls of the core services to DBaaS and MaaS. In the k8s mode the
@@ -67,6 +69,9 @@ CONSUL_SERVICE_NAME ?= consul-consul-server
 # -----------------------------------------------------------------------------
 
 DBAAS_SERVICE_NAME ?= dbaas-aggregator
+# service name Cloud Core components use to reach DBaaS; defaults to the real aggregator. Integration
+# tests point it at a name that does not resolve to prove no REST fallback happens in operator mode
+CORE_DBAAS_SERVICE_NAME ?= $(DBAAS_SERVICE_NAME)
 
 # -----------------------------------------------------------------------------
 # MaaS
