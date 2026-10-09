@@ -45,7 +45,7 @@ MAAS_BRANCH ?= v5.6.2
 
 # qubership-istio: the Istio distribution and configuration. Its release tags have no v prefix.
 # renovate: datasource=github-tags depName=Netcracker/qubership-istio
-ISTIO_REPO_BRANCH ?= 1.2.1
+ISTIO_REPO_BRANCH ?= 1.3.0
 
 # -----------------------------------------------------------------------------
 # Core mesh config
