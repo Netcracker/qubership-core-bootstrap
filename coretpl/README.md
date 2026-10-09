@@ -23,6 +23,14 @@ dependencies:
 {{ include "coretpl.synchronizer.hooks" . }}
 ```
 
+3. To declare databases for the DBaaS Operator, take `spec.operatorNamespace` of the CRs from the
+   `coretpl.dbaasOperatorNamespace` template. It returns the namespace part of `API_DBAAS_ADDRESS` and fails the
+   render when the address has none:
+```yaml
+spec:
+  operatorNamespace: {{ include "coretpl.dbaasOperatorNamespace" $ | quote }}
+```
+
 ## Configuration
 
 The library requires the following configuration parameters:
@@ -35,6 +43,7 @@ The library requires the following configuration parameters:
 | `NAMESPACE` | Target deployment namespace                           |
 | `CR_SYNCHRONIZER_IMAGE` | Image for the CR synchronizer                         |
 | `RESOURCE_POLLING_TIMEOUT` | Timeout for resource polling in seconds (default: 300) |
+| `API_DBAAS_ADDRESS` | DBaaS aggregator address, `http://<aggregator>.<namespace>:<port>`. Needed only by `coretpl.dbaasOperatorNamespace` |
 
 ## Version Information
 
