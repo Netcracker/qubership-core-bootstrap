@@ -31,6 +31,17 @@ spec:
   operatorNamespace: {{ include "coretpl.dbaasOperatorNamespace" $ | quote }}
 ```
 
+4. Render the DBaaS Operator CRs, and the mount of the Secret the operator creates, only where the cluster serves the
+   operator API, so the chart still installs on clusters without it. `coretpl.dbaasOperatorEnabled` returns `true`
+   there and an empty string elsewhere:
+```yaml
+{{- if include "coretpl.dbaasOperatorEnabled" $ }}
+apiVersion: dbaas.netcracker.com/v1
+kind: InternalDatabase
+...
+{{- end }}
+```
+
 ## Configuration
 
 The library requires the following configuration parameters:

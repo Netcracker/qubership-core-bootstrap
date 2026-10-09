@@ -12,3 +12,14 @@ http://<aggregator>.<namespace>[.<domain>]:<port>. Call it with the root context
 {{- end -}}
 {{- index $parts 1 -}}
 {{- end -}}
+
+{{/*
+"true" where the cluster serves the DBaaS Operator API, empty otherwise. Use it to render the
+operator CRs and the mounted operator Secret only where the operator can serve them, so the chart
+still installs on clusters without it. Call it with the root context:
+{{- if include "coretpl.dbaasOperatorEnabled" $ }}
+{{- if not (include "coretpl.dbaasOperatorEnabled" $) }}
+*/}}
+{{- define "coretpl.dbaasOperatorEnabled" -}}
+{{- if .Capabilities.APIVersions.Has "dbaas.netcracker.com/v1" -}}true{{- end -}}
+{{- end -}}
