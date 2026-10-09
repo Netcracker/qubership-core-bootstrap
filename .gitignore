@@ -6,3 +6,5 @@
 /cloud-core-local-dev/istio/.tmp/**
 /cloud-core-local-dev/core-values.yaml
 /cloud-core-local-dev/istio/test/istio-logs/**
+/cloud-core-configuration/helm-charts/charts/**
+/cloud-core-configuration/helm-charts/Chart.lock

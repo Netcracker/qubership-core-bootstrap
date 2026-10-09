@@ -711,6 +711,7 @@ prepare-core-bootstrap-print-start:
 
 deploy-cloud-core-configuration:
 	@echo "$(YELLOW)--- Deploying cloud-core-configuration$(NC)"
+	@$(call update_helm_dependencies,../cloud-core-configuration/helm-charts,)
 	helm upgrade --install -n $(CORE_NAMESPACE) $(CREATE_NAMESPACE_OPTION) \
 		cloud-core-app-chart ../cloud-core-configuration/helm-charts \
 		-f ./core-values.yaml \
