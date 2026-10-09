@@ -179,6 +179,7 @@ The script uses a `.mk` configuration file to define all installation parameters
 | `DBAAS_CONFIG_FILE` | `local.mk` | DBaaS configuration file path (relative path will be resolved upon ./dbaas folder, where sub-Makefile is placed)|
 | `DBAAS_OPERATOR_ENABLED` | `true`/`false` | Install the DBaaS Operator together with DBaaS. `false` by default in both `local.mk` and `aws.mk` |
 | `CORE_DBAAS_SERVICE_NAME` | service name | Service name in the `API_DBAAS_ADDRESS` given to Cloud Core components. Defaults to `DBAAS_SERVICE_NAME`; the DBaaS installation always uses the real name |
+| `CORETPL_CHART_DIR` | `../coretpl` | Package `coretpl` from this directory into every Cloud Core chart instead of downloading the published version. Use it to test `coretpl` changes before they are released. A relative path is resolved against `cloud-core-local-dev` |
 | `INSTALL_MAAS` | `true`/`false` | Install MAAS components |
 | `MAAS_CONFIG_FILE` | `local.mk` | MAAS configuration file path (relative path will be resolved upon ./maas folder, where sub-Makefile is placed)|
 | `INSTALL_DBAAS_AGENT` | `true`/`false` | Install the DBaaS agent. Defaults to `false` when `M2M_AUTH_MODE=k8s`, `true` otherwise |

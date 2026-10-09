@@ -1236,9 +1236,21 @@ define check_crd_existence
 	echo "$(GREEN)--- CRD $(1) found$(NC)"
 endef
 
-# Helper function to update Helm dependencies
+# Helper function to update Helm dependencies.
+# With CORETPL_CHART_DIR set, the chart gets coretpl packaged from that directory instead, so an
+# unpublished coretpl can be tested. The update is skipped then: coretpl is the only dependency of
+# the Cloud Core charts, and the update would fetch the published version again.
 define update_helm_dependencies
-	if [ -n "$(2)" ]; then \
+	if [ -n "$(CORETPL_CHART_DIR)" ]; then \
+		echo "$(CYAN)--- Packaging coretpl from $(CORETPL_CHART_DIR) into $(1)/charts...$(NC)"; \
+		mkdir -p $(1)/charts && rm -f $(1)/charts/coretpl-*.tgz; \
+		if helm package $(abspath $(CORETPL_CHART_DIR)) --destination $(1)/charts; then \
+			echo "$(GREEN)--- coretpl packaged successfully$(NC)"; \
+		else \
+			echo "$(RED)Error: Failed to package coretpl from $(CORETPL_CHART_DIR)$(NC)"; \
+			exit 1; \
+		fi; \
+	elif [ -n "$(2)" ]; then \
 		echo "$(CYAN)--- Updating Helm dependencies in $(1) with config $(2)...$(NC)"; \
 		if (cd $(1) && helm dependency update --repository-config $(2)); then \
 			echo "$(GREEN)--- Helm dependencies updated successfully$(NC)"; \
