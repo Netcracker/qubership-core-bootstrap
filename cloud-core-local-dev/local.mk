@@ -16,10 +16,10 @@ INSTALL_DBAAS ?= true
 INSTALL_MAAS ?= false
 INSTALL_ISTIO ?= false
 # The agents carry the legacy M2M calls of the core services to DBaaS and MaaS. In the k8s mode the
-# core services call DBaaS and MaaS directly, so the agents are left out. The MaaS agent also needs
-# INSTALL_MAAS=true.
+# core services call DBaaS and MaaS directly, so the agents are left out. The MaaS agent follows
+# INSTALL_MAAS otherwise, and can be installed without it, for a MaaS that is not installed here.
 INSTALL_DBAAS_AGENT ?= $(if $(filter k8s,$(M2M_AUTH_MODE)),false,true)
-INSTALL_MAAS_AGENT ?= $(if $(filter k8s,$(M2M_AUTH_MODE)),false,true)
+INSTALL_MAAS_AGENT ?= $(if $(filter k8s,$(M2M_AUTH_MODE)),false,$(INSTALL_MAAS))
 
 # Config files of the components installed by their own makefiles. A relative path is resolved
 # against the component's folder.

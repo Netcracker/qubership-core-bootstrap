@@ -180,7 +180,7 @@ The script uses a `.mk` configuration file to define all installation parameters
 | `INSTALL_MAAS` | `true`/`false` | Install MAAS components |
 | `MAAS_CONFIG_FILE` | `local.mk` | MAAS configuration file path (relative path will be resolved upon ./maas folder, where sub-Makefile is placed)|
 | `INSTALL_DBAAS_AGENT` | `true`/`false` | Install the DBaaS agent. Defaults to `false` when `M2M_AUTH_MODE=k8s`, `true` otherwise |
-| `INSTALL_MAAS_AGENT` | `true`/`false` | Install the MaaS agent, which also needs `INSTALL_MAAS=true`. Defaults to `false` when `M2M_AUTH_MODE=k8s`, `true` otherwise |
+| `INSTALL_MAAS_AGENT` | `true`/`false` | Install the MaaS agent. Defaults to `false` when `M2M_AUTH_MODE=k8s`, to the value of `INSTALL_MAAS` otherwise |
 | `INSTALL_ISTIO` | `true`/`false` | Install Istio service mesh |
 | `ISTIO_CONFIG_FILE` | `local.mk` | Istio configuration file path (relative path will be resolved upon ./istio folder, where sub-Makefile is placed)|
 
