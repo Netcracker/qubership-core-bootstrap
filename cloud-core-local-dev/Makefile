@@ -292,7 +292,7 @@ define resolved_refs_report
 	$(call ref_row,DBAAS_M2M_AUTH_MODE,$(DBAAS_M2M_AUTH_MODE),$(if $(filter file default,$(origin DBAAS_M2M_AUTH_MODE)),follows M2M_AUTH_MODE,explicit)); \
 	$(call ref_row,MAAS_M2M_AUTH_MODE,$(MAAS_M2M_AUTH_MODE),$(if $(filter file default,$(origin MAAS_M2M_AUTH_MODE)),follows M2M_AUTH_MODE,explicit)); \
 	$(call ref_row,INSTALL_DBAAS_AGENT,$(INSTALL_DBAAS_AGENT),$(if $(filter file default,$(origin INSTALL_DBAAS_AGENT)),default (off in the k8s mode),explicit)); \
-	$(call ref_row,INSTALL_MAAS_AGENT,$(INSTALL_MAAS_AGENT),$(if $(filter file default,$(origin INSTALL_MAAS_AGENT)),default (off in the k8s mode),explicit)); \
+	$(call ref_row,INSTALL_MAAS_AGENT,$(INSTALL_MAAS_AGENT),$(if $(filter file default,$(origin INSTALL_MAAS_AGENT)),default (INSTALL_MAAS, off in the k8s mode),explicit)); \
 	$(foreach s,$(CORE_SERVICES),$(call ref_row,$(s)_BRANCH,$($(s)_CLONE_BRANCH),$($(s)_BRANCH_SOURCE)); $(call ref_row,$(s)_TAG,$($(s)_TAG),$($(s)_TAG_SOURCE)); ) \
 	$(call ref_row,DBAAS_REPO_BRANCH,$(DBAAS_REPO_BRANCH),$(DBAAS_REPO_BRANCH_SOURCE)); \
 	$(call ref_row,DBAAS_TAG,$(DBAAS_TAG),$(DBAAS_TAG_SOURCE)); \
@@ -322,11 +322,11 @@ DBAAS_IMAGES := $(DBAAS_IMAGE_REPOSITORY):$(DBAAS_TAG) $(DBAAS_VALIDATION_IMAGE_
 RESOLVED_IMAGES := $(foreach s,$(filter-out CORE_BOOTSTRAP CR_SYNCHRONIZER DBAAS_AGENT MAAS_AGENT,$(CORE_SERVICES)),$($(s)_IMAGE_REPOSITORY):$($(s)_TAG)) \
 	$(CORE_BOOTSTRAP_IMAGE) $(CR_SYNCHRONIZER_IMAGE) \
 	$(if $(filter true,$(INSTALL_DBAAS_AGENT)),$(DBAAS_AGENT_IMAGE)) \
-	$(if $(and $(filter true,$(INSTALL_MAAS)),$(filter true,$(INSTALL_MAAS_AGENT))),$(MAAS_AGENT_IMAGE)) \
+	$(if $(filter true,$(INSTALL_MAAS_AGENT)),$(MAAS_AGENT_IMAGE)) \
 	$(if $(filter true,$(INSTALL_DBAAS)),$(DBAAS_IMAGES)) \
 	$(if $(filter true,$(INSTALL_MAAS)),$(MAAS_IMAGES))
 SKIPPED_IMAGES := $(if $(filter true,$(INSTALL_DBAAS_AGENT)),,$(DBAAS_AGENT_IMAGE)) \
-	$(if $(and $(filter true,$(INSTALL_MAAS)),$(filter true,$(INSTALL_MAAS_AGENT))),,$(MAAS_AGENT_IMAGE)) \
+	$(if $(filter true,$(INSTALL_MAAS_AGENT)),,$(MAAS_AGENT_IMAGE)) \
 	$(if $(filter true,$(INSTALL_DBAAS)),,$(DBAAS_IMAGES)) \
 	$(if $(filter true,$(INSTALL_MAAS)),,$(MAAS_IMAGES))
 
@@ -824,7 +824,7 @@ deploy-dbaas-agent:
 	@echo ""
 
 deploy-maas-agent:
-	@if [ "$(INSTALL_MAAS)" = "true" ] && [ "$(INSTALL_MAAS_AGENT)" = "true" ]; then \
+	@if [ "$(INSTALL_MAAS_AGENT)" = "true" ]; then \
 		echo "$(YELLOW)--- Setting up MaaS agent...$(NC)"; \
 		$(call update_helm_dependencies,$(REPOS_DIR)/qubership-core-maas-agent/helm-templates/maas-agent,); \
 		helm upgrade --install maas-agent $(REPOS_DIR)/qubership-core-maas-agent/helm-templates/maas-agent -n $(CORE_NAMESPACE) \
@@ -837,7 +837,7 @@ deploy-maas-agent:
 			$(HELM_DEBUG_FLAGS); \
 		echo ""; \
 	else \
-		echo "$(CYAN)--- Skipping MaaS agent installation (INSTALL_MAAS=$(INSTALL_MAAS), INSTALL_MAAS_AGENT=$(INSTALL_MAAS_AGENT))...$(NC)"; \
+		echo "$(CYAN)--- Skipping MaaS agent installation (INSTALL_MAAS_AGENT=false)...$(NC)"; \
 		echo ""; \
 	fi
 	@echo ""
