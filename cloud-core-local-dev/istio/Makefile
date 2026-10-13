@@ -139,7 +139,7 @@ deploy-qubership-istio:
 # helm upgrade --install returns before the Istio components run, and istiod's validating webhook
 # refuses connections for some seconds after istiod is ready. A resource applied in that time, such
 # as an EnvoyFilter or an AuthorizationPolicy, fails. Wait for every Deployment and DaemonSet
-# (istiod, ztunnel, istio-cni), then until istiod admits an Istio resource (a server-side dry run,
+# (istiod, ztunnel, istio-cni), then until istiod admits webhook-probe.yaml (a server-side dry run,
 # which goes through the webhook and stores nothing).
 wait-for-istio:
 	@echo "$(BLUE)=== Waiting for Istio to be ready...$(NC)"
@@ -149,11 +149,7 @@ wait-for-istio:
 	done; \
 	admitted=false; \
 	for attempt in $$(seq 1 30); do \
-		if printf '%s\n' \
-			"apiVersion: security.istio.io/v1" \
-			"kind: PeerAuthentication" \
-			"metadata: { name: webhook-probe, namespace: $(ISTIO_NAMESPACE) }" \
-			| kubectl apply --dry-run=server -f - >/dev/null 2>&1; then \
+		if kubectl -n $(ISTIO_NAMESPACE) apply --dry-run=server -f webhook-probe.yaml >/dev/null 2>&1; then \
 			admitted=true; \
 			break; \
 		fi; \
