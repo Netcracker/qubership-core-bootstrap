@@ -57,6 +57,7 @@ Run `make` without target to print list of all targets
 - **`validate`** - Validate configuration and prerequisites
 - **`template-values-files`** - Generate core-values.yaml from core-values.envsubst
 - **`install`** - Install all Cloud Core components and run mesh smoke test
+- **`install-dependencies`** - Run everything `install` does before `deploy-core`, for a suite that acts in between
 - **`mesh-smoke-test`** - Run mesh connectivity smoke test
 - **`uninstall`** - Complete uninstall, CRDs and namespaces cleanup
 
@@ -226,7 +227,49 @@ e.g.
 
 ### Istio configuration
 
-Istio ambient mesh will be enabled for `CORE_NAMESPACE`
+Istio ambient mesh will be enabled for `CORE_NAMESPACE`. `deploy-istio` returns once every Istio component
+runs and istiod admits resources, so the next step can apply Istio resources right away.
+
+### Early mesh
+
+By default, `CORE_NAMESPACE` joins the mesh at the very end of `deploy-core`, when core-mesh-config labels the
+namespace and installs its waypoint. Nothing the core services and hooks do while they install passes a waypoint.
+That is fine for an install, but not for a test suite that must see or police every request.
+
+**`CORE_MESH_EARLY=true` puts the core namespace in the mesh, behind its waypoint, before Cloud Core is deployed:**
+
+```text
+                       ensure-core-namespace    core services and hooks start    core-mesh-config
+default                |------- not in the mesh ------------------------------------| in the mesh -->
+CORE_MESH_EARLY=true   |------- in the mesh, behind the waypoint --------------------------------->
+```
+
+`enable-early-core-mesh` runs right after `ensure-core-namespace`. It creates the waypoint core-mesh-config would
+create, under the same name (`waypoint`) and with the namespace label core-mesh-config would set
+(`istio.io/use-waypoint=waypoint`), so core-mesh-config changes nothing when it runs. The Gateway carries the Helm
+ownership metadata of the core-mesh-config release, so Helm adopts it instead of refusing a resource it does not
+own. Adoption adds the chart's settings, and istiod replaces the waypoint pod once: a suite that reads the waypoint
+log must follow the log of every waypoint pod.
+
+`MESH_DEPENDENCY_NAMESPACES=dbaas,maas` puts these namespaces in the mesh, each behind its own waypoint named
+`waypoint`, at the end of `deploy-dependencies`. DBaaS and MaaS are not part of the mesh otherwise, so the calls
+the core makes to them pass no waypoint. Pods that already run join without a restart.
+
+Both settings need `INSTALL_ISTIO=true`. A suite that adds its own Istio resources, such as an access log or an
+`AuthorizationPolicy`, runs `install-dependencies`, applies them to the waypoints, then runs `deploy-core`:
+
+```bash
+ARGS="INSTALL_ISTIO=true SERVICE_MESH_TYPE=Istio CORE_MESH_EARLY=true MESH_DEPENDENCY_NAMESPACES=dbaas,maas"
+make install-dependencies $ARGS
+kubectl apply -f my-access-log.yaml   # targets the Gateway "waypoint" in core, dbaas and maas
+make deploy-core $ARGS
+```
+
+The waypoints of the dependencies exist after `install-dependencies`. The waypoint of the core namespace is created
+first thing in `deploy-core`; a resource that targets it by name, applied before, takes effect when it starts,
+before any core service does.
+
+The details are in `utils/early-mesh.mk`.
 
 ## Installation Process
 

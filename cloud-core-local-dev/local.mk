@@ -59,6 +59,13 @@ M2M_AUTH_MODE ?= legacy
 DBAAS_M2M_AUTH_MODE ?= $(M2M_AUTH_MODE)
 MAAS_M2M_AUTH_MODE ?= $(M2M_AUTH_MODE)
 MONITORING_ENABLED ?= false
+# Early mesh, for suites that must see or police every request (needs INSTALL_ISTIO=true); see
+# utils/early-mesh.mk. CORE_MESH_EARLY=true puts the core namespace in the mesh, behind its waypoint,
+# before Cloud Core is deployed, instead of at the end of deploy-core. MESH_DEPENDENCY_NAMESPACES
+# puts these namespaces (comma separated, e.g. dbaas,maas) in the mesh, each behind a waypoint, at
+# the end of deploy-dependencies.
+CORE_MESH_EARLY ?= false
+MESH_DEPENDENCY_NAMESPACES ?=
 CONSUL_ENABLED ?= true
 CONSUL_SERVICE_NAME ?= consul-consul-server
 
