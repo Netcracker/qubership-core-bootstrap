@@ -10,9 +10,10 @@ App chart for Cloud Core is intended to run project predeploy script before serv
 * ServiceAccount with Role and RoleBinding
 * Secret for storing environment variables which were lately propagated to bootstrap image
 * Job with hook which runs project_predeploy.sh script stored inside image
-* Persistent `dbaas-operator-secrets` Role and RoleBinding so dbaas-operator can manage
-  Secrets in this namespace (`DatabaseSecretClaim` / `ExternalDatabase`). The RoleBinding
-  subject namespace is taken from `API_DBAAS_ADDRESS`.
+* `dbaas-operator-secrets` Role and RoleBinding, rendered only where the cluster serves
+  `dbaas.netcracker.com/v1`, so dbaas-operator can manage Secrets in this namespace
+  (`DatabaseSecretClaim` / `ExternalDatabase`). Unlike the hook resources above, they stay
+  installed. The RoleBinding subject namespace is taken from `API_DBAAS_ADDRESS`.
 
 The chart depends on `coretpl` from this repository (`file://../../coretpl`) for the DBaaS Operator capability guard
 and namespace. Run `helm dependency update` in `helm-charts` before installing it; `cloud-core-local-dev` does this
