@@ -24,8 +24,8 @@ dependencies:
 ```
 
 3. To declare databases for the DBaaS Operator, take `spec.operatorNamespace` of the CRs from the
-   `coretpl.dbaasOperatorNamespace` template. It returns the namespace part of `API_DBAAS_ADDRESS` and fails the
-   render when the address has none:
+   `coretpl.dbaasOperatorNamespace` template. It returns the namespace part of `API_DBAAS_ADDRESS`, the second label
+   of the host, and fails the render when that label is missing, empty, or all digits, as in an IP address:
 ```yaml
 spec:
   operatorNamespace: {{ include "coretpl.dbaasOperatorNamespace" $ | quote }}
