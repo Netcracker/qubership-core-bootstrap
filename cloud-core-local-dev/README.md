@@ -20,7 +20,7 @@ This repository contains a comprehensive installation script for deploying Cloud
 - **Control Plane**
 - **DBaaS Agent**
 - **Core Operator**
-- **Config Server**
+- **Config Server**, or **core-legacy-api** in its place
 - **MaaS** [Optional]
 
 ## Quick Start
@@ -181,6 +181,8 @@ The script uses a `.mk` configuration file to define all installation parameters
 | `MAAS_CONFIG_FILE` | `local.mk` | MAAS configuration file path (relative path will be resolved upon ./maas folder, where sub-Makefile is placed)|
 | `INSTALL_DBAAS_AGENT` | `true`/`false` | Install the DBaaS agent. Defaults to `false` when `M2M_AUTH_MODE=k8s`, `true` otherwise |
 | `INSTALL_MAAS_AGENT` | `true`/`false` | Install the MaaS agent, which also needs `INSTALL_MAAS=true`. Defaults to `false` when `M2M_AUTH_MODE=k8s`, `true` otherwise |
+| `INSTALL_CONFIG_SERVER` | `true`/`false` | Install config-server. Defaults to `true`. Turn it off when `INSTALL_CORE_LEGACY_API=true`: the two charts cannot be installed together |
+| `INSTALL_CORE_LEGACY_API` | `true`/`false` | Install core-legacy-api, which serves the config-server API under the Service name `config-server`. Defaults to `false`. Turn `INSTALL_CONFIG_SERVER` off when you turn this on: the two charts cannot be installed together |
 | `INSTALL_ISTIO` | `true`/`false` | Install Istio service mesh |
 | `ISTIO_CONFIG_FILE` | `local.mk` | Istio configuration file path (relative path will be resolved upon ./istio folder, where sub-Makefile is placed)|
 
@@ -249,6 +251,7 @@ The installation script performs the following stages:
   - `qubership-core-dbaas-agent`
   - `qubership-core-core-operator`
   - `qubership-core-config-server`
+  - `qubership-mini-core`
   - `consul-k8s` (if `INSTALL_CONSUL=true`)
 
 ### Stage 3: Values File Generation
@@ -296,9 +299,12 @@ The installation script performs the following stages:
   - Applies CRDs (if `INSTALL_CRDS=true`)
   - Updates Helm dependencies
   - Installs Core Operator
-- **Config Server**
+- **Config Server** (if `INSTALL_CONFIG_SERVER=true`)
   - Updates Helm dependencies
   - Installs Config Server
+- **core-legacy-api** (if `INSTALL_CORE_LEGACY_API=true`)
+  - Installs core-legacy-api
+  - Waits for its pod to become ready
 - **MAAS** (if `INSTALL_MAAS=true`)
   - Calls MAAS installation sub-Makefile
   - Installs MAAS components with RabbitMQ and Kafka
@@ -321,6 +327,7 @@ The uninstallation script performs the following stages in reverse order:
 
 ### Stage 2: Uninstall Core Components
 - Uninstalls Config Server
+- Uninstalls core-legacy-api
 - Uninstalls Core Operator
 - Uninstalls DBaaS Agent
 - Uninstalls Control Plane
