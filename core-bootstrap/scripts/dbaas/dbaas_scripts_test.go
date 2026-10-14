@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -35,11 +36,12 @@ func TestConfigure_ReadsTheOperatorFlag(t *testing.T) {
 	}{
 		{"true", true},
 		{"TRUE", true},
+		{"True", true},
 		{"false", false},
 		{"", false},
 		{"yes", false},
 	} {
-		t.Run(tc.value, func(t *testing.T) {
+		t.Run(strconv.Quote(tc.value), func(t *testing.T) {
 			c := New()
 
 			err := c.Configure(accessorFor(configuration(map[string]string{"DBAAS_OPERATOR_ENABLED": tc.value})))
@@ -64,9 +66,28 @@ func TestCreateDatabase_SkipsRestWhenTheOperatorIsEnabled(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+// Without the operator, the database is created over REST, as before. The aggregator rejects the
+// request here, so CreateDatabase stops before it writes the credentials Secret and needs no cluster.
+func TestCreateDatabase_RegistersOverRestWhenTheOperatorIsDisabled(t *testing.T) {
+	var requests []string
+	aggregator := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests = append(requests, r.Method+" "+r.URL.Path)
+		w.WriteHeader(http.StatusBadRequest)
+	}))
+	defer aggregator.Close()
+	c := &Configurer{Namespace: "core-ns", ApiDbaasAddress: aggregator.URL, dbaasOperatorEnabled: false}
+
+	err := c.CreateDatabase(context.Background(), "control-plane", "control-plane-db-credentials", nil)
+
+	assert.ErrorContains(t, err, "error get or create database for `control-plane'")
+	assert.Equal(t, []string{"PUT /api/v3/dbaas/core-ns/databases"}, requests)
+}
+
 // The classifier sent here identifies the database control-plane already uses. An InternalDatabase
 // that replaces this call must declare the same classifier, so that an upgrade adopts the existing
-// database rather than provisioning an empty one.
+// database rather than provisioning an empty one. The microserviceName is the literal
+// "control-plane", while control-plane's chart declares its SERVICE_NAME, so an upgrade adopts the
+// database only with the default SERVICE_NAME, control-plane.
 func TestGetOrCreateDb_RegistersTheServiceDatabase(t *testing.T) {
 	var got struct {
 		method, path, user, password string
