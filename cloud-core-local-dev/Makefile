@@ -874,10 +874,14 @@ deploy-core-operator: apply-core-operator-crds
 		$(HELM_DEBUG_FLAGS)
 	@echo ""
 
+# With CONSUL_ENABLED the config-server chart mounts the secret config-server-consul-token, which
+# core-bootstrap issues only with CORE_CONFIG_CONSUL_ENABLED=true and a Consul admin token. Without
+# ACLs an empty token is enough, so the secret is created here with one, unless it exists already.
 deploy-config-server:
 	@if [ "$(INSTALL_CONFIG_SERVER)" = "true" ]; then \
 		echo "$(YELLOW)--- Setting up Config Server...$(NC)"; \
 		$(call update_helm_dependencies,$(REPOS_DIR)/qubership-core-config-server/helm-templates/config-server,); \
+		$(if $(and $(filter true,$(CONFIG_SERVER_CONSUL_ENABLED)),$(if $(filter true,$(CONSUL_ACLS)),,acls-off),$(if $(HELM_DEBUG_FLAGS),,no-dry-run)),kubectl get secret config-server-consul-token -n $(CORE_NAMESPACE) >/dev/null 2>&1 || kubectl create secret generic config-server-consul-token -n $(CORE_NAMESPACE) --from-literal=token= || exit 1;) \
 		helm upgrade --install config-server $(REPOS_DIR)/qubership-core-config-server/helm-templates/config-server -n $(CORE_NAMESPACE) \
 			-f $(REPOS_DIR)/qubership-core-config-server/helm-templates/config-server/resource-profiles/dev.yaml \
 			-f ./core-values.yaml \
