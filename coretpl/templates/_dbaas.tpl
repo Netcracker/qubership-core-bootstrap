@@ -4,9 +4,9 @@ The DBaaS Operator runs next to the aggregator, so the namespace is read from AP
 http://<aggregator>.<namespace>[.<domain>]:<port>. The render fails when the second label of the
 host is missing, empty, or all digits, as in an IP address, since none of those names a namespace.
 Call it with the root context:
-{{ include "coretpl.dbaasOperatorNamespace" $ }}
+{{ include "coretpl.dbaasNamespace" $ }}
 */}}
-{{- define "coretpl.dbaasOperatorNamespace" -}}
+{{- define "coretpl.dbaasNamespace" -}}
 {{- $host := first (splitList ":" (last (splitList "://" .Values.API_DBAAS_ADDRESS))) -}}
 {{- $parts := splitList "." $host -}}
 {{- $namespace := "" -}}

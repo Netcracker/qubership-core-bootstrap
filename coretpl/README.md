@@ -24,11 +24,11 @@ dependencies:
 ```
 
 3. To declare databases for the DBaaS Operator, take `spec.operatorNamespace` of the CRs from the
-   `coretpl.dbaasOperatorNamespace` template. It returns the namespace part of `API_DBAAS_ADDRESS`, the second label
+   `coretpl.dbaasNamespace` template. It returns the namespace part of `API_DBAAS_ADDRESS`, the second label
    of the host, and fails the render when that label is missing, empty, or all digits, as in an IP address:
 ```yaml
 spec:
-  operatorNamespace: {{ include "coretpl.dbaasOperatorNamespace" $ | quote }}
+  operatorNamespace: {{ include "coretpl.dbaasNamespace" $ | quote }}
 ```
 
 4. Render the DBaaS Operator CRs, and the mount of the Secret the operator creates, only where the cluster serves the
@@ -54,7 +54,7 @@ The library requires the following configuration parameters:
 | `NAMESPACE` | Target deployment namespace                           |
 | `CR_SYNCHRONIZER_IMAGE` | Image for the CR synchronizer                         |
 | `RESOURCE_POLLING_TIMEOUT` | Timeout for resource polling in seconds (default: 300) |
-| `API_DBAAS_ADDRESS` | DBaaS aggregator address, `http://<aggregator>.<namespace>:<port>`. Needed only by `coretpl.dbaasOperatorNamespace` |
+| `API_DBAAS_ADDRESS` | DBaaS aggregator address, `http://<aggregator>.<namespace>:<port>`. Needed only by `coretpl.dbaasNamespace` |
 
 ## Version Information
 
