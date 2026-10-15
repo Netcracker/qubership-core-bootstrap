@@ -1,5 +1,6 @@
-# The waypoint of a dependency namespace (DBaaS, MaaS), sized as core-mesh-config sizes its own, so
-# it fits on a node that runs Cloud Core. Applied by deploy-dependency-waypoints
+# The waypoint of a dependency namespace (DBaaS, MaaS). It requests less than the waypoint of
+# core-mesh-config (50m CPU and 64Mi instead of 100m and 150Mi) and has the same limits, so it fits
+# on a node that already runs Cloud Core. Applied by deploy-dependency-waypoints
 # (utils/early-mesh.mk), which fills in the ${...} placeholders and the namespace.
 apiVersion: v1
 kind: ConfigMap
