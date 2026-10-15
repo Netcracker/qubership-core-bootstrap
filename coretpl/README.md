@@ -23,6 +23,25 @@ dependencies:
 {{ include "coretpl.synchronizer.hooks" . }}
 ```
 
+3. To declare databases for the DBaaS Operator, take `spec.operatorNamespace` of the CRs from the
+   `coretpl.dbaasNamespace` template. It returns the namespace part of `API_DBAAS_ADDRESS`, the second label
+   of the host, and fails the render when that label is missing, empty, or all digits, as in an IP address:
+```yaml
+spec:
+  operatorNamespace: {{ include "coretpl.dbaasNamespace" $ | quote }}
+```
+
+4. Render the DBaaS Operator CRs, and the mount of the Secret the operator creates, only where the cluster serves the
+   operator API, so the chart still installs on clusters without it. `coretpl.dbaasOperatorEnabled` returns `true`
+   there and an empty string elsewhere:
+```yaml
+{{- if include "coretpl.dbaasOperatorEnabled" $ }}
+apiVersion: dbaas.netcracker.com/v1
+kind: InternalDatabase
+...
+{{- end }}
+```
+
 ## Configuration
 
 The library requires the following configuration parameters:
@@ -35,6 +54,7 @@ The library requires the following configuration parameters:
 | `NAMESPACE` | Target deployment namespace                           |
 | `CR_SYNCHRONIZER_IMAGE` | Image for the CR synchronizer                         |
 | `RESOURCE_POLLING_TIMEOUT` | Timeout for resource polling in seconds (default: 300) |
+| `API_DBAAS_ADDRESS` | DBaaS aggregator address, `http://<aggregator>.<namespace>:<port>`. Needed only by `coretpl.dbaasNamespace` |
 
 ## Version Information
 
@@ -46,7 +66,7 @@ To release a new version of the library, follow these steps:
 
 1. Increase the version number in `Chart.yaml`
 2. Push your changes to the `main` branch
-3. Trigger the [Coretpl Helm Library Release](https://github.com/Netcracker/qubership-core-bootstrap/actions/workflows/coretpl/publish-coretpl-release.yaml) workflow
+3. Trigger the [Coretpl Helm Library Release](https://github.com/Netcracker/qubership-core-bootstrap/actions/workflows/coretpl---publish-release.yaml) workflow
 
 The workflow will automatically build and publish the new version to the Helm repository.
 

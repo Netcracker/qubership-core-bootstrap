@@ -719,6 +719,7 @@ prepare-core-bootstrap-print-start:
 
 deploy-cloud-core-configuration:
 	@echo "$(YELLOW)--- Deploying cloud-core-configuration$(NC)"
+	@$(call update_helm_dependencies,../cloud-core-configuration/helm-charts,)
 	helm upgrade --install -n $(CORE_NAMESPACE) $(CREATE_NAMESPACE_OPTION) \
 		cloud-core-app-chart ../cloud-core-configuration/helm-charts \
 		-f ./core-values.yaml \
@@ -1243,9 +1244,21 @@ define check_crd_existence
 	echo "$(GREEN)--- CRD $(1) found$(NC)"
 endef
 
-# Helper function to update Helm dependencies
+# Helper function to update Helm dependencies.
+# With CORETPL_CHART_DIR set, the chart gets coretpl packaged from that directory instead, so an
+# unpublished coretpl can be tested. The update is skipped then: coretpl is the only dependency of
+# the Cloud Core charts, and the update would fetch the published version again.
 define update_helm_dependencies
-	if [ -n "$(2)" ]; then \
+	if [ -n "$(CORETPL_CHART_DIR)" ]; then \
+		echo "$(CYAN)--- Packaging coretpl from $(CORETPL_CHART_DIR) into $(1)/charts...$(NC)"; \
+		mkdir -p $(1)/charts && rm -f $(1)/charts/coretpl-*.tgz; \
+		if helm package $(abspath $(CORETPL_CHART_DIR)) --destination $(1)/charts; then \
+			echo "$(GREEN)--- coretpl packaged successfully$(NC)"; \
+		else \
+			echo "$(RED)Error: Failed to package coretpl from $(CORETPL_CHART_DIR)$(NC)"; \
+			exit 1; \
+		fi; \
+	elif [ -n "$(2)" ]; then \
 		echo "$(CYAN)--- Updating Helm dependencies in $(1) with config $(2)...$(NC)"; \
 		if (cd $(1) && helm dependency update --repository-config $(2)); then \
 			echo "$(GREEN)--- Helm dependencies updated successfully$(NC)"; \
@@ -1277,9 +1290,10 @@ define run_dbaas_operation
 	echo "$(CYAN)--- Using pg namespace: $(PG_NAMESPACE)$(NC)"; \
 	echo "$(CYAN)--- Using dbaas-aggregator tag: $(DBAAS_TAG)$(NC)"; \
 	echo "$(CYAN)--- Using M2M auth mode: $(DBAAS_M2M_AUTH_MODE)$(NC)"; \
+	echo "$(CYAN)--- Using dbaas operator enabled: $(DBAAS_OPERATOR_ENABLED)$(NC)"; \
 	SKIP_CRDS=$(if $(filter true,$(INSTALL_CRDS)),false,true); \
 	echo "$(CYAN)--- Using skip crds: $$SKIP_CRDS$(NC)"; \
-	if ('$(MAKE)' -C .tmp/qubership-dbaas/bootstrap  $(1) CONFIG_FILE=$(DBAAS_CONFIG_FILE) PATRONI_SERVICES_VALUES_FILE=../../../dbaas/patroni-services-values.yaml DBAAS_SERVICE_NAME=$(DBAAS_SERVICE_NAME) DBAAS_NAMESPACE=$(DBAAS_NAMESPACE) PG_NAMESPACE=$(PG_NAMESPACE) SKIP_CRDS=$$SKIP_CRDS CREATE_NAMESPACE=$(CREATE_NAMESPACE) DBAAS_OPERATOR_ENABLED=false TAG=$(DBAAS_TAG) M2M_AUTH_MODE=$(DBAAS_M2M_AUTH_MODE) REPOS_DIR=$(abspath $(REPOS_DIR))); then \
+	if ('$(MAKE)' -C .tmp/qubership-dbaas/bootstrap  $(1) CONFIG_FILE=$(DBAAS_CONFIG_FILE) PATRONI_SERVICES_VALUES_FILE=../../../dbaas/patroni-services-values.yaml DBAAS_SERVICE_NAME=$(DBAAS_SERVICE_NAME) DBAAS_NAMESPACE=$(DBAAS_NAMESPACE) PG_NAMESPACE=$(PG_NAMESPACE) SKIP_CRDS=$$SKIP_CRDS CREATE_NAMESPACE=$(CREATE_NAMESPACE) DBAAS_OPERATOR_ENABLED=$(DBAAS_OPERATOR_ENABLED) TAG=$(DBAAS_TAG) M2M_AUTH_MODE=$(DBAAS_M2M_AUTH_MODE) REPOS_DIR=$(abspath $(REPOS_DIR))); then \
 		echo "$(GREEN)=== DBaaS $(1) completed successfully$(NC)"; \
 	else \
 		echo "$(RED)Error: DBaaS $(1) failed$(NC)"; \
