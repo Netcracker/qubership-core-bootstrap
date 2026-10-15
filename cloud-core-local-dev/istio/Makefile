@@ -21,7 +21,7 @@ CREATE_NAMESPACE_OPTION := $(if $(filter true,$(CREATE_NAMESPACE)),--create-name
 .PHONY: help \
 	validate validate-start validate-namespace validate-crds \
 	setup-repo \
-	install install-gateway-api-crds deploy-qubership-istio \
+	install install-gateway-api-crds deploy-qubership-istio wait-for-istio \
 	uninstall uninstall-start uninstall-istio \
 	cleanup-crds cleanup-namespace
 
@@ -39,6 +39,7 @@ help:
 	@echo "    setup-repo             - Clone/update qubership-istio repository"
 	@echo "    install-gateway-api-crds - Install Gateway API CRDs"
 	@echo "    deploy-qubership-istio - Install qubership-istio Helm chart into ISTIO_NAMESPACE"
+	@echo "    wait-for-istio         - Wait until every Istio component runs and istiod admits resources"
 	@echo ""
 	@echo "  uninstall                - Uninstall Istio and clean up CRDs/namespace"
 	@echo "    uninstall-start        - Print uninstall start message"
@@ -135,7 +136,33 @@ deploy-qubership-istio:
 	@echo "$(GREEN)=== Istio deploy completed$(NC)"
 	@echo ""
 
-install: validate setup-repo install-gateway-api-crds deploy-qubership-istio
+# helm upgrade --install returns before the Istio components run, and istiod's validating webhook
+# refuses connections for some seconds after istiod is ready. A resource applied in that time, such
+# as an EnvoyFilter or an AuthorizationPolicy, fails. Wait for every Deployment and DaemonSet
+# (istiod, ztunnel, istio-cni), then until istiod admits webhook-probe.yaml (a server-side dry run,
+# which goes through the webhook and stores nothing).
+wait-for-istio:
+	@echo "$(BLUE)=== Waiting for Istio to be ready...$(NC)"
+	@set -e; \
+	for component in $$(kubectl -n $(ISTIO_NAMESPACE) get deployments,daemonsets -o name); do \
+		kubectl -n $(ISTIO_NAMESPACE) rollout status "$$component" --timeout=300s; \
+	done; \
+	admitted=false; \
+	for attempt in $$(seq 1 30); do \
+		if kubectl -n $(ISTIO_NAMESPACE) apply --dry-run=server -f webhook-probe.yaml >/dev/null 2>&1; then \
+			admitted=true; \
+			break; \
+		fi; \
+		sleep 2; \
+	done; \
+	if [ "$$admitted" != true ]; then \
+		echo "$(RED)Error: istiod does not admit resources after 60 s$(NC)"; \
+		exit 1; \
+	fi; \
+	echo "$(GREEN)--- istiod admits resources$(NC)"
+	@echo ""
+
+install: validate setup-repo install-gateway-api-crds deploy-qubership-istio wait-for-istio
 	@echo "$(GREEN)=== Istio installation completed$(NC)"
 	@echo ""
 

@@ -6,7 +6,7 @@
 .PHONY: all install help
 
 # Installation targets
-.PHONY: deploy deploy-dependencies deploy-core \
+.PHONY: install-dependencies deploy deploy-dependencies deploy-core \
 	clone-repos template-values-files \
 	deploy-consul deploy-consul-old deploy-consul-print-start install-consul wait-for-consul check-consul-connectivity \
 	deploy-monitoring deploy-metrics-server \
@@ -401,6 +401,7 @@ help:
 	@echo ""
 	@echo "$(CYAN)MAIN TARGETS:$(NC)"
 	@echo "  install                 # Complete installation: validate prerequisites, deploy Cloud Core and dependencies, mesh connectivity smoke test"
+	@echo "  install-dependencies    # Everything install does before deploy-core, for suites that act in between"
 	@echo "  deploy                  # Deploy Cloud Core and dependencies"
 	@echo "  uninstall               # Complete uninstall, CRDs and namespaces cleanup"
 	@echo ""
@@ -412,6 +413,8 @@ help:
 	@echo "  deploy-metrics-server   # Deploy metrics server (if INSTALL_METRICS_SERVER=true)"
 	@echo "  deploy-istio            # Deploy Istio via qubership-istio-distr (if INSTALL_ISTIO=true)"
 	@echo "  deploy-core-mesh-config # Enable Istio mesh via core-mesh-config chart (if INSTALL_ISTIO=true)"
+	@echo "  enable-early-core-mesh  # Put the core namespace in the mesh before Cloud Core is deployed (if CORE_MESH_EARLY=true)"
+	@echo "  deploy-dependency-waypoints # Put MESH_DEPENDENCY_NAMESPACES in the mesh, behind a waypoint"
 	@echo "  deploy-dbaas            # Deploy DBaaS (if INSTALL_DBAAS=true)"
 	@echo "  deploy-maas             # Deploy MaaS (if INSTALL_MAAS=true)"
 	@echo ""
@@ -461,15 +464,20 @@ help:
 # INSTALLATION
 # =============================================================================
 
-install: resolved-refs validate clone-repos template-values-files deploy #mesh-smoke-test
+install: install-dependencies deploy-core #mesh-smoke-test
+
+# Everything install does before Cloud Core itself. A suite that has to act between the
+# dependencies and Cloud Core runs this, does its part, then runs deploy-core.
+install-dependencies: resolved-refs validate clone-repos template-values-files deploy-dependencies
 
 deploy: deploy-dependencies deploy-core
 
-deploy-dependencies: deploy-metrics-server deploy-monitoring deploy-consul deploy-dbaas deploy-maas deploy-istio
+deploy-dependencies: deploy-metrics-server deploy-monitoring deploy-consul deploy-dbaas deploy-maas deploy-istio deploy-dependency-waypoints
 	@echo "$(GREEN)=== Cloud Core dependencies deployment completed$(NC)"
 	@echo ""
 
-deploy-core: ensure-core-namespace prepare-core-bootstrap deploy-cloud-core-components deploy-core-mesh-config
+# enable-early-core-mesh does nothing unless CORE_MESH_EARLY=true: see utils/early-mesh.mk
+deploy-core: ensure-core-namespace enable-early-core-mesh prepare-core-bootstrap deploy-cloud-core-components deploy-core-mesh-config
 	@echo "$(GREEN)=== Cloud Core deployment completed$(NC)"
 	@echo ""
 
@@ -891,7 +899,7 @@ uninstall-cloud-core-components: uninstall-site-management uninstall-config-serv
 	@echo "$(GREEN)=== Cloud Core components uninstallation completed$(NC)"
 	@echo ""
 
-uninstall-dependencies: uninstall-dbaas uninstall-consul uninstall-monitoring uninstall-metrics-server
+uninstall-dependencies: uninstall-dependency-waypoints uninstall-dbaas uninstall-consul uninstall-monitoring uninstall-metrics-server
 	@echo "$(GREEN)=== Dependencies uninstallation completed$(NC)"
 	@echo ""
 
@@ -1157,6 +1165,9 @@ uninstall-core-mesh-config:
 # Reset control plane targets
 # =============================================================================
 include utils/reset-control-plane.mk
+
+# CORE_MESH_EARLY and MESH_DEPENDENCY_NAMESPACES
+include utils/early-mesh.mk
 
 # =============================================================================
 # HELPER FUNCTIONS

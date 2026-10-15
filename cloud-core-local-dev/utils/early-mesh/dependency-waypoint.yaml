@@ -1,0 +1,40 @@
+# The waypoint of a dependency namespace (DBaaS, MaaS). It requests less than the waypoint of
+# core-mesh-config (50m CPU and 64Mi instead of 100m and 150Mi) and has the same limits, so it fits
+# on a node that already runs Cloud Core. Applied by deploy-dependency-waypoints
+# (utils/early-mesh.mk), which fills in the ${...} placeholders and the namespace.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ${WAYPOINT_NAME}-pod-options
+data:
+  deployment: |
+    spec:
+      template:
+        spec:
+          containers:
+            - name: istio-proxy
+              resources:
+                requests:
+                  cpu: 50m
+                  memory: 64Mi
+                limits:
+                  cpu: 500m
+                  memory: 150Mi
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: ${WAYPOINT_NAME}
+  labels:
+    istio.io/waypoint-for: service
+spec:
+  gatewayClassName: istio-waypoint
+  infrastructure:
+    parametersRef:
+      group: ""
+      kind: ConfigMap
+      name: ${WAYPOINT_NAME}-pod-options
+  listeners:
+    - name: mesh
+      port: 15008
+      protocol: HBONE
