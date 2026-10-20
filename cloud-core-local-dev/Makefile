@@ -24,7 +24,7 @@
 	deploy-dbaas-agent \
 	deploy-maas-agent \
 	apply-core-operator-crds deploy-core-operator \
-	deploy-config-server
+	deploy-config-server deploy-core-legacy-api
 
 # Uninstallation targets
 .PHONY: uninstall uninstall-core uninstall-dependencies \
@@ -37,7 +37,7 @@
 	uninstall-control-plane-db-credentials \
 	uninstall-facade-operator uninstall-ingress-gateway uninstall-site-management \
 	uninstall-paas-mediation uninstall-control-plane uninstall-dbaas-agent uninstall-maas-agent \
-	uninstall-core-operator uninstall-config-server \
+	uninstall-core-operator uninstall-config-server uninstall-core-legacy-api \
 	cleanup-crds cleanup-namespaces
 
 # Validation and utility targets
@@ -111,10 +111,11 @@ endif
 # the rolling tag qubership-core-infra's shared docker-build.yaml publishes. An explicit
 # <SERVICE>_TAG (command line or environment) always wins over the tag derived here.
 # <SERVICE> is FACADE_OPERATOR, INGRESS_GATEWAY, CONTROL_PLANE, PAAS_MEDIATION, DBAAS_AGENT,
-# MAAS_AGENT, CORE_OPERATOR, CONFIG_SERVER or SITE_MANAGEMENT. CORE_BOOTSTRAP and CR_SYNCHRONIZER
-# follow the same rule, for the images built from the repository of this bootstrap; nothing is
-# cloned for them. As a branch of that repository may have no image, the tag is also looked up in
-# ghcr.io, and a TEST_BRANCH without an image falls back to BASELINE_BRANCH, per image.
+# MAAS_AGENT, CORE_OPERATOR, CONFIG_SERVER, CORE_LEGACY_API or SITE_MANAGEMENT. CORE_BOOTSTRAP and
+# CR_SYNCHRONIZER follow the same rule, for the images built from the repository of this
+# bootstrap; nothing is cloned for them. As a branch of that repository may have no image, the tag
+# is also looked up in ghcr.io, and a TEST_BRANCH without an image falls back to BASELINE_BRANCH,
+# per image.
 #
 # ISTIO_REPO_BRANCH, CORE_MESH_CONFIG_REPO_BRANCH, DBAAS_REPO_BRANCH and MAAS_BRANCH are resolved in
 # this order:
@@ -216,7 +217,7 @@ endif
 endef
 
 CORE_SERVICES := FACADE_OPERATOR INGRESS_GATEWAY CONTROL_PLANE PAAS_MEDIATION DBAAS_AGENT \
-	MAAS_AGENT CORE_OPERATOR CONFIG_SERVER SITE_MANAGEMENT CORE_BOOTSTRAP CR_SYNCHRONIZER
+	MAAS_AGENT CORE_OPERATOR CONFIG_SERVER CORE_LEGACY_API SITE_MANAGEMENT CORE_BOOTSTRAP CR_SYNCHRONIZER
 
 $(eval $(call core_service,FACADE_OPERATOR,https://github.com/Netcracker/qubership-core-facade-operator.git))
 # ingress-gateway is the exception to BASELINE_BRANCH: its repository has no branch for a release
@@ -229,6 +230,7 @@ $(eval $(call core_service,DBAAS_AGENT,https://github.com/Netcracker/qubership-c
 $(eval $(call core_service,MAAS_AGENT,https://github.com/Netcracker/qubership-core-maas-agent.git))
 $(eval $(call core_service,CORE_OPERATOR,https://github.com/Netcracker/qubership-core-core-operator.git))
 $(eval $(call core_service,CONFIG_SERVER,https://github.com/Netcracker/qubership-core-config-server.git))
+$(eval $(call core_service,CORE_LEGACY_API,https://github.com/Netcracker/qubership-mini-core.git))
 $(eval $(call core_service,SITE_MANAGEMENT,https://github.com/Netcracker/qubership-core-site-management.git))
 # core-bootstrap and cr-synchronizer are images built from the repository this makefile lives in.
 # Their repository is not cloned: only the image tag is resolved, from the branch of that repository.
@@ -307,25 +309,36 @@ endef
 # A mode that is not one of the three would be passed on to the charts as it is.
 $(foreach v,M2M_AUTH_MODE DBAAS_M2M_AUTH_MODE MAAS_M2M_AUTH_MODE,$(if $(filter legacy hybrid k8s,$($(v))),,$(error $(v) must be legacy, hybrid or k8s, got '$($(v))')))
 
+# Both charts own the Service config-server, so the second helm install would fail after the first
+# one has already been deployed.
+$(if $(and $(filter true,$(INSTALL_CONFIG_SERVER)),$(filter true,$(INSTALL_CORE_LEGACY_API))),$(error INSTALL_CONFIG_SERVER and INSTALL_CORE_LEGACY_API cannot both be true: both charts own the Service config-server))
+
 .PHONY: resolved-refs check-images
 
 # The images the install pulls, as repository:tag. DBaaS and MaaS install their own images, with
 # the tags resolved above. The images of a component that is not installed (INSTALL_MAAS or
 # INSTALL_DBAAS is not true) are left out of the lookup, so that a missing one cannot stop an install
 # that does not use it; they are listed in SKIPPED_IMAGES and shown as not installed. The same goes
-# for the images of the agents that INSTALL_DBAAS_AGENT and INSTALL_MAAS_AGENT leave out.
+# for the images of the agents that INSTALL_DBAAS_AGENT and INSTALL_MAAS_AGENT leave out, and of
+# config-server and core-legacy-api that INSTALL_CONFIG_SERVER and INSTALL_CORE_LEGACY_API leave out.
 MAAS_IMAGES := $(MAAS_IMAGE_REPOSITORY):$(MAAS_IMAGE_TAG)
 DBAAS_AGENT_IMAGE := $(DBAAS_AGENT_IMAGE_REPOSITORY):$(DBAAS_AGENT_TAG)
 MAAS_AGENT_IMAGE := $(MAAS_AGENT_IMAGE_REPOSITORY):$(MAAS_AGENT_TAG)
+CONFIG_SERVER_IMAGE := $(CONFIG_SERVER_IMAGE_REPOSITORY):$(CONFIG_SERVER_TAG)
+CORE_LEGACY_API_IMAGE := $(CORE_LEGACY_API_IMAGE_REPOSITORY):$(CORE_LEGACY_API_TAG)
 DBAAS_IMAGES := $(DBAAS_IMAGE_REPOSITORY):$(DBAAS_TAG) $(DBAAS_VALIDATION_IMAGE_REPOSITORY):$(DBAAS_TAG)
 
-RESOLVED_IMAGES := $(foreach s,$(filter-out CORE_BOOTSTRAP CR_SYNCHRONIZER DBAAS_AGENT MAAS_AGENT,$(CORE_SERVICES)),$($(s)_IMAGE_REPOSITORY):$($(s)_TAG)) \
+RESOLVED_IMAGES := $(foreach s,$(filter-out CORE_BOOTSTRAP CR_SYNCHRONIZER DBAAS_AGENT MAAS_AGENT CONFIG_SERVER CORE_LEGACY_API,$(CORE_SERVICES)),$($(s)_IMAGE_REPOSITORY):$($(s)_TAG)) \
 	$(CORE_BOOTSTRAP_IMAGE) $(CR_SYNCHRONIZER_IMAGE) \
+	$(if $(filter true,$(INSTALL_CONFIG_SERVER)),$(CONFIG_SERVER_IMAGE)) \
+	$(if $(filter true,$(INSTALL_CORE_LEGACY_API)),$(CORE_LEGACY_API_IMAGE)) \
 	$(if $(filter true,$(INSTALL_DBAAS_AGENT)),$(DBAAS_AGENT_IMAGE)) \
 	$(if $(and $(filter true,$(INSTALL_MAAS)),$(filter true,$(INSTALL_MAAS_AGENT))),$(MAAS_AGENT_IMAGE)) \
 	$(if $(filter true,$(INSTALL_DBAAS)),$(DBAAS_IMAGES)) \
 	$(if $(filter true,$(INSTALL_MAAS)),$(MAAS_IMAGES))
-SKIPPED_IMAGES := $(if $(filter true,$(INSTALL_DBAAS_AGENT)),,$(DBAAS_AGENT_IMAGE)) \
+SKIPPED_IMAGES := $(if $(filter true,$(INSTALL_CONFIG_SERVER)),,$(CONFIG_SERVER_IMAGE)) \
+	$(if $(filter true,$(INSTALL_CORE_LEGACY_API)),,$(CORE_LEGACY_API_IMAGE)) \
+	$(if $(filter true,$(INSTALL_DBAAS_AGENT)),,$(DBAAS_AGENT_IMAGE)) \
 	$(if $(and $(filter true,$(INSTALL_MAAS)),$(filter true,$(INSTALL_MAAS_AGENT))),,$(MAAS_AGENT_IMAGE)) \
 	$(if $(filter true,$(INSTALL_DBAAS)),,$(DBAAS_IMAGES)) \
 	$(if $(filter true,$(INSTALL_MAAS)),,$(MAAS_IMAGES))
@@ -551,6 +564,7 @@ clone-repos:
 	@$(call clone_or_update_repo,qubership-core-maas-agent,https://github.com/Netcracker/qubership-core-maas-agent.git,$(MAAS_AGENT_CLONE_BRANCH),$(BASELINE_BRANCH),branch-only)
 	@$(call clone_or_update_repo,qubership-core-core-operator,https://github.com/Netcracker/qubership-core-core-operator.git,$(CORE_OPERATOR_CLONE_BRANCH),$(BASELINE_BRANCH),branch-only)
 	@$(call clone_or_update_repo,qubership-core-config-server,https://github.com/Netcracker/qubership-core-config-server.git,$(CONFIG_SERVER_CLONE_BRANCH),$(BASELINE_BRANCH),branch-only)
+	@$(call clone_or_update_repo,qubership-mini-core,https://github.com/Netcracker/qubership-mini-core.git,$(CORE_LEGACY_API_CLONE_BRANCH),$(BASELINE_BRANCH),branch-only)
 	@$(call clone_or_update_repo,qubership-dbaas,https://github.com/Netcracker/qubership-dbaas.git,$(DBAAS_REPO_BRANCH),$(BASELINE_BRANCH))
 	@echo ""
 
@@ -733,7 +747,7 @@ deploy-cloud-core-configuration:
 
 # ------------------ cloud core ---------------------------
 
-deploy-cloud-core-components: deploy-cloud-core-print-start deploy-facade-operator deploy-ingress-gateway deploy-control-plane deploy-paas-mediation deploy-dbaas-agent deploy-maas-agent deploy-core-operator deploy-config-server deploy-site-management
+deploy-cloud-core-components: deploy-cloud-core-print-start deploy-facade-operator deploy-ingress-gateway deploy-control-plane deploy-paas-mediation deploy-dbaas-agent deploy-maas-agent deploy-core-operator deploy-config-server deploy-core-legacy-api deploy-site-management
 	@echo "$(GREEN)=== Cloud Core components deployment completed$(NC)"
 	@echo ""
 
@@ -872,16 +886,41 @@ deploy-core-operator: apply-core-operator-crds
 		$(HELM_DEBUG_FLAGS)
 	@echo ""
 
-deploy-config-server: 
-	@echo "$(YELLOW)--- Setting up Config Server...$(NC)"
-	@$(call update_helm_dependencies,$(REPOS_DIR)/qubership-core-config-server/helm-templates/config-server,)
-	helm upgrade --install config-server $(REPOS_DIR)/qubership-core-config-server/helm-templates/config-server -n $(CORE_NAMESPACE) \
-		-f $(REPOS_DIR)/qubership-core-config-server/helm-templates/config-server/resource-profiles/dev.yaml \
-		-f ./core-values.yaml \
-		--set IMAGE_REPOSITORY=$(CONFIG_SERVER_IMAGE_REPOSITORY) \
-		--set TAG=$(CONFIG_SERVER_TAG) \
-		--set CONSUL_ENABLED=$(CONFIG_SERVER_CONSUL_ENABLED) \
-		$(HELM_DEBUG_FLAGS)
+# With CONSUL_ENABLED the config-server chart mounts the secret config-server-consul-token, which
+# core-bootstrap issues only with CORE_CONFIG_CONSUL_ENABLED=true and a Consul admin token. Without
+# ACLs an empty token is enough, so the secret is created here with one, unless it exists already.
+deploy-config-server:
+	@if [ "$(INSTALL_CONFIG_SERVER)" = "true" ]; then \
+		echo "$(YELLOW)--- Setting up Config Server...$(NC)"; \
+		$(call update_helm_dependencies,$(REPOS_DIR)/qubership-core-config-server/helm-templates/config-server,); \
+		$(if $(and $(filter true,$(CONFIG_SERVER_CONSUL_ENABLED)),$(if $(filter true,$(CONSUL_ACLS)),,acls-off),$(if $(HELM_DEBUG_FLAGS),,no-dry-run)),kubectl get secret config-server-consul-token -n $(CORE_NAMESPACE) >/dev/null 2>&1 || kubectl create secret generic config-server-consul-token -n $(CORE_NAMESPACE) --from-literal=token= || exit 1;) \
+		helm upgrade --install config-server $(REPOS_DIR)/qubership-core-config-server/helm-templates/config-server -n $(CORE_NAMESPACE) \
+			-f $(REPOS_DIR)/qubership-core-config-server/helm-templates/config-server/resource-profiles/dev.yaml \
+			-f ./core-values.yaml \
+			--set IMAGE_REPOSITORY=$(CONFIG_SERVER_IMAGE_REPOSITORY) \
+			--set TAG=$(CONFIG_SERVER_TAG) \
+			--set CONSUL_ENABLED=$(CONFIG_SERVER_CONSUL_ENABLED) \
+			$(HELM_DEBUG_FLAGS); \
+	else \
+		echo "$(CYAN)--- Skipping Config Server installation (INSTALL_CONFIG_SERVER=false)...$(NC)"; \
+	fi
+	@echo ""
+
+# At startup core-legacy-api reads Consul, writes its default properties there if they are not there
+# yet, and exits when either fails, so the wait for the rollout also checks its access to Consul.
+deploy-core-legacy-api:
+	@if [ "$(INSTALL_CORE_LEGACY_API)" = "true" ]; then \
+		echo "$(YELLOW)--- Setting up core-legacy-api...$(NC)"; \
+		helm upgrade --install core-legacy-api $(REPOS_DIR)/qubership-mini-core/core-legacy-api/helm-templates/core-legacy-api -n $(CORE_NAMESPACE) \
+			-f $(REPOS_DIR)/qubership-mini-core/core-legacy-api/helm-templates/core-legacy-api/resource-profiles/dev.yaml \
+			-f ./core-values.yaml \
+			--set IMAGE_REPOSITORY=$(CORE_LEGACY_API_IMAGE_REPOSITORY) \
+			--set TAG=$(CORE_LEGACY_API_TAG) \
+			$(HELM_DEBUG_FLAGS) || exit 1; \
+		$(if $(HELM_DEBUG_FLAGS),,kubectl rollout status deployment/core-legacy-api -n $(CORE_NAMESPACE) --timeout=5m || exit 1;) \
+	else \
+		echo "$(CYAN)--- Skipping core-legacy-api installation (INSTALL_CORE_LEGACY_API=false)...$(NC)"; \
+	fi
 	@echo ""
 
 # =============================================================================
@@ -896,7 +935,7 @@ uninstall-core: uninstall-core-mesh-config delete-control-plane-database uninsta
 	@echo "$(GREEN)=== Core uninstallation completed$(NC)"
 	@echo ""
 
-uninstall-cloud-core-components: uninstall-site-management uninstall-config-server uninstall-core-operator uninstall-dbaas-agent uninstall-maas-agent uninstall-paas-mediation uninstall-control-plane uninstall-ingress-gateway uninstall-facade-operator
+uninstall-cloud-core-components: uninstall-site-management uninstall-config-server uninstall-core-legacy-api uninstall-core-operator uninstall-dbaas-agent uninstall-maas-agent uninstall-paas-mediation uninstall-control-plane uninstall-ingress-gateway uninstall-facade-operator
 	@echo "$(GREEN)=== Cloud Core components uninstallation completed$(NC)"
 	@echo ""
 
@@ -963,6 +1002,11 @@ uninstall-core-operator:
 uninstall-config-server:
 	@echo "$(YELLOW)--- Uninstalling config-server...$(NC)"
 	helm uninstall config-server -n $(CORE_NAMESPACE) --ignore-not-found=true || true
+	@echo ""
+
+uninstall-core-legacy-api:
+	@echo "$(YELLOW)--- Uninstalling core-legacy-api...$(NC)"
+	helm uninstall core-legacy-api -n $(CORE_NAMESPACE) --ignore-not-found=true || true
 	@echo ""
 
 # -----------------------------------------Dependencies uninstall targets-------------------------------------

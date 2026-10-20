@@ -22,6 +22,11 @@ INSTALL_ISTIO ?= false
 # INSTALL_MAAS=true.
 INSTALL_DBAAS_AGENT ?= $(if $(filter k8s,$(M2M_AUTH_MODE)),false,true)
 INSTALL_MAAS_AGENT ?= $(if $(filter k8s,$(M2M_AUTH_MODE)),false,true)
+# core-legacy-api serves the config-server API under the Service name config-server, so only one
+# of the two can be installed at a time: turn INSTALL_CONFIG_SERVER off when
+# INSTALL_CORE_LEGACY_API is on.
+INSTALL_CONFIG_SERVER ?= true
+INSTALL_CORE_LEGACY_API ?= false
 
 # Config files of the components installed by their own makefiles. A relative path is resolved
 # against the component's folder.
@@ -103,6 +108,7 @@ RABBIT_INSTANCES ?=
 #   maas-agent          MAAS_AGENT_BRANCH         MAAS_AGENT_TAG
 #   core-operator       CORE_OPERATOR_BRANCH      CORE_OPERATOR_TAG
 #   config-server       CONFIG_SERVER_BRANCH      CONFIG_SERVER_TAG
+#   core-legacy-api     CORE_LEGACY_API_BRANCH    CORE_LEGACY_API_TAG
 #   site-management     SITE_MANAGEMENT_BRANCH    SITE_MANAGEMENT_TAG
 #   core-bootstrap      CORE_BOOTSTRAP_BRANCH     CORE_BOOTSTRAP_TAG
 #   cr-synchronizer     CR_SYNCHRONIZER_BRANCH    CR_SYNCHRONIZER_TAG
@@ -175,6 +181,7 @@ DBAAS_AGENT_IMAGE_REPOSITORY ?= ghcr.io/netcracker/qubership-core-dbaas-agent
 MAAS_AGENT_IMAGE_REPOSITORY ?= ghcr.io/netcracker/qubership-core-maas-agent
 CORE_OPERATOR_IMAGE_REPOSITORY ?= ghcr.io/netcracker/qubership-core-core-operator
 CONFIG_SERVER_IMAGE_REPOSITORY ?= ghcr.io/netcracker/qubership-core-config-server
+CORE_LEGACY_API_IMAGE_REPOSITORY ?= ghcr.io/netcracker/qubership-mini-core-core-legacy-api
 SITE_MANAGEMENT_IMAGE_REPOSITORY ?= ghcr.io/netcracker/qubership-core-site-management
 
 # Images built from the core-bootstrap repository. The full image name can be overridden as a
