@@ -28,7 +28,7 @@
 # qubership-dbaas: the bootstrap scripts and charts, and the image tag of dbaas-aggregator, which
 # follows the ref. qubership-dbaas is released with semver tags, so the pin is a release tag.
 # renovate: datasource=github-tags depName=Netcracker/qubership-dbaas
-DBAAS_REPO_BRANCH ?= v6.15.1
+DBAAS_REPO_BRANCH ?= v6.16.0
 
 # -----------------------------------------------------------------------------
 # MaaS
