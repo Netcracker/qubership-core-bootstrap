@@ -99,7 +99,7 @@ RABBIT_INSTANCES ?=
 #   maas-agent          MAAS_AGENT_BRANCH         MAAS_AGENT_TAG
 #   core-operator       CORE_OPERATOR_BRANCH      CORE_OPERATOR_TAG
 #   config-server       CONFIG_SERVER_BRANCH      CONFIG_SERVER_TAG
-#   core-legacy-api (*) CORE_LEGACY_API_BRANCH    CORE_LEGACY_API_TAG
+#   core-legacy-api     CORE_LEGACY_API_BRANCH    CORE_LEGACY_API_TAG
 #   site-management     SITE_MANAGEMENT_BRANCH    SITE_MANAGEMENT_TAG
 #   core-bootstrap      CORE_BOOTSTRAP_BRANCH     CORE_BOOTSTRAP_TAG
 #   cr-synchronizer     CR_SYNCHRONIZER_BRANCH    CR_SYNCHRONIZER_TAG
@@ -107,9 +107,9 @@ RABBIT_INSTANCES ?=
 # The last two are images built from the core-bootstrap repository: nothing is cloned for them, only
 # the image tag follows the branch.
 #
-# (*) ingress-gateway and core-legacy-api are the exceptions to BASELINE_BRANCH: their repositories
-# have no branch for each release line (no lts/*), so their baseline is always main, whatever
-# BASELINE_BRANCH is. TEST_BRANCH and <SERVICE>_BRANCH still apply to them.
+# (*) ingress-gateway is the exception to BASELINE_BRANCH: its repository has no branch for each
+# release line (no lts/*), so its baseline is always main, whatever BASELINE_BRANCH is. TEST_BRANCH
+# and INGRESS_GATEWAY_BRANCH still apply to it.
 #
 # An explicit branch must exist in the service's repository, or make stops with an error.
 # See "CORE SERVICE BRANCHES AND IMAGE TAGS" in the main Makefile.

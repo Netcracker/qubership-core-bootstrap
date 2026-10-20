@@ -105,8 +105,8 @@ endif
 #   1. <SERVICE>_BRANCH, e.g. CONFIG_SERVER_BRANCH, when set from outside (make VAR=... or the
 #      environment). The branch must exist in that repository, or make stops with an error;
 #   2. TEST_BRANCH, if it is set and that repository has a branch of that name;
-#   3. BASELINE_BRANCH; for ingress-gateway and core-legacy-api always main, whatever
-#      BASELINE_BRANCH is, as their repositories have no branch for each release line.
+#   3. BASELINE_BRANCH; for ingress-gateway always main, whatever BASELINE_BRANCH is, as its
+#      repository has no branch for each release line.
 # The image tag is latest for main, and <branch, / replaced by ->-snapshot for any other branch:
 # the rolling tag qubership-core-infra's shared docker-build.yaml publishes. An explicit
 # <SERVICE>_TAG (command line or environment) always wins over the tag derived here.
@@ -230,8 +230,7 @@ $(eval $(call core_service,DBAAS_AGENT,https://github.com/Netcracker/qubership-c
 $(eval $(call core_service,MAAS_AGENT,https://github.com/Netcracker/qubership-core-maas-agent.git))
 $(eval $(call core_service,CORE_OPERATOR,https://github.com/Netcracker/qubership-core-core-operator.git))
 $(eval $(call core_service,CONFIG_SERVER,https://github.com/Netcracker/qubership-core-config-server.git))
-# core-legacy-api has no lts/* branches either, so main is its baseline, as for ingress-gateway.
-$(eval $(call core_service,CORE_LEGACY_API,https://github.com/Netcracker/qubership-mini-core.git,main))
+$(eval $(call core_service,CORE_LEGACY_API,https://github.com/Netcracker/qubership-mini-core.git))
 $(eval $(call core_service,SITE_MANAGEMENT,https://github.com/Netcracker/qubership-core-site-management.git))
 # core-bootstrap and cr-synchronizer are images built from the repository this makefile lives in.
 # Their repository is not cloned: only the image tag is resolved, from the branch of that repository.
@@ -309,6 +308,10 @@ endef
 
 # A mode that is not one of the three would be passed on to the charts as it is.
 $(foreach v,M2M_AUTH_MODE DBAAS_M2M_AUTH_MODE MAAS_M2M_AUTH_MODE,$(if $(filter legacy hybrid k8s,$($(v))),,$(error $(v) must be legacy, hybrid or k8s, got '$($(v))')))
+
+# Both charts own the Service config-server, so the second helm install would fail after the first
+# one has already been deployed.
+$(if $(and $(filter true,$(INSTALL_CONFIG_SERVER)),$(filter true,$(INSTALL_CORE_LEGACY_API))),$(error INSTALL_CONFIG_SERVER and INSTALL_CORE_LEGACY_API cannot both be true: both charts own the Service config-server))
 
 .PHONY: resolved-refs check-images
 
@@ -553,7 +556,7 @@ clone-repos:
 	@$(call clone_or_update_repo,qubership-core-maas-agent,https://github.com/Netcracker/qubership-core-maas-agent.git,$(MAAS_AGENT_CLONE_BRANCH),$(BASELINE_BRANCH),branch-only)
 	@$(call clone_or_update_repo,qubership-core-core-operator,https://github.com/Netcracker/qubership-core-core-operator.git,$(CORE_OPERATOR_CLONE_BRANCH),$(BASELINE_BRANCH),branch-only)
 	@$(call clone_or_update_repo,qubership-core-config-server,https://github.com/Netcracker/qubership-core-config-server.git,$(CONFIG_SERVER_CLONE_BRANCH),$(BASELINE_BRANCH),branch-only)
-	@$(call clone_or_update_repo,qubership-mini-core,https://github.com/Netcracker/qubership-mini-core.git,$(CORE_LEGACY_API_CLONE_BRANCH),main,branch-only)
+	@$(call clone_or_update_repo,qubership-mini-core,https://github.com/Netcracker/qubership-mini-core.git,$(CORE_LEGACY_API_CLONE_BRANCH),$(BASELINE_BRANCH),branch-only)
 	@$(call clone_or_update_repo,qubership-dbaas,https://github.com/Netcracker/qubership-dbaas.git,$(DBAAS_REPO_BRANCH),$(BASELINE_BRANCH))
 	@echo ""
 
