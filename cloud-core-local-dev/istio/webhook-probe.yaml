@@ -1,0 +1,6 @@
+# Applied by wait-for-istio with --dry-run=server, in ISTIO_NAMESPACE: it goes through istiod's
+# validating webhook and is never stored. The apply succeeds once istiod admits resources.
+apiVersion: security.istio.io/v1
+kind: PeerAuthentication
+metadata:
+  name: webhook-probe

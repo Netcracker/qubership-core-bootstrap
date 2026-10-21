@@ -108,18 +108,18 @@ endef
 setup-repo:
 	@echo "$(YELLOW)--- Setting up qubership-core-mesh-config repository...$(NC)"
 	@mkdir -p $(REPOS_DIR)
-	@if [ -d "$(REPOS_DIR)/qubership-core-mesh-config" ]; then \
-		CURRENT_BRANCH=$$(cd $(REPOS_DIR)/qubership-core-mesh-config && git rev-parse --abbrev-ref HEAD); \
-		if [ "$$CURRENT_BRANCH" != "$(CORE_MESH_CONFIG_REPO_BRANCH)" ]; then \
-			echo "$(CYAN)--- Switching qubership-core-mesh-config from $$CURRENT_BRANCH to $(CORE_MESH_CONFIG_REPO_BRANCH)...$(NC)"; \
-			(cd $(REPOS_DIR)/qubership-core-mesh-config && git fetch origin && git checkout $(CORE_MESH_CONFIG_REPO_BRANCH) && git pull); \
-		else \
-			echo "$(CYAN)--- Updating qubership-core-mesh-config (branch: $(CORE_MESH_CONFIG_REPO_BRANCH))...$(NC)"; \
-			(cd $(REPOS_DIR)/qubership-core-mesh-config && git pull); \
-		fi; \
+	@if [ -d "$(REPOS_DIR)/qubership-core-mesh-config/.git" ]; then \
+		echo "$(CYAN)--- Updating qubership-core-mesh-config to ref: $(CORE_MESH_CONFIG_REPO_BRANCH)...$(NC)"; \
+		(cd $(REPOS_DIR)/qubership-core-mesh-config && \
+			git fetch --depth 1 origin $(CORE_MESH_CONFIG_REPO_BRANCH) && \
+			git checkout -f FETCH_HEAD); \
+	elif [ ! -e "$(REPOS_DIR)/qubership-core-mesh-config" ]; then \
+		echo "$(CYAN)--- Cloning qubership-core-mesh-config (ref: $(CORE_MESH_CONFIG_REPO_BRANCH))...$(NC)"; \
+		git clone --depth 1 -b $(CORE_MESH_CONFIG_REPO_BRANCH) $(CORE_MESH_CONFIG_REPO_URL) $(REPOS_DIR)/qubership-core-mesh-config; \
 	else \
-		echo "$(CYAN)--- Cloning qubership-core-mesh-config (branch: $(CORE_MESH_CONFIG_REPO_BRANCH))...$(NC)"; \
-		git clone -b $(CORE_MESH_CONFIG_REPO_BRANCH) $(CORE_MESH_CONFIG_REPO_URL) $(REPOS_DIR)/qubership-core-mesh-config; \
+		echo "$(RED)Error: $(REPOS_DIR)/qubership-core-mesh-config exists but is not a git repository$(NC)"; \
+		echo "$(CYAN)Please remove it and retry: rm -rf $(REPOS_DIR)/qubership-core-mesh-config$(NC)"; \
+		exit 1; \
 	fi
 	@echo ""
 

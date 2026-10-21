@@ -20,7 +20,7 @@ This repository contains a comprehensive installation script for deploying Cloud
 - **Control Plane**
 - **DBaaS Agent**
 - **Core Operator**
-- **Config Server**
+- **Config Server**, or **core-legacy-api** in its place
 - **MaaS** [Optional]
 
 ## Quick Start
@@ -28,7 +28,7 @@ This repository contains a comprehensive installation script for deploying Cloud
 ### 1. Prepare Configuration File
 The script is distributed with prepared configurations:
 - `local.mk` - for local deployment (default)
-- `aws.mk` - for AWS deployment
+- `aws.mk` - for AWS deployment; it sets only the values that differ from `local.mk` and includes it for the rest
 
 ### 2. Execute Installation Command
 
@@ -57,6 +57,7 @@ Run `make` without target to print list of all targets
 - **`validate`** - Validate configuration and prerequisites
 - **`template-values-files`** - Generate core-values.yaml from core-values.envsubst
 - **`install`** - Install all Cloud Core components and run mesh smoke test
+- **`install-dependencies`** - Run everything `install` does before `deploy-core`, for a suite that acts in between
 - **`mesh-smoke-test`** - Run mesh connectivity smoke test
 - **`uninstall`** - Complete uninstall, CRDs and namespaces cleanup
 
@@ -177,8 +178,14 @@ The script uses a `.mk` configuration file to define all installation parameters
 | `INSTALL_CONSUL` | `true`/`false` | Install Consul |
 | `INSTALL_DBAAS` | `true`/`false` | Install DBaaS components |
 | `DBAAS_CONFIG_FILE` | `local.mk` | DBaaS configuration file path (relative path will be resolved upon ./dbaas folder, where sub-Makefile is placed)|
+| `DBAAS_OPERATOR_ENABLED` | `true`/`false` | Install the DBaaS Operator together with DBaaS. `false` by default in both `local.mk` and `aws.mk` |
+| `CORETPL_CHART_DIR` | `../coretpl` | Package `coretpl` from this directory into every Cloud Core chart instead of downloading the published version. Use it to test `coretpl` changes before they are released. A relative path is resolved against `cloud-core-local-dev` |
 | `INSTALL_MAAS` | `true`/`false` | Install MAAS components |
 | `MAAS_CONFIG_FILE` | `local.mk` | MAAS configuration file path (relative path will be resolved upon ./maas folder, where sub-Makefile is placed)|
+| `INSTALL_DBAAS_AGENT` | `true`/`false` | Install the DBaaS agent. Defaults to `false` when `M2M_AUTH_MODE=k8s`, `true` otherwise |
+| `INSTALL_MAAS_AGENT` | `true`/`false` | Install the MaaS agent, which also needs `INSTALL_MAAS=true`. Defaults to `false` when `M2M_AUTH_MODE=k8s`, `true` otherwise |
+| `INSTALL_CONFIG_SERVER` | `true`/`false` | Install config-server. Defaults to `true`. Turn it off when `INSTALL_CORE_LEGACY_API=true`: the two charts cannot be installed together |
+| `INSTALL_CORE_LEGACY_API` | `true`/`false` | Install core-legacy-api, which serves the config-server API under the Service name `config-server`. Defaults to `false`. Turn `INSTALL_CONFIG_SERVER` off when you turn this on: the two charts cannot be installed together |
 | `INSTALL_ISTIO` | `true`/`false` | Install Istio service mesh |
 | `ISTIO_CONFIG_FILE` | `local.mk` | Istio configuration file path (relative path will be resolved upon ./istio folder, where sub-Makefile is placed)|
 
@@ -192,6 +199,28 @@ The script uses several values files:
 
 The script uses `envsubst` to substitute environment variables in the values file templates.
 
+### M2M authentication mode
+
+`M2M_AUTH_MODE` sets how the core services authenticate their calls to DBaaS and MaaS:
+
+| Mode | Meaning |
+|---|---|
+| `legacy` (default) | The M2M of Cloud Core. The calls go through the DBaaS and MaaS agents |
+| `hybrid` | Kubernetes projected tokens, with a fallback to `legacy` |
+| `k8s` | Kubernetes projected tokens only. The agents are not needed and are not installed |
+
+DBaaS and MaaS take the mode of the core. `DBAAS_M2M_AUTH_MODE` and `MAAS_M2M_AUTH_MODE` set it for either of
+them, to test a core and its dependencies in different modes:
+
+```bash
+# core in k8s mode, DBaaS in hybrid mode, MaaS in legacy mode
+make M2M_AUTH_MODE=k8s DBAAS_M2M_AUTH_MODE=hybrid MAAS_M2M_AUTH_MODE=legacy install
+```
+
+A core service in a mode the other side does not accept cannot call it: `k8s` against a `legacy` DBaaS fails, and
+`hybrid` against it works through the fallback. The report printed by `resolved-refs` shows the mode of each component and
+whether the agents are installed. A value other than the three modes stops the make before anything is installed.
+
 ### MaaS configuration
 
 Specify list of instance names in parameters `KAFKA_INSTANCES`, `RABBIT_INSTANCES` to adjust message brokers clusters
@@ -202,7 +231,49 @@ e.g.
 
 ### Istio configuration
 
-Istio ambient mesh will be enabled for `CORE_NAMESPACE`
+Istio ambient mesh will be enabled for `CORE_NAMESPACE`. `deploy-istio` returns once every Istio component
+runs and istiod admits resources, so the next step can apply Istio resources right away.
+
+### Early mesh
+
+By default, `CORE_NAMESPACE` joins the mesh at the very end of `deploy-core`, when core-mesh-config labels the
+namespace and installs its waypoint. Nothing the core services and hooks do while they install passes a waypoint.
+That is fine for an install, but not for a test suite that must see or police every request.
+
+**`CORE_MESH_EARLY=true` puts the core namespace in the mesh, behind its waypoint, before Cloud Core is deployed:**
+
+```text
+                       ensure-core-namespace    core services and hooks start    core-mesh-config
+default                |------- not in the mesh ------------------------------------| in the mesh -->
+CORE_MESH_EARLY=true   |------- in the mesh, behind the waypoint --------------------------------->
+```
+
+`enable-early-core-mesh` runs right after `ensure-core-namespace`. It creates the waypoint core-mesh-config would
+create, under the same name (`waypoint`) and with the namespace label core-mesh-config would set
+(`istio.io/use-waypoint=waypoint`), so core-mesh-config changes nothing when it runs. The Gateway carries the Helm
+ownership metadata of the core-mesh-config release, so Helm adopts it instead of refusing a resource it does not
+own. Adoption adds the chart's settings, and istiod replaces the waypoint pod once: a suite that reads the waypoint
+log must follow the log of every waypoint pod.
+
+`MESH_DEPENDENCY_NAMESPACES=dbaas,maas` puts these namespaces in the mesh, each behind its own waypoint named
+`waypoint`, at the end of `deploy-dependencies`. DBaaS and MaaS are not part of the mesh otherwise, so the calls
+the core makes to them pass no waypoint. Pods that already run join without a restart.
+
+Both settings need `INSTALL_ISTIO=true`. A suite that adds its own Istio resources, such as an access log or an
+`AuthorizationPolicy`, runs `install-dependencies`, applies them to the waypoints, then runs `deploy-core`:
+
+```bash
+ARGS="INSTALL_ISTIO=true SERVICE_MESH_TYPE=Istio CORE_MESH_EARLY=true MESH_DEPENDENCY_NAMESPACES=dbaas,maas"
+make install-dependencies $ARGS
+kubectl apply -f my-access-log.yaml   # targets the Gateway "waypoint" in core, dbaas and maas
+make deploy-core $ARGS
+```
+
+The waypoints of the dependencies exist after `install-dependencies`. The waypoint of the core namespace is created
+first thing in `deploy-core`; a resource that targets it by name, applied before, takes effect when it starts,
+before any core service does.
+
+The details are in `utils/early-mesh.mk`.
 
 ## Installation Process
 
@@ -225,6 +296,7 @@ The installation script performs the following stages:
   - `qubership-core-dbaas-agent`
   - `qubership-core-core-operator`
   - `qubership-core-config-server`
+  - `qubership-mini-core`
   - `consul-k8s` (if `INSTALL_CONSUL=true`)
 
 ### Stage 3: Values File Generation
@@ -272,9 +344,12 @@ The installation script performs the following stages:
   - Applies CRDs (if `INSTALL_CRDS=true`)
   - Updates Helm dependencies
   - Installs Core Operator
-- **Config Server**
+- **Config Server** (if `INSTALL_CONFIG_SERVER=true`)
   - Updates Helm dependencies
   - Installs Config Server
+- **core-legacy-api** (if `INSTALL_CORE_LEGACY_API=true`)
+  - Installs core-legacy-api
+  - Waits for its pod to become ready
 - **MAAS** (if `INSTALL_MAAS=true`)
   - Calls MAAS installation sub-Makefile
   - Installs MAAS components with RabbitMQ and Kafka
@@ -297,6 +372,7 @@ The uninstallation script performs the following stages in reverse order:
 
 ### Stage 2: Uninstall Core Components
 - Uninstalls Config Server
+- Uninstalls core-legacy-api
 - Uninstalls Core Operator
 - Uninstalls DBaaS Agent
 - Uninstalls Control Plane

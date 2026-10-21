@@ -121,9 +121,12 @@ The script uses a .mk configuration file to define all installation and helm pac
 | `KAFKA_NAMESPACE`                        | kafka                                | Kubernetes namespace for Kafka                         |
 | `DBAAS_NAMESPACE`                        | dbaas                                | Kubernetes namespace for DBaaS                         |
 | **MaaS Configuration**                   |
-| `TAG`                                    | `latest`                             | Docker image tag for MaaS                              |
+| `MAAS_BRANCH`                            | `main`                               | Branch or tag of qubership-maas to check out           |
+| `TAG`                                    | from `MAAS_BRANCH`                   | Docker image tag: `latest` for `main`, the tag itself for a tag, `<branch>-snapshot` otherwise |
+| `MONITORING_ENABLED`                     | `false`                              | Install the Grafana and Prometheus resources of MaaS   |
 | `DBAAS_SERVICE_NAME`                     | `dbaas-aggregator`                   | DBaaS service name                                     |
 | `DBAAS_AGGREGATOR_ADDRESS`               | `http://dbaas-aggregator.dbaas:8080` | DBaaS aggregator URL in cluster                        |
+| `M2M_AUTH_MODE`                          | `legacy`                             | M2M authentication mode: legacy, hybrid, or k8s        |
 | **Credentials**                          |
 | `MAAS_ACCOUNT_MANAGER_USERNAME`          | `manager`                            | MaaS account manager username to set                   |
 | `MAAS_ACCOUNT_MANAGER_PASSWORD`          | `manager`                            | MaaS account manager password to set                   |

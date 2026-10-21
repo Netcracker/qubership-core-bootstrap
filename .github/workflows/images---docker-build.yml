@@ -1,0 +1,95 @@
+name: '[Images] Docker build'
+
+# Builds the core-bootstrap and cr-synchronizer images together, from one commit, in one run.
+#
+# The bootstrap (cloud-core-local-dev) takes the tags of both images from the branch it runs for:
+# latest for main, <branch>-snapshot for any other branch (lts/26.3 gives lts-26.3-snapshot), and
+# the tag itself for a release tag. So main and every lts/** branch must always have both images,
+# built from the same commit. That is why a push to those branches builds both whatever it changed,
+# instead of one workflow per module building only the image whose files changed.
+#
+# A pull request builds both images only when it touches them, and publishes them under
+# <branch>-snapshot.
+
+on:
+  push:
+    branches:
+      - main
+      - 'lts/**'
+    tags:
+      - 'v*'
+  pull_request:
+    types: [ opened, synchronize, reopened ]
+    paths:
+      - 'core-bootstrap/**'
+      - 'cr-synchronizer/**'
+      - '.github/images---docker-dev-config.json'
+      - '.github/workflows/images---docker-build.yml'
+  # builds the images of the selected branch or tag, to add the ones a branch is missing
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: read
+  packages: write
+
+concurrency:
+  group: ci-images-build-${{ github.event_name }}-${{ github.head_ref || github.ref_name }}
+  # a newer push to a pull request makes the older build pointless; a build of main, of an lts
+  # branch or of a tag is the one that publishes the images other runs depend on
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  docker-build:
+    if: ${{ !(github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork) }}
+    uses: Netcracker/qubership-core-infra/.github/workflows/docker-build.yaml@ed95ad948025728db1e613a3e1a4e6a11186f541 # v2.6.2
+    with:
+      dry-run: false
+      config-filename: "images---docker-dev-config.json"
+
+  # The shared build reports no tags, so check the published ones: the tag a bootstrap for this ref
+  # looks for must exist for both images.
+  verify-images:
+    needs: docker-build
+    if: ${{ github.event_name != 'pull_request' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check that both images have the tag for this ref
+        env:
+          REF_NAME: ${{ github.ref_name }}
+          REF_TYPE: ${{ github.ref_type }}
+        run: |
+          # the tag the shared build publishes: the same rule as the bootstrap's
+          if [ "$REF_TYPE" = "tag" ]; then
+            tag="$REF_NAME"
+            if ! echo "$tag" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+              echo "::notice::$tag is not a vMAJOR.MINOR.PATCH tag, nothing to check"
+              exit 0
+            fi
+          elif [ "$REF_NAME" = "main" ]; then
+            tag=latest
+          else
+            tag="$(echo "$REF_NAME" | tr '/' '-')-snapshot"
+          fi
+
+          accept='application/vnd.oci.image.index.v1+json, application/vnd.oci.image.manifest.v1+json, application/vnd.docker.distribution.manifest.v2+json, application/vnd.docker.distribution.manifest.list.v2+json'
+          {
+            echo "## Images for \`$REF_NAME\`"
+            echo ""
+            echo "| Image | Tag | Published |"
+            echo "| --- | --- | --- |"
+          } >> "$GITHUB_STEP_SUMMARY"
+          missing=0
+          for image in core-bootstrap cr-synchronizer; do
+            token="$(curl -fsS "https://ghcr.io/token?scope=repository:netcracker/$image:pull" | jq -r .token)"
+            code="$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $token" -H "Accept: $accept" \
+              "https://ghcr.io/v2/netcracker/$image/manifests/$tag")"
+            if [ "$code" = "200" ]; then
+              echo "| $image | \`$tag\` | yes |" >> "$GITHUB_STEP_SUMMARY"
+            else
+              echo "| $image | \`$tag\` | **no** (HTTP $code) |" >> "$GITHUB_STEP_SUMMARY"
+              echo "::error::ghcr.io/netcracker/$image:$tag was not found (HTTP $code)"
+              missing=1
+            fi
+          done
+          exit "$missing"
