@@ -215,7 +215,7 @@ func (ng *DeploymentGenerator) sendEvent(iReason, iMessage, declarativeName, kin
 		"runtimeObjectResourceVersion": receiver.GetResourceVersion(),
 	}
 
-	ng.recorder.LabeledEventf(ng.runtimeReceiver, labels, annotations, v1Core.EventTypeWarning, iReason, iMessage)
+	ng.recorder.LabeledEventf(ng.runtimeReceiver, labels, annotations, v1Core.EventTypeWarning, iReason, "%s", iMessage)
 
 	time.Sleep(2 * time.Second)
 }
