@@ -236,24 +236,26 @@ runs and istiod admits resources, so the next step can apply Istio resources rig
 
 ### Early mesh
 
-By default, `CORE_NAMESPACE` joins the mesh at the very end of `deploy-core`, when core-mesh-config labels the
-namespace and installs its waypoint. Nothing the core services and hooks do while they install passes a waypoint.
+By default, `CORE_NAMESPACE` joins the mesh at the very end of `deploy-core`, when `enable-core-mesh` labels the
+namespace. The core-mesh-config chart, waypoint included, is installed before Cloud Core, but carries no traffic
+until then: nothing the core services and hooks do while they install passes a waypoint.
 That is fine for an install, but not for a test suite that must see or police every request.
 
 **`CORE_MESH_EARLY=true` puts the core namespace in the mesh, behind its waypoint, before Cloud Core is deployed:**
 
 ```text
-                       ensure-core-namespace    core services and hooks start    core-mesh-config
+                       ensure-core-namespace    core services and hooks start    enable-core-mesh
 default                |------- not in the mesh ------------------------------------| in the mesh -->
 CORE_MESH_EARLY=true   |------- in the mesh, behind the waypoint --------------------------------->
 ```
 
 `enable-early-core-mesh` runs right after `ensure-core-namespace`. It creates the waypoint core-mesh-config would
 create, under the same name (`waypoint`) and with the namespace label core-mesh-config would set
-(`istio.io/use-waypoint=waypoint`), so core-mesh-config changes nothing when it runs. The Gateway carries the Helm
+(`istio.io/use-waypoint=waypoint`), so `enable-core-mesh` changes nothing when it runs. The Gateway carries the Helm
 ownership metadata of the core-mesh-config release, so Helm adopts it instead of refusing a resource it does not
-own. Adoption adds the chart's settings, and istiod replaces the waypoint pod once: a suite that reads the waypoint
-log must follow the log of every waypoint pod.
+own when the chart is installed right after. Adoption adds the chart's settings, and istiod replaces the waypoint
+pod once, before any core service starts: a suite that reads the waypoint log from before `deploy-core` must follow
+the log of every waypoint pod.
 
 `MESH_DEPENDENCY_NAMESPACES=dbaas,maas` puts these namespaces in the mesh, each behind its own waypoint named
 `waypoint`, at the end of `deploy-dependencies`. DBaaS and MaaS are not part of the mesh otherwise, so the calls
@@ -318,6 +320,7 @@ The installation script performs the following stages:
 
 ### Stage 5: Core Bootstrap
 - Ensures core namespace exists
+- Installs the core-mesh-config Helm chart; the core namespace joins the mesh only after the core components
 - Deploys cloud-core-configuration Helm chart
 
 ### Stage 6: Core Components Installation

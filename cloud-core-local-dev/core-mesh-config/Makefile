@@ -19,7 +19,7 @@ NC := \033[0m
 
 .PHONY: help \
 	setup-repo \
-	enable disable \
+	enable install-chart join-mesh disable \
 	label-namespaces unlabel-namespaces
 
 help:
@@ -28,7 +28,9 @@ help:
 	@echo "Usage: make <target> MESH_NAMESPACES=ns1,ns2 [CONFIG_FILE=local.mk]"
 	@echo ""
 	@echo "Targets:"
-	@echo "  enable                   - Clone repo, label namespaces, install Helm chart, run smoke test"
+	@echo "  enable                   - install-chart, then join-mesh"
+	@echo "    install-chart          - Clone repo, install Helm chart (namespaces stay out of the mesh)"
+	@echo "    join-mesh              - Label namespaces, restart core-operator, run smoke test (Istio only)"
 	@echo "    setup-repo             - Clone/update qubership-core-mesh-config repository"
 	@echo "    label-namespaces       - Apply Istio ambient/waypoint labels to MESH_NAMESPACES (no Helm)"
 	@echo "  disable                  - Uninstall Helm chart, remove labels, restore gateway selectors"
@@ -153,26 +155,40 @@ unlabel-namespaces:
 		echo "$(GREEN)=== All namespaces unlabeled$(NC)"; \
 	fi
 
-enable: setup-repo
-	@if [ -z "$(MESH_NAMESPACES)" ]; then \
-		echo "$(YELLOW)--- Skipping mesh enablement (MESH_NAMESPACES is empty)...$(NC)"; \
+enable: install-chart join-mesh
+
+install-chart: setup-repo
+	@set -e; \
+	if [ -z "$(MESH_NAMESPACES)" ]; then \
+		echo "$(YELLOW)--- Skipping chart installation (MESH_NAMESPACES is empty)...$(NC)"; \
 	else \
-		echo "$(BLUE)=== Enabling mesh for namespaces: $(MESH_NAMESPACES) (SERVICE_MESH_TYPE=$(SERVICE_MESH_TYPE))$(NC)"; \
+		echo "$(BLUE)=== Installing $(MESH_HELM_RELEASE_NAME) in namespaces: $(MESH_NAMESPACES) (SERVICE_MESH_TYPE=$(SERVICE_MESH_TYPE))$(NC)"; \
 		for ns in $$(echo "$(MESH_NAMESPACES)" | tr ',' ' '); do \
 			if [ -n "$$ns" ]; then \
-				if [ "$(SERVICE_MESH_TYPE)" = "Istio" ]; then \
-					$(call label_namespace_for_mesh,$$ns) \
-				fi; \
 				$(call install_mesh_helm,$$ns) \
-				if [ "$(SERVICE_MESH_TYPE)" = "Istio" ]; then \
-					kubectl rollout restart deploy/core-operator -n $$ns; \
-					if [ "$(RUN_SMOKE_TEST)" = "true" ]; then \
-						'$(MAKE)' -C ../istio/test full-test NAMESPACE="$$ns" ISTIO_NAMESPACE="$(ISTIO_NAMESPACE)" || { '$(MAKE)' -C ../istio/test collect-logs NAMESPACE="$$ns" ISTIO_NAMESPACE="$(ISTIO_NAMESPACE)"; exit 1; }; \
-					else \
-						echo "$(YELLOW)--- Skipping smoke test (RUN_SMOKE_TEST is not true)$(NC)"; \
-					fi; \
+				echo ""; \
+			fi; \
+		done; \
+		echo "$(GREEN)=== $(MESH_HELM_RELEASE_NAME) installed in all namespaces$(NC)"; \
+	fi
+
+# Needs the chart and the services of the namespaces installed
+join-mesh:
+	@set -e; \
+	if [ -z "$(MESH_NAMESPACES)" ]; then \
+		echo "$(YELLOW)--- Skipping mesh enablement (MESH_NAMESPACES is empty)...$(NC)"; \
+	elif [ "$(SERVICE_MESH_TYPE)" != "Istio" ]; then \
+		echo "$(CYAN)--- Skipping Istio labels, core-operator restart and smoke test (SERVICE_MESH_TYPE=$(SERVICE_MESH_TYPE))$(NC)"; \
+	else \
+		echo "$(BLUE)=== Putting namespaces in the mesh: $(MESH_NAMESPACES)$(NC)"; \
+		for ns in $$(echo "$(MESH_NAMESPACES)" | tr ',' ' '); do \
+			if [ -n "$$ns" ]; then \
+				$(call label_namespace_for_mesh,$$ns) \
+				kubectl rollout restart deploy/core-operator -n $$ns; \
+				if [ "$(RUN_SMOKE_TEST)" = "true" ]; then \
+					'$(MAKE)' -C ../istio/test full-test NAMESPACE="$$ns" ISTIO_NAMESPACE="$(ISTIO_NAMESPACE)" || { '$(MAKE)' -C ../istio/test collect-logs NAMESPACE="$$ns" ISTIO_NAMESPACE="$(ISTIO_NAMESPACE)"; exit 1; }; \
 				else \
-					echo "$(CYAN)--- Skipping Istio labels, core-operator restart and smoke test (SERVICE_MESH_TYPE=$(SERVICE_MESH_TYPE))$(NC)"; \
+					echo "$(YELLOW)--- Skipping smoke test (RUN_SMOKE_TEST is not true)$(NC)"; \
 				fi; \
 				echo ""; \
 			fi; \
