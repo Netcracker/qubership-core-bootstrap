@@ -37,6 +37,9 @@ type DeploymentGenerator struct {
 	postDeploy      bool
 }
 
+// GenericWaiter polls instead of watching; a var so that tests need not wait
+var genericWaiterPollInterval = 5 * time.Second
+
 // One watcher per resource type (plural)
 var (
 	resourceTypeWatchersMu sync.Mutex
@@ -349,7 +352,7 @@ func (ng *DeploymentGenerator) handlePhaseChange(resourceType schema.GroupVersio
 		log.Info().Str("type", "waiter").Str("name", resourceName).Msg("finished setting owner reference on stable phase 'Updated'")
 		return true
 	default:
-		log.Info().Str("type", "waiter").Str("name", resourceName).Str("kind", kind).Msgf("Resource still does not have phase field")
+		log.Info().Str("type", "waiter").Str("name", resourceName).Str("kind", kind).Str("phase", phaseField).Msgf("Resource still does not have phase field")
 		return false
 	}
 }
@@ -384,6 +387,7 @@ func (ng *DeploymentGenerator) declarationWaiter(resourceType schema.GroupVersio
 }
 
 func (ng *DeploymentGenerator) GenericWaiter(deploymentRes schema.GroupVersionResource, declarativeAsUnstructured unstructured.Unstructured) {
+	name := declarativeAsUnstructured.GetName()
 	to := time.After(time.Duration(ng.timeoutSeconds) * time.Second)
 	done := make(chan bool)
 	var err error
@@ -397,54 +401,24 @@ func (ng *DeploymentGenerator) GenericWaiter(deploymentRes schema.GroupVersionRe
 				ng.sendEvent("TimeOutReached", "Declaratives failed to progress", declarativeAsUnstructured.GetName(), declarativeAsUnstructured.GetKind())
 				log.Fatal().Stack().Str("name", declarativeAsUnstructured.GetName()).Str("kind", declarativeAsUnstructured.GetKind()).Err(err).Msg("TimeOutReached")
 			default:
-				declarativeAsUnstructured, err := ng.client.Resource(deploymentRes).Namespace(namespace).Get(ng.ctx, declarativeAsUnstructured.GetName(), k8sv1.GetOptions{})
+				current, err := ng.client.Resource(deploymentRes).Namespace(namespace).Get(ng.ctx, name, k8sv1.GetOptions{})
 				if err != nil {
-					log.Warn().Stack().Str("name", declarativeAsUnstructured.GetName()).Str("group", deploymentRes.Group).Err(err).Msg("Resource cant be fetched")
+					log.Warn().Stack().Str("name", name).Str("group", deploymentRes.Group).Err(err).Msg("Resource cant be fetched")
+					time.Sleep(genericWaiterPollInterval)
+					continue
 				}
-				phaseField, isFound, err := unstructured.NestedString(declarativeAsUnstructured.Object, "status", "phase")
+				phaseField, isFound, err := unstructured.NestedString(current.Object, "status", "phase")
 				if !isFound {
-					log.Warn().Stack().Str("name", declarativeAsUnstructured.GetName()).Str("group", deploymentRes.Group).Err(err).Msg("Phase field not found")
+					log.Warn().Stack().Str("name", name).Str("group", deploymentRes.Group).Err(err).Msg("Phase field not found")
 				}
 				if err != nil {
-					log.Warn().Stack().Str("name", declarativeAsUnstructured.GetName()).Str("group", deploymentRes.Group).Err(err).Msg("Phase field lookup error")
+					log.Warn().Stack().Str("name", name).Str("group", deploymentRes.Group).Err(err).Msg("Phase field lookup error")
 				}
-				switch phaseField {
-				case "WaitingForDependency":
-					log.Info().Str("name", declarativeAsUnstructured.GetName()).Str("kind", declarativeAsUnstructured.GetKind()).Str("phase", phaseField).Msgf("Declarative not ready")
-					time.Sleep(5 * time.Second)
-				case "BackingOff":
-					log.Info().Str("name", declarativeAsUnstructured.GetName()).Str("kind", declarativeAsUnstructured.GetKind()).Str("phase", phaseField).Msgf("Declarative not ready")
-					time.Sleep(5 * time.Second)
-				case "Updating":
-					log.Info().Str("name", declarativeAsUnstructured.GetName()).Str("kind", declarativeAsUnstructured.GetKind()).Str("phase", phaseField).Msgf("Declarative not ready")
-					time.Sleep(5 * time.Second)
-				case "InvalidConfiguration":
-					cReason, isFound, err := unstructured.NestedString(declarativeAsUnstructured.Object, "status", "phase")
-					if !isFound {
-						log.Fatal().Stack().Str("name", declarativeAsUnstructured.GetName()).Str("kind", declarativeAsUnstructured.GetKind()).Err(err).Msg("Cant find reason field")
-					}
-					if err != nil {
-						log.Fatal().Stack().Str("name", declarativeAsUnstructured.GetName()).Str("kind", declarativeAsUnstructured.GetKind()).Err(err).Msg("Error searching reason field")
-					}
-					cMessage, isFound, err := unstructured.NestedString(declarativeAsUnstructured.Object, "status", "phase")
-					if !isFound {
-						log.Fatal().Stack().Str("name", declarativeAsUnstructured.GetName()).Str("kind", declarativeAsUnstructured.GetKind()).Err(err).Msg("Cant find message field")
-					}
-					if err != nil {
-						log.Fatal().Stack().Str("name", declarativeAsUnstructured.GetName()).Str("kind", declarativeAsUnstructured.GetKind()).Err(err).Msg("Error searching message field")
-					}
-					ng.sendEvent(cReason, cMessage, declarativeAsUnstructured.GetName(), declarativeAsUnstructured.GetKind())
-					log.Fatal().Stack().Str("name", declarativeAsUnstructured.GetName()).Str("kind", declarativeAsUnstructured.GetKind()).Str("phase", phaseField).Msgf("%s", cReason)
-				case "Updated":
-					log.Info().Str("type", "waiter").Str("name", declarativeAsUnstructured.GetName()).Msg("start setting owner reference on stable phase 'Updated'")
-					ng.setOwnerRef(deploymentRes, declarativeAsUnstructured.GetName())
-					log.Info().Str("type", "waiter").Str("name", declarativeAsUnstructured.GetName()).Msg("finished setting owner reference on stable phase 'Updated'")
+				if ng.handlePhaseChange(deploymentRes, name, current, phaseField) {
 					done <- true
 					return
-				default:
-					log.Info().Str("name", declarativeAsUnstructured.GetName()).Str("kind", declarativeAsUnstructured.GetKind()).Str("phase", phaseField).Msgf("Resource still not have phase field")
-					time.Sleep(5 * time.Second)
 				}
+				time.Sleep(genericWaiterPollInterval)
 			}
 		}
 	}()

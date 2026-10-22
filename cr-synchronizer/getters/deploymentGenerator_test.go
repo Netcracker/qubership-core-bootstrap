@@ -2,6 +2,7 @@ package getters
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -109,5 +110,73 @@ func TestDeclarationWaiter_UpdatedPhase(t *testing.T) {
 		assert.Equal(t, string(deploymentUID), ownerRefs[0].(map[string]interface{})["uid"])
 	case <-time.After(1 * time.Second):
 		t.Fatal("declarationWaiter did not complete for Updated phase")
+	}
+}
+
+func TestGenericWaiter_RetriesUntilUpdated(t *testing.T) {
+	defer func(interval time.Duration) { genericWaiterPollInterval = interval }(genericWaiterPollInterval)
+	genericWaiterPollInterval = time.Millisecond
+
+	resource := schema.GroupVersionResource{Group: "test", Version: "v1", Resource: "tests"}
+	scheme := runtime.NewScheme()
+	fclient := k8sClientDynamic.NewSimpleDynamicClient(scheme)
+	fakeClientSet := fake.NewSimpleClientset()
+
+	ng := NewDeploymentGenerator(
+		context.Background(),
+		fclient,
+		&testRecorder{},
+		&fakeClientset{appsV1: fakeClientSet.AppsV1()},
+		scheme,
+		&unstructured.Unstructured{},
+		false,
+		10,
+	)
+
+	withPhase := func(phase string) *unstructured.Unstructured {
+		obj := &unstructured.Unstructured{Object: map[string]interface{}{
+			"status": map[string]interface{}{"phase": phase},
+		}}
+		obj.SetName("test-resource")
+		return obj
+	}
+	updated := withPhase("Updated")
+	// the first get fails, which used to panic on the nil result
+	responses := []func() (runtime.Object, error){
+		func() (runtime.Object, error) { return nil, errors.New("temporarily unavailable") },
+		func() (runtime.Object, error) { return withPhase("WaitingForDependency"), nil },
+	}
+	gets := 0
+	fclient.PrependReactor("get", "tests", func(action k8sTesting.Action) (handled bool, ret runtime.Object, err error) {
+		gets++
+		if gets <= len(responses) {
+			ret, err = responses[gets-1]()
+			return true, ret, err
+		}
+		return true, updated, nil
+	})
+	fclient.PrependReactor("update", "tests", func(action k8sTesting.Action) (handled bool, ret runtime.Object, err error) {
+		return true, updated, nil
+	})
+	deploymentUID := uuid.NewUUID()
+	fakeClientSet.PrependReactor("get", "deployments", func(action k8sTesting.Action) (handled bool, ret runtime.Object, err error) {
+		return true, &v1.Deployment{ObjectMeta: metav1.ObjectMeta{UID: deploymentUID}}, nil
+	})
+
+	done := make(chan struct{})
+	go func() {
+		ng.GenericWaiter(resource, *withPhase(""))
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		assert.Greater(t, gets, len(responses))
+		ownerRefs, found, err := unstructured.NestedSlice(updated.Object, "metadata", "ownerReferences")
+		assert.NoError(t, err)
+		assert.True(t, found)
+		assert.Equal(t, string(deploymentUID), ownerRefs[0].(map[string]interface{})["uid"])
+	case <-time.After(5 * time.Second):
+		t.Fatal("GenericWaiter did not complete for Updated phase")
 	}
 }
