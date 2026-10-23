@@ -10,26 +10,30 @@
 # CORE_MESH_EARLY=true: the core namespace is in the mesh for the whole of deploy-core
 # ---------------------------------------------------------------------------------------------
 #
-# By default, core-mesh-config puts the core namespace in the mesh at the very end of deploy-core,
-# so nothing that happens during the install passes a waypoint:
+# By default, the core-mesh-config chart, waypoint included, is installed before Cloud Core, but the
+# core namespace is labeled for the mesh only at the very end of deploy-core, so nothing that happens
+# during the install passes a waypoint:
 #
-#   default            ensure-core-namespace   core services and hooks start   core-mesh-config
-#                      |                       |                               |  label namespace
-#                      |                       |                               |  install waypoint
+#   default            ensure-core-namespace   core services and hooks start   enable-core-mesh
+#                      | core-mesh-config chart|                               |  label namespace
+#                      |  install waypoint     |                               |
 #   core namespace     |- not in the mesh -----|---- not in the mesh ----------|- in the mesh ---->
 #
-#   CORE_MESH_EARLY    ensure-core-namespace   core services and hooks start   core-mesh-config
+#   CORE_MESH_EARLY    ensure-core-namespace   core services and hooks start   enable-core-mesh
 #                      | enable-early-core-mesh|                               |  (changes nothing:
-#                      |  label namespace      |                               |   label and
-#                      |  create waypoint      |                               |   waypoint exist)
+#                      |  label namespace      |                               |   the label is set)
+#                      |  create waypoint      |                               |
+#                      | core-mesh-config chart|                               |
+#                      |  adopt waypoint       |                               |
 #   core namespace     |- in the mesh, behind the waypoint ------------------------------------>
 #
 # enable-early-core-mesh creates the waypoint core-mesh-config would create, under the same name
 # (waypoint) and with the label core-mesh-config would set (istio.io/use-waypoint=waypoint). The
 # Gateway carries the Helm ownership metadata of the core-mesh-config release, so when that release
-# installs at the end of deploy-core, Helm adopts the Gateway instead of refusing a resource it
-# does not own. Adoption adds the chart's settings to the Gateway, and istiod replaces the waypoint
-# pod once; a suite that reads the waypoint log must follow the log of every waypoint pod.
+# installs right after, Helm adopts the Gateway instead of refusing a resource it does not own.
+# Adoption adds the chart's settings to the Gateway, and istiod replaces the waypoint pod once,
+# before any core service starts; a suite that reads the waypoint log from before deploy-core must
+# follow the log of every waypoint pod.
 #
 # ---------------------------------------------------------------------------------------------
 # MESH_DEPENDENCY_NAMESPACES=<ns>,...: dependencies behind a waypoint

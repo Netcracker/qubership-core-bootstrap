@@ -11,7 +11,7 @@
 	deploy-consul deploy-consul-old deploy-consul-print-start install-consul wait-for-consul check-consul-connectivity \
 	deploy-monitoring deploy-metrics-server \
 	deploy-istio \
-	deploy-core-mesh-config \
+	deploy-core-mesh-config-chart enable-core-mesh \
 	deploy-dbaas \
 	deploy-maas \
 	prepare-core-bootstrap prepare-core-bootstrap-print-start deploy-cloud-core-configuration \
@@ -425,7 +425,8 @@ help:
 	@echo "  deploy-monitoring       # Deploy monitoring operator (if INSTALL_MONITORING=true)"
 	@echo "  deploy-metrics-server   # Deploy metrics server (if INSTALL_METRICS_SERVER=true)"
 	@echo "  deploy-istio            # Deploy Istio via qubership-istio-distr (if INSTALL_ISTIO=true)"
-	@echo "  deploy-core-mesh-config # Enable Istio mesh via core-mesh-config chart (if INSTALL_ISTIO=true)"
+	@echo "  deploy-core-mesh-config-chart # Install the core-mesh-config chart; the core namespace stays out of the mesh"
+	@echo "  enable-core-mesh        # Put the core namespace in the mesh (if INSTALL_ISTIO=true)"
 	@echo "  enable-early-core-mesh  # Put the core namespace in the mesh before Cloud Core is deployed (if CORE_MESH_EARLY=true)"
 	@echo "  deploy-dependency-waypoints # Put MESH_DEPENDENCY_NAMESPACES in the mesh, behind a waypoint"
 	@echo "  deploy-dbaas            # Deploy DBaaS (if INSTALL_DBAAS=true)"
@@ -490,7 +491,10 @@ deploy-dependencies: deploy-metrics-server deploy-monitoring deploy-consul deplo
 	@echo ""
 
 # enable-early-core-mesh does nothing unless CORE_MESH_EARLY=true: see utils/early-mesh.mk
-deploy-core: ensure-core-namespace enable-early-core-mesh prepare-core-bootstrap deploy-cloud-core-components deploy-core-mesh-config
+# The chart goes before facade-operator: both create Service egress-gateway, and Helm refuses to
+# install over a Service it does not own
+deploy-core: ensure-core-namespace enable-early-core-mesh deploy-core-mesh-config-chart prepare-core-bootstrap \
+	deploy-cloud-core-components enable-core-mesh
 	@echo "$(GREEN)=== Cloud Core deployment completed$(NC)"
 	@echo ""
 
@@ -1193,10 +1197,16 @@ uninstall-istio:
 # =============================================================================
 # CORE MESH CONFIG
 # =============================================================================
-deploy-core-mesh-config:
-	@echo "$(GREEN)=== Starting core mesh config installation...$(NC)"
+deploy-core-mesh-config-chart:
+	@echo "$(GREEN)=== Starting core mesh config chart installation...$(NC)"
 	@echo ""
-	@$(call run_core_mesh_config_operation,enable);
+	@$(call run_core_mesh_config_operation,install-chart);
+	@echo ""
+
+enable-core-mesh:
+	@echo "$(GREEN)=== Putting the core namespace in the mesh...$(NC)"
+	@echo ""
+	@$(call run_core_mesh_config_operation,join-mesh);
 	@echo ""
 
 uninstall-core-mesh-config:
