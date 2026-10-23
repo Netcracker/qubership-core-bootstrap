@@ -11,7 +11,7 @@
 	deploy-consul deploy-consul-old deploy-consul-print-start install-consul wait-for-consul check-consul-connectivity \
 	deploy-monitoring deploy-metrics-server \
 	deploy-istio \
-	deploy-core-mesh-config deploy-core-mesh-config-chart enable-core-mesh \
+	deploy-core-mesh-config-chart enable-core-mesh \
 	deploy-dbaas \
 	deploy-maas \
 	prepare-core-bootstrap prepare-core-bootstrap-print-start deploy-cloud-core-configuration \
@@ -425,7 +425,6 @@ help:
 	@echo "  deploy-monitoring       # Deploy monitoring operator (if INSTALL_MONITORING=true)"
 	@echo "  deploy-metrics-server   # Deploy metrics server (if INSTALL_METRICS_SERVER=true)"
 	@echo "  deploy-istio            # Deploy Istio via qubership-istio-distr (if INSTALL_ISTIO=true)"
-	@echo "  deploy-core-mesh-config # deploy-core-mesh-config-chart, then enable-core-mesh"
 	@echo "  deploy-core-mesh-config-chart # Install the core-mesh-config chart; the core namespace stays out of the mesh"
 	@echo "  enable-core-mesh        # Put the core namespace in the mesh (if INSTALL_ISTIO=true)"
 	@echo "  enable-early-core-mesh  # Put the core namespace in the mesh before Cloud Core is deployed (if CORE_MESH_EARLY=true)"
@@ -1198,8 +1197,6 @@ uninstall-istio:
 # =============================================================================
 # CORE MESH CONFIG
 # =============================================================================
-deploy-core-mesh-config: deploy-core-mesh-config-chart enable-core-mesh
-
 deploy-core-mesh-config-chart:
 	@echo "$(GREEN)=== Starting core mesh config chart installation...$(NC)"
 	@echo ""
