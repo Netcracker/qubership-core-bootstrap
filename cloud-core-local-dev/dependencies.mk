@@ -37,7 +37,7 @@ DBAAS_REPO_BRANCH ?= v6.16.0
 # qubership-maas: the charts, and the MaaS image tag, which the maas makefile derives from the ref:
 # latest for main, the tag itself for a tag such as v5.6.2, <branch>-snapshot for another branch.
 # renovate: datasource=github-tags depName=Netcracker/qubership-maas
-MAAS_BRANCH ?= v5.6.2
+MAAS_BRANCH ?= v5.7.0
 
 # -----------------------------------------------------------------------------
 # Istio
