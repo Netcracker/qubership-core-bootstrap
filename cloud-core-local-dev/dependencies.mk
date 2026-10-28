@@ -53,4 +53,4 @@ ISTIO_REPO_BRANCH ?= 1.4.0
 
 # qubership-core-mesh-config: the mesh configuration.
 # renovate: datasource=github-tags depName=Netcracker/qubership-core-mesh-config
-CORE_MESH_CONFIG_REPO_BRANCH ?= v1.0.6
+CORE_MESH_CONFIG_REPO_BRANCH ?= v1.0.7
