@@ -149,7 +149,7 @@ RABBIT_INSTANCES ?=
 #
 # Fallback when a repository has no TEST_BRANCH branch: main, or a release line such as lts/26.3
 # when TEST_BRANCH itself is being tested against that line.
-BASELINE_BRANCH ?= main
+BASELINE_BRANCH ?= lts/26.4
 
 # -----------------------------------------------------------------------------
 # Core services
