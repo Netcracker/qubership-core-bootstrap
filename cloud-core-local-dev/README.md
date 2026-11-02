@@ -177,7 +177,7 @@ The script uses a `.mk` configuration file to define all installation parameters
 | `INSTALL_MONITORING` | `true`/`false` | Install monitoring operator |
 | `INSTALL_CONSUL` | `true`/`false` | Install Consul |
 | `CONSUL_VERSION` | `0.15.3` | Release tag of qubership-consul whose chart is installed. Pinned in `dependencies.mk`; `TEST_BRANCH` does not apply to it |
-| `CONSUL_ACLS` | `true`/`false` | Turn on the Consul ACL system and the Consul ACL Configurator operator. `false` by default |
+| `CONSUL_ACLS` | `true`/`false` | Turn on the Consul ACL system and the Consul ACL Configurator operator. The operator processes a `ConsulACL` resource in any namespace once its `spec.acl.operatorNamespace` names the Consul namespace. `false` by default |
 | `INSTALL_DBAAS` | `true`/`false` | Install DBaaS components |
 | `DBAAS_CONFIG_FILE` | `local.mk` | DBaaS configuration file path (relative path will be resolved upon ./dbaas folder, where sub-Makefile is placed)|
 | `DBAAS_OPERATOR_ENABLED` | `true`/`false` | Install the DBaaS Operator together with DBaaS. `false` by default in both `local.mk` and `aws.mk` |

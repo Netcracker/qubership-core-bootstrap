@@ -3,6 +3,7 @@ global:
     manageSystemACLs: true
 consulAclConfigurator:
   enabled: true
+  namespaces: "*"
   boundAudiences:
     - netcracker
   jwksProxy:
