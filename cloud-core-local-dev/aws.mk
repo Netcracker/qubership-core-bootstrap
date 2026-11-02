@@ -29,7 +29,6 @@ KAFKA_NAMESPACE ?= core-1-maas
 
 # General values
 DEPLOYMENT_SESSION_ID ?= cloud-core-aws-dev
-CONSUL_SERVICE_NAME ?= consul-server
 
 # MaaS
 KAFKA_INSTANCES ?= kafka-1 kafka-2

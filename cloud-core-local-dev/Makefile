@@ -8,7 +8,7 @@
 # Installation targets
 .PHONY: install-dependencies deploy deploy-dependencies deploy-core \
 	clone-repos template-values-files \
-	deploy-consul deploy-consul-old deploy-consul-print-start install-consul wait-for-consul check-consul-connectivity \
+	deploy-consul deploy-consul-print-start install-consul wait-for-consul check-consul-connectivity \
 	deploy-monitoring deploy-metrics-server \
 	deploy-istio \
 	deploy-core-mesh-config-chart enable-core-mesh \
@@ -43,7 +43,6 @@
 # Validation and utility targets
 .PHONY: validate validate-cli validate-crd \
 	ensure-core-namespace validate-consul-namespace \
-	change-consul-values clone-consul-repo \
 	mesh-smoke-test cleanup-mesh-test
 
 # =============================================================================
@@ -89,7 +88,8 @@ CYAN := \033[0;36m
 NC := \033[0m
 
 CREATE_NAMESPACE_OPTION ?= $(if $(filter true,$(CREATE_NAMESPACE)), --create-namespace, )
-CONSUL_ACLS_OPTION ?= $(if $(filter true,$(CONSUL_ACLS)), --set global.acls.manageSystemACLs=true, )
+CONSUL_CHART_URL := https://github.com/Netcracker/qubership-consul/releases/download/$(CONSUL_VERSION)/consul-$(CONSUL_VERSION).tgz
+CONSUL_VALUES_OPTION := -f ./consul/values.yaml $(if $(filter true,$(CONSUL_ACLS)),-f ./consul/acls.yaml)
 
 ifeq ($(DEBUG),true)
   HELM_DEBUG_FLAGS := --debug --dry-run
@@ -302,6 +302,7 @@ define resolved_refs_report
 	$(call ref_row,MaaS image tag,$(MAAS_IMAGE_TAG),$(MAAS_IMAGE_TAG_SOURCE)); \
 	$(call ref_row,ISTIO_REPO_BRANCH,$(ISTIO_REPO_BRANCH),$(ISTIO_REPO_BRANCH_SOURCE)); \
 	$(call ref_row,CORE_MESH_CONFIG_REPO_BRANCH,$(CORE_MESH_CONFIG_REPO_BRANCH),$(CORE_MESH_CONFIG_REPO_BRANCH_SOURCE)); \
+	$(call ref_row,CONSUL_VERSION,$(CONSUL_VERSION),$(if $(filter file,$(origin CONSUL_VERSION)),pin (dependencies.mk),explicit)); \
 	echo ""; \
 }
 endef
@@ -583,14 +584,7 @@ template-values-files:
 
 # -------------------------- consul -----------------------
 
-deploy-consul-old:
-	@echo "$(GREEN)=== Deploying Consul...$(NC)"
-	@echo ""
-	helm upgrade --install --values ./consul-chart-3/values.yaml consul ./consul-chart-3/ --namespace consul $$(CREATE_NAMESPACE_OPTION)
-	@echo "$(GREEN)=== Consul is deployed$(NC)"
-	@echo ""
-
-deploy-consul: deploy-consul-print-start validate-consul-namespace ensure-core-namespace clone-consul-repo change-consul-values wait-for-consul check-consul-connectivity
+deploy-consul: deploy-consul-print-start validate-consul-namespace ensure-core-namespace wait-for-consul check-consul-connectivity
 	@echo "$(GREEN)=== Consul setup completed...$(NC)"
 	@echo ""
 
@@ -607,55 +601,13 @@ validate-consul-namespace:
 	fi
 	@echo ""
 
-clone-consul-repo:
-	@if [ "$(INSTALL_CONSUL)" = "true" ]; then \
-		echo "$(YELLOW)--- Cloning consul repository...$(NC)"; \
-		$(call clone_or_update_repo,consul-k8s,https://github.com/hashicorp/consul-k8s,release/1.8.3); \
-	else \
-		echo "$(YELLOW)--- Skipping Consul repository cloning (INSTALL_CONSUL=false)...$(NC)"; \
-		echo ""; \
-	fi
-
-change-consul-values:
-	@if [ "$(INSTALL_CONSUL)" = "true" ]; then \
-		echo "$(YELLOW)--- Updating Consul Helm chart security context...$(NC)"; \
-		if [ -f $(REPOS_DIR)/consul-k8s/charts/consul/templates/_helpers.tpl ]; then \
-			if command -v sed >/dev/null 2>&1; then \
-				if sed --version 2>/dev/null | grep -q "GNU sed"; then \
-					sed -i 's/runAsNonRoot: true/runAsNonRoot: false/g' $(REPOS_DIR)/consul-k8s/charts/consul/templates/_helpers.tpl; \
-					sed -i 's/runAsUser: 100/runAsUser: 0/g' $(REPOS_DIR)/consul-k8s/charts/consul/templates/_helpers.tpl; \
-				else \
-					sed -i '' 's/runAsNonRoot: true/runAsNonRoot: false/g' $(REPOS_DIR)/consul-k8s/charts/consul/templates/_helpers.tpl; \
-					sed -i '' 's/runAsUser: 100/runAsUser: 0/g' $(REPOS_DIR)/consul-k8s/charts/consul/templates/_helpers.tpl; \
-				fi; \
-			else \
-				echo "Warning: sed not found, using alternative method"; \
-				cp $(REPOS_DIR)/consul-k8s/charts/consul/templates/_helpers.tpl $(REPOS_DIR)/consul-k8s/charts/consul/templates/_helpers.tpl.bak; \
-				cat $(REPOS_DIR)/consul-k8s/charts/consul/templates/_helpers.tpl.bak | sed 's/runAsNonRoot: true/runAsNonRoot: false/g' | sed 's/runAsUser: 100/runAsUser: 0/g' > $(REPOS_DIR)/consul-k8s/charts/consul/templates/_helpers.tpl; \
-			fi; \
-		echo "Security context updated in _helpers.tpl"; \
-	else \
-		echo "Error: _helpers.tpl not found"; \
-		exit 1; \
-		fi; \
-	else \
-		echo "$(YELLOW)--- Skipping Consul values update (INSTALL_CONSUL=false)...$(NC)"; \
-		echo ""; \
-	fi
-
 install-consul:
 	@if [ "$(INSTALL_CONSUL)" = "true" ]; then \
-		echo "$(YELLOW)--- Installing consul...$(NC)"; \
+		echo "$(YELLOW)--- Installing consul $(CONSUL_VERSION)...$(NC)"; \
 		helm upgrade --install --namespace $(CONSUL_NAMESPACE) $(CREATE_NAMESPACE_OPTION) \
-			consul $(REPOS_DIR)/consul-k8s/charts/consul/ \
-			-f $(REPOS_DIR)/consul-k8s/charts/consul/values.yaml \
-			--set server.securityContext.runAsNonRoot=false \
-			--set server.securityContext.runAsUser=0 \
-			--set connectInject.enabled=false \
-			$(CONSUL_ACLS_OPTION) \
-			--set server.storage=1Gi \
-			--set global.imageK8S='docker.io/hashicorp/consul-k8s-control-plane:latest' \
-			--set global.image='docker.io/hashicorp/consul:latest'; \
+			consul $(CONSUL_CHART_URL) \
+			$(CONSUL_VALUES_OPTION) \
+			--timeout 10m; \
 	else \
 		echo "$(YELLOW)--- Skipping Consul installation (INSTALL_CONSUL=false)...$(NC)"; \
 		echo ""; \
@@ -663,24 +615,9 @@ install-consul:
 
 wait-for-consul: install-consul
 	@if [ "$(INSTALL_CONSUL)" = "true" ]; then \
-		echo "$(YELLOW)--- Waiting for Consul pods to be ready (timeout: 5 minutes)...$(NC)"; \
-		TIMEOUT=300; \
-		START_TIME=$$(date +%s); \
-		while true; do \
-			CURRENT_TIME=$$(date +%s); \
-			ELAPSED_TIME=$$((CURRENT_TIME - START_TIME)); \
-			if [ $$ELAPSED_TIME -ge $$TIMEOUT ]; then \
-				echo "Timeout reached after 5 minutes. Consul pods are not ready."; \
-				exit 1; \
-			fi; \
-			RUNNING_CONSUL_PODS=$$(kubectl -n $(CONSUL_NAMESPACE) get pods --selector=app=consul --field-selector=status.phase=Running -o name | wc -l); \
-			if [ "$$RUNNING_CONSUL_PODS" -ge 1 ]; then \
-				echo "Consul pods are running ($$RUNNING_CONSUL_PODS)!"; \
-				break; \
-			fi; \
-			echo "Waiting for Consul pods to be ready... ($$RUNNING_CONSUL_PODS) - $$((TIMEOUT - ELAPSED_TIME))s remaining"; \
-			sleep 10; \
-		done; \
+		echo "$(YELLOW)--- Waiting for Consul to be ready...$(NC)"; \
+		kubectl -n $(CONSUL_NAMESPACE) rollout status statefulset/consul-server --timeout=5m || exit 1; \
+		$(if $(filter true,$(CONSUL_ACLS)),kubectl -n $(CONSUL_NAMESPACE) rollout status deployment/consul-acl-configurator-operator --timeout=5m || exit 1;) \
 		echo ""; \
 	else \
 		echo "$(YELLOW)--- Skipping Consul wait (INSTALL_CONSUL=false)...$(NC)"; \
@@ -1020,6 +957,7 @@ uninstall-consul:
 		echo "$(YELLOW)--- Uninstalling consul...$(NC)"; \
 		helm uninstall consul -n $(CONSUL_NAMESPACE) --ignore-not-found=true || true; \
 		kubectl delete pvc -n $(CONSUL_NAMESPACE) --all --ignore-not-found=true || true; \
+		kubectl delete crd consulacls.netcracker.com consulkvs.netcracker.com --ignore-not-found=true || true; \
 		echo ""; \
 	else \
 		echo "$(YELLOW)--- Skipping Consul uninstallation (INSTALL_CONSUL=false)...$(NC)"; \

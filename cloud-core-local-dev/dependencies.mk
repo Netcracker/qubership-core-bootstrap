@@ -54,3 +54,12 @@ ISTIO_REPO_BRANCH ?= 1.5.0
 # qubership-core-mesh-config: the mesh configuration.
 # renovate: datasource=github-tags depName=Netcracker/qubership-core-mesh-config
 CORE_MESH_CONFIG_REPO_BRANCH ?= v1.0.7
+
+# -----------------------------------------------------------------------------
+# Consul
+# -----------------------------------------------------------------------------
+
+# qubership-consul: the chart is installed from the archive of a GitHub release, so the value is a
+# release tag and TEST_BRANCH does not apply to it. Its release tags have no v prefix.
+# renovate: datasource=github-tags depName=Netcracker/qubership-consul
+CONSUL_VERSION ?= 0.15.3

@@ -1,0 +1,18 @@
+global:
+  acls:
+    manageSystemACLs: false
+server:
+  replicas: 1
+  bootstrapExpect: 1
+  storage: 1Gi
+  storageClass: standard
+consulAclConfigurator:
+  enabled: false
+  removeTokens:
+    enabled: false
+monitoring:
+  enabled: false
+statusProvisioner:
+  enabled: false
+dns:
+  enabled: false

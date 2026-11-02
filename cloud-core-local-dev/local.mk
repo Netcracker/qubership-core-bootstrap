@@ -74,7 +74,7 @@ MONITORING_ENABLED ?= false
 CORE_MESH_EARLY ?= false
 MESH_DEPENDENCY_NAMESPACES ?=
 CONSUL_ENABLED ?= true
-CONSUL_SERVICE_NAME ?= consul-consul-server
+CONSUL_SERVICE_NAME ?= consul-server
 
 # -----------------------------------------------------------------------------
 # DBaaS

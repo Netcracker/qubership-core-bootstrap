@@ -1,0 +1,9 @@
+global:
+  acls:
+    manageSystemACLs: true
+consulAclConfigurator:
+  enabled: true
+  boundAudiences:
+    - netcracker
+  jwksProxy:
+    replicas: 1

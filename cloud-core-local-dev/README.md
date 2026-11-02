@@ -7,7 +7,7 @@ This repository contains a comprehensive installation script for deploying Cloud
 ### Infrastructure Dependencies
 - **Metrics Server** - [Optional] Kubernetes metrics collection and aggregation
 - **Qubership Monitoring Operator** - [Optional] Automates the deployment and management of complete monitoring infrastructure on Kubernetes 
-- **Consul**
+- **Consul** - Key-value store for configuration, installed from the chart of a [qubership-consul](https://github.com/Netcracker/qubership-consul) release
 - **DBaaS** - Database-as-a-Service with PostgreSQL and Patroni
 - **Istio** - [Optional] Service mesh for advanced traffic management and security
 
@@ -176,6 +176,8 @@ The script uses a `.mk` configuration file to define all installation parameters
 | `INSTALL_METRICS_SERVER` | `true`/`false` | Install Kubernetes metrics server |
 | `INSTALL_MONITORING` | `true`/`false` | Install monitoring operator |
 | `INSTALL_CONSUL` | `true`/`false` | Install Consul |
+| `CONSUL_VERSION` | `0.15.3` | Release tag of qubership-consul whose chart is installed. Pinned in `dependencies.mk`; `TEST_BRANCH` does not apply to it |
+| `CONSUL_ACLS` | `true`/`false` | Turn on the Consul ACL system and the Consul ACL Configurator operator. `false` by default |
 | `INSTALL_DBAAS` | `true`/`false` | Install DBaaS components |
 | `DBAAS_CONFIG_FILE` | `local.mk` | DBaaS configuration file path (relative path will be resolved upon ./dbaas folder, where sub-Makefile is placed)|
 | `DBAAS_OPERATOR_ENABLED` | `true`/`false` | Install the DBaaS Operator together with DBaaS. `false` by default in both `local.mk` and `aws.mk` |
@@ -299,7 +301,6 @@ The installation script performs the following stages:
   - `qubership-core-core-operator`
   - `qubership-core-config-server`
   - `qubership-mini-core`
-  - `consul-k8s` (if `INSTALL_CONSUL=true`)
 
 ### Stage 3: Values File Generation
 - Generates `core-values.yaml` from `core-values.envsubst` template
@@ -309,11 +310,10 @@ The installation script performs the following stages:
 - **Metrics Server** (if `INSTALL_METRICS_SERVER=true`)
 - **Monitoring** (if `INSTALL_MONITORING=true`)
 - **Consul** (if `INSTALL_CONSUL=true`)
-  - Clones Consul repository
-  - Updates security context for local deployment
-  - Installs Consul with custom configuration
-  - Waits for Consul pods to be ready
+  - Installs the chart of qubership-consul release `CONSUL_VERSION` with `consul/values.yaml`, adding `consul/acls.yaml` when `CONSUL_ACLS=true`
+  - Waits for the Consul server, and for the Consul ACL Configurator operator when `CONSUL_ACLS=true`
   - Validates Consul connectivity
+  - A cluster with Consul from the `hashicorp/consul-k8s` chart needs `make uninstall-consul` first
 - **DBaaS** (if `INSTALL_DBAAS=true`)
   - Calls DBaaS installation sub-Makefile
   - Runs smoke test if installation is skipped
@@ -438,6 +438,7 @@ cloud-core-local-dev/
 ├── aws.mk                          # AWS deployment configuration
 ├── core-values.envsubst            # Core values template
 ├── core-bootstrap-helm-repo.yaml   # Helm repository config
+├── consul/                         # Consul values files
 ├── dbaas/                          # DBaaS installation subdirectory
 ├── istio/                           # Istio installation subdirectory
 ├── maas/                           # MAAS installation subdirectory
