@@ -604,6 +604,7 @@ validate-consul-namespace:
 install-consul:
 	@if [ "$(INSTALL_CONSUL)" = "true" ]; then \
 		echo "$(YELLOW)--- Installing consul $(CONSUL_VERSION)...$(NC)"; \
+		helm show crds $(CONSUL_CHART_URL) | kubectl apply --server-side --force-conflicts -f - || exit 1; \
 		helm upgrade --install --namespace $(CONSUL_NAMESPACE) $(CREATE_NAMESPACE_OPTION) \
 			consul $(CONSUL_CHART_URL) \
 			-f ./consul/values.yaml \
@@ -958,10 +959,10 @@ uninstall-core-legacy-api:
 uninstall-consul:
 	@if [ "$(INSTALL_CONSUL)" = "true" ]; then \
 		echo "$(YELLOW)--- Uninstalling consul...$(NC)"; \
-		kubectl delete consulacls.netcracker.com,consulkvs.netcracker.com --all --all-namespaces --ignore-not-found=true || true; \
+		kubectl delete consulacls.netcracker.com --all-namespaces --field-selector spec.acl.operatorNamespace=$(CONSUL_NAMESPACE) --ignore-not-found=true || true; \
+		kubectl delete consulkvs.netcracker.com --all-namespaces --field-selector spec.kv.operatorNamespace=$(CONSUL_NAMESPACE) --ignore-not-found=true || true; \
 		helm uninstall consul -n $(CONSUL_NAMESPACE) --ignore-not-found=true || true; \
 		kubectl delete pvc -n $(CONSUL_NAMESPACE) --all --ignore-not-found=true || true; \
-		kubectl delete crd consulacls.netcracker.com consulkvs.netcracker.com --ignore-not-found=true || true; \
 		echo ""; \
 	else \
 		echo "$(YELLOW)--- Skipping Consul uninstallation (INSTALL_CONSUL=false)...$(NC)"; \

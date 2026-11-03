@@ -311,7 +311,9 @@ The installation script performs the following stages:
 - **Metrics Server** (if `INSTALL_METRICS_SERVER=true`)
 - **Monitoring** (if `INSTALL_MONITORING=true`)
 - **Consul** (if `INSTALL_CONSUL=true`)
-  - Installs the chart of qubership-consul release `CONSUL_VERSION` with `consul/values.yaml`
+  - Applies the `ConsulACL` and `ConsulKV` CRDs of qubership-consul release `CONSUL_VERSION` first, because Helm does
+    not update the CRDs of an installed chart
+  - Installs the chart of that release with `consul/values.yaml`
   - Waits for the Consul server, and for the Consul ACL Configurator operator when `CONSUL_ACLS=true`
   - Validates Consul connectivity
 - **DBaaS** (if `INSTALL_DBAAS=true`)
@@ -388,7 +390,8 @@ The uninstallation script performs the following stages in reverse order:
 ### Stage 3: Uninstall Dependencies
 - Uninstalls MAAS components (if `INSTALL_MAAS=true`)
 - Uninstalls DBaaS components
-- Uninstalls Consul (if `INSTALL_CONSUL=true`)
+- Uninstalls Consul (if `INSTALL_CONSUL=true`), after deleting the `ConsulACL` and `ConsulKV` resources its operator
+  manages. The CRDs stay, because deleting a CRD deletes every resource of its type in the cluster
 - Uninstalls monitoring (if `INSTALL_MONITORING=true`)
 - Uninstalls metrics server (if `INSTALL_METRICS_SERVER=true`)
 
