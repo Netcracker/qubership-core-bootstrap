@@ -607,6 +607,7 @@ install-consul:
 		helm upgrade --install --namespace $(CONSUL_NAMESPACE) $(CREATE_NAMESPACE_OPTION) \
 			consul $(CONSUL_CHART_URL) \
 			$(CONSUL_VALUES_OPTION) \
+			--set server.storageClass=$(CONSUL_STORAGE_CLASS) \
 			--timeout 10m; \
 	else \
 		echo "$(YELLOW)--- Skipping Consul installation (INSTALL_CONSUL=false)...$(NC)"; \

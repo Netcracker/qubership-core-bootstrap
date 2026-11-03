@@ -12,6 +12,7 @@ INSTALL_METRICS_SERVER ?= true
 INSTALL_MONITORING ?= false
 INSTALL_CONSUL ?= true
 CONSUL_ACLS ?= false
+CONSUL_STORAGE_CLASS ?= standard
 INSTALL_DBAAS ?= true
 # install dbaas-operator together with DBaaS
 DBAAS_OPERATOR_ENABLED ?= false
