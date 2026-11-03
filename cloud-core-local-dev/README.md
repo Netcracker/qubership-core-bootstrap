@@ -177,7 +177,7 @@ The script uses a `.mk` configuration file to define all installation parameters
 | `INSTALL_MONITORING` | `true`/`false` | Install monitoring operator |
 | `INSTALL_CONSUL` | `true`/`false` | Install Consul |
 | `CONSUL_VERSION` | `0.15.3` | Release tag of qubership-consul whose chart is installed. Pinned in `dependencies.mk`; `TEST_BRANCH` does not apply to it |
-| `CONSUL_ACLS` | `true`/`false` | Turn on the Consul ACL system and the Consul ACL Configurator operator. The operator processes a `ConsulACL` resource in any namespace once its `spec.acl.operatorNamespace` names the Consul namespace. `false` by default |
+| `CONSUL_ACLS` | `true`/`false` | Turn on the Consul ACL system and the Consul ACL Configurator operator. The operator processes a `ConsulACL` resource in any namespace once its `spec.acl.operatorNamespace` names the Consul namespace. Needs Kubernetes 1.31 or later, because the operator selects these resources by a field of the custom resource. `false` by default |
 | `CONSUL_STORAGE_CLASS` | `standard` | Storage class of the 1Gi volume of the Consul server. kind and minikube name their default class `standard`; on another cluster, set its default class, such as `local-path` on rancher-desktop |
 | `INSTALL_DBAAS` | `true`/`false` | Install DBaaS components |
 | `DBAAS_CONFIG_FILE` | `local.mk` | DBaaS configuration file path (relative path will be resolved upon ./dbaas folder, where sub-Makefile is placed)|
