@@ -89,7 +89,7 @@ NC := \033[0m
 
 CREATE_NAMESPACE_OPTION ?= $(if $(filter true,$(CREATE_NAMESPACE)), --create-namespace, )
 CONSUL_CHART_URL := https://github.com/Netcracker/qubership-consul/releases/download/$(CONSUL_VERSION)/consul-$(CONSUL_VERSION).tgz
-CONSUL_VALUES_OPTION := -f ./consul/values.yaml $(if $(filter true,$(CONSUL_ACLS)),-f ./consul/acls.yaml)
+CONSUL_ACLS_ENABLED := $(if $(filter true,$(CONSUL_ACLS)),true,false)
 
 ifeq ($(DEBUG),true)
   HELM_DEBUG_FLAGS := --debug --dry-run
@@ -606,7 +606,9 @@ install-consul:
 		echo "$(YELLOW)--- Installing consul $(CONSUL_VERSION)...$(NC)"; \
 		helm upgrade --install --namespace $(CONSUL_NAMESPACE) $(CREATE_NAMESPACE_OPTION) \
 			consul $(CONSUL_CHART_URL) \
-			$(CONSUL_VALUES_OPTION) \
+			-f ./consul/values.yaml \
+			--set global.acls.manageSystemACLs=$(CONSUL_ACLS_ENABLED) \
+			--set consulAclConfigurator.enabled=$(CONSUL_ACLS_ENABLED) \
 			--set server.storageClass=$(CONSUL_STORAGE_CLASS) \
 			--timeout 10m; \
 	else \

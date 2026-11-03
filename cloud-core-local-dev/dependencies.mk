@@ -59,7 +59,6 @@ CORE_MESH_CONFIG_REPO_BRANCH ?= v1.0.7
 # Consul
 # -----------------------------------------------------------------------------
 
-# qubership-consul: the chart is installed from the archive of a GitHub release, so the value is a
-# release tag and TEST_BRANCH does not apply to it. Its release tags have no v prefix.
+# qubership-consul: the Consul chart, installed from the archive of this release; TEST_BRANCH does not apply.
 # renovate: datasource=github-tags depName=Netcracker/qubership-consul
 CONSUL_VERSION ?= 0.15.3

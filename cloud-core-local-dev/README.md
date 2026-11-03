@@ -176,9 +176,9 @@ The script uses a `.mk` configuration file to define all installation parameters
 | `INSTALL_METRICS_SERVER` | `true`/`false` | Install Kubernetes metrics server |
 | `INSTALL_MONITORING` | `true`/`false` | Install monitoring operator |
 | `INSTALL_CONSUL` | `true`/`false` | Install Consul |
-| `CONSUL_VERSION` | `0.15.3` | Release tag of qubership-consul whose chart is installed. Pinned in `dependencies.mk`; `TEST_BRANCH` does not apply to it |
+| `CONSUL_VERSION` | `0.15.3` | Release of qubership-consul whose chart is installed, pinned in `dependencies.mk`. `TEST_BRANCH` does not apply |
 | `CONSUL_ACLS` | `true`/`false` | Turn on the Consul ACL system and the Consul ACL Configurator operator. The operator processes a `ConsulACL` resource in any namespace once its `spec.acl.operatorNamespace` names the Consul namespace. Needs Kubernetes 1.31 or later, because the operator selects these resources by a field of the custom resource. `false` by default |
-| `CONSUL_STORAGE_CLASS` | `standard` | Storage class of the 1Gi volume of the Consul server. kind and minikube name their default class `standard`; on another cluster, set its default class, such as `local-path` on rancher-desktop |
+| `CONSUL_STORAGE_CLASS` | `standard` | Storage class of the Consul server volume. Set it on a cluster without a `standard` class, such as `local-path` on rancher-desktop |
 | `INSTALL_DBAAS` | `true`/`false` | Install DBaaS components |
 | `DBAAS_CONFIG_FILE` | `local.mk` | DBaaS configuration file path (relative path will be resolved upon ./dbaas folder, where sub-Makefile is placed)|
 | `DBAAS_OPERATOR_ENABLED` | `true`/`false` | Install the DBaaS Operator together with DBaaS. `false` by default in both `local.mk` and `aws.mk` |
@@ -311,10 +311,9 @@ The installation script performs the following stages:
 - **Metrics Server** (if `INSTALL_METRICS_SERVER=true`)
 - **Monitoring** (if `INSTALL_MONITORING=true`)
 - **Consul** (if `INSTALL_CONSUL=true`)
-  - Installs the chart of qubership-consul release `CONSUL_VERSION` with `consul/values.yaml`, adding `consul/acls.yaml` when `CONSUL_ACLS=true`
+  - Installs the chart of qubership-consul release `CONSUL_VERSION` with `consul/values.yaml`
   - Waits for the Consul server, and for the Consul ACL Configurator operator when `CONSUL_ACLS=true`
   - Validates Consul connectivity
-  - A cluster with Consul from the `hashicorp/consul-k8s` chart needs `make uninstall-consul` first
 - **DBaaS** (if `INSTALL_DBAAS=true`)
   - Calls DBaaS installation sub-Makefile
   - Runs smoke test if installation is skipped
@@ -439,7 +438,7 @@ cloud-core-local-dev/
 ├── aws.mk                          # AWS deployment configuration
 ├── core-values.envsubst            # Core values template
 ├── core-bootstrap-helm-repo.yaml   # Helm repository config
-├── consul/                         # Consul values files
+├── consul/                         # Consul values file
 ├── dbaas/                          # DBaaS installation subdirectory
 ├── istio/                           # Istio installation subdirectory
 ├── maas/                           # MAAS installation subdirectory

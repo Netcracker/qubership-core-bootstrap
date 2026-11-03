@@ -1,12 +1,13 @@
-global:
-  acls:
-    manageSystemACLs: false
 server:
   replicas: 1
   bootstrapExpect: 1
   storage: 1Gi
 consulAclConfigurator:
-  enabled: false
+  namespaces: "*"
+  boundAudiences:
+    - netcracker
+  jwksProxy:
+    replicas: 1
   removeTokens:
     enabled: false
 monitoring:
