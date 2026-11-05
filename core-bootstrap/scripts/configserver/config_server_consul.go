@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/netcracker/core-bootstrap/v2/scripts/consul"
 	"github.com/netcracker/core-bootstrap/v2/utils"
+	consulauth "github.com/netcracker/qubership-core-lib-go-rest-utils/v2/consul-propertysource"
 	"github.com/netcracker/qubership-core-lib-go/v3/logging"
 )
 
@@ -19,9 +20,7 @@ type Configurer struct {
 	consulConfigurer *consul.Configurer
 	secretName       string
 	adminToken       string
-	authMode         consulAuthMode
-	authMethod       string
-	authAudience     string
+	auth             consulauth.AuthSettings
 	issueToken       func(ctx context.Context) error
 	deleteSecret     func(ctx context.Context, namespace string, secretName string) error
 }
@@ -36,14 +35,12 @@ func (c *Configurer) Configure(accessor func(string) string) error {
 	c.Namespace = utils.MustGetEnv(accessor, "NAMESPACE")
 	c.secretName = ConfigServerConsulTokenName
 	c.adminToken = accessor("CONSUL_ADMIN_TOKEN")
-	c.authMethod = valueOrDefault(accessor("CONSUL_AUTH_METHOD"), defaultConsulAuthMethod)
-	c.authAudience = valueOrDefault(accessor("CONSUL_AUTH_AUDIENCE"), defaultConsulAuthAudience)
 
-	authMode, err := readConsulAuthMode(accessor)
+	auth, err := consulauth.ReadAuthSettings()
 	if err != nil {
 		return err
 	}
-	c.authMode = authMode
+	c.auth = auth
 	return nil
 }
 
@@ -58,8 +55,8 @@ func (c *Configurer) Execute(ctx context.Context) error {
 		return utils.LogError(logger, ctx, "error choosing how config-server gets its Consul token: %w", err)
 	}
 
-	if authMode == consulAuthModeK8s {
-		logger.InfoC(ctx, "Consul auth mode is '%s' and no static token is needed: deleting secret '%s'", c.authMode, c.secretName)
+	if authMode == consulauth.AuthModeK8s {
+		logger.InfoC(ctx, "Consul auth mode is '%s' and no static token is needed: deleting secret '%s'", c.auth.Mode, c.secretName)
 		if err := c.deleteSecret(ctx, c.Namespace, c.secretName); err != nil {
 			return utils.LogError(logger, ctx, "error deleting secret %s: %w", c.secretName, err)
 		}

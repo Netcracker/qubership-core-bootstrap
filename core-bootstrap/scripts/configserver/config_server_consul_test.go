@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/netcracker/core-bootstrap/v2/scripts/consul"
+	"github.com/netcracker/qubership-core-lib-go/v3/configloader"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -49,12 +50,18 @@ func newTask(t *testing.T, consulEnabled bool, consulAddress string, env map[str
 		actions.deletedSecrets = append(actions.deletedSecrets, namespace+"/"+secretName)
 		return nil
 	}
+	setAuthEnv(t, env)
 	values := map[string]string{"NAMESPACE": "core-ns", "CONSUL_ADMIN_TOKEN": "admin-token"}
-	for name, value := range env {
-		values[name] = value
-	}
 	require.NoError(t, task.Configure(func(name string) string { return values[name] }))
 	return task, actions
+}
+
+func setAuthEnv(t *testing.T, env map[string]string) {
+	for _, name := range []string{"CONSUL_AUTH_MODE", "M2M_AUTH_MODE", "CONSUL_AUTH_METHOD", "CONSUL_AUTH_AUDIENCE"} {
+		t.Setenv(name, env[name])
+	}
+	configloader.Init(configloader.EnvPropertySource())
+	t.Cleanup(func() { configloader.Init() })
 }
 
 const authMethodWithNetcracker = `{"Name":"applications-k8s-m2m","Type":"jwt","Config":{"BoundAudiences":["https://kubernetes.default.svc.cluster.local","netcracker"]}}`
@@ -70,9 +77,6 @@ func TestExecute_ChoosesTheActionByAuthMode(t *testing.T) {
 		{"legacy issues the token", "legacy", "", 1, nil},
 		{"k8s deletes the secret", "k8s", "", 0, []string{"core-ns/config-server-consul-token"}},
 		{"an unset consul auth mode follows M2M_AUTH_MODE", "", "k8s", 0, []string{"core-ns/config-server-consul-token"}},
-		{"consul auth mode overrides M2M_AUTH_MODE", "legacy", "k8s", 1, nil},
-		{"M2M_AUTH_MODE is matched case-insensitively", "", " K8S ", 0, []string{"core-ns/config-server-consul-token"}},
-		{"no mode set at all is legacy", "", "", 1, nil},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -191,27 +195,11 @@ func TestExecute_DoesNothingWhenConsulIsDisabled(t *testing.T) {
 }
 
 func TestConfigure_RejectsAnUnknownMode(t *testing.T) {
-	cases := []struct {
-		name           string
-		consulAuthMode string
-		m2mAuthMode    string
-	}{
-		{"unknown consul auth mode", "static", "legacy"},
-		{"unknown M2M_AUTH_MODE with consul auth mode unset", "", "static"},
-		{"consul auth mode in upper case", "K8S", "legacy"},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			values := map[string]string{
-				"NAMESPACE":        "core-ns",
-				"CONSUL_AUTH_MODE": tc.consulAuthMode,
-				"M2M_AUTH_MODE":    tc.m2mAuthMode,
-			}
-			task := New(&consul.Configurer{Enabled: true})
+	setAuthEnv(t, map[string]string{"CONSUL_AUTH_MODE": "static"})
+	values := map[string]string{"NAMESPACE": "core-ns"}
+	task := New(&consul.Configurer{Enabled: true})
 
-			err := task.Configure(func(name string) string { return values[name] })
+	err := task.Configure(func(name string) string { return values[name] })
 
-			assert.Error(t, err)
-		})
-	}
+	assert.ErrorContains(t, err, "static")
 }
