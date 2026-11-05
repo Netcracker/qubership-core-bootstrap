@@ -129,6 +129,7 @@ func TestExecute_HybridFailsWhenTheAuthMethodCannotBeRead(t *testing.T) {
 	}{
 		{"the admin token is refused", http.StatusForbidden, "Permission denied"},
 		{"unauthorized for another reason", http.StatusUnauthorized, "ACL not found"},
+		{"401 whose body only contains the ACL disabled text", http.StatusUnauthorized, "ACL support disabled for this token"},
 		{"Consul fails", http.StatusInternalServerError, "rpc error"},
 		{"the auth method is not JSON", http.StatusOK, "not json"},
 	}

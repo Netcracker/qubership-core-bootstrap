@@ -73,7 +73,7 @@ func (c *Configurer) resolveConsulAuthMode(ctx context.Context) (consulAuthMode,
 	case resp.StatusCode() == http.StatusNotFound:
 		logger.InfoC(ctx, "Consul has no auth method '%s': issuing the static token", c.authMethod)
 		return consulAuthModeLegacy, nil
-	case resp.StatusCode() == http.StatusUnauthorized && strings.Contains(resp.String(), consulACLDisabledMessage):
+	case resp.StatusCode() == http.StatusUnauthorized && strings.TrimSpace(resp.String()) == consulACLDisabledMessage:
 		logger.InfoC(ctx, "Consul ACLs are disabled: issuing no token")
 		return consulAuthModeK8s, nil
 	case resp.StatusCode() != http.StatusOK:
