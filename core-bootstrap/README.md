@@ -9,5 +9,8 @@ List of predeploy scripts:
 2. maas client creation script - used by maas agent to communicate with maas
 3. dbaas autobalance scripts - 2 scripts for maas designators per namespace or per microservice
 4. control plane prepare db - creates db for control plane
-5. config server script - creates consult token and stores it in dedicated secret
-
+5. config server script - creates a Consul token for config-server and stores it in the `config-server-consul-token`
+   secret. With `CONSUL_AUTH_MODE` set to `k8s` (or `M2M_AUTH_MODE`, when `CONSUL_AUTH_MODE` is empty), it deletes the
+   secret instead, since the service logs in to Consul itself. With `hybrid`, it deletes the secret when the Consul auth
+   method `CONSUL_AUTH_METHOD` (default `applications-k8s-m2m`) accepts the audience `CONSUL_AUTH_AUDIENCE` (default
+   `netcracker`) or Consul has ACLs disabled, and creates the token otherwise. Requires `CONSUL_ENABLED=true`.
