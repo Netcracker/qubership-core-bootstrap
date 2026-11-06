@@ -1,0 +1,17 @@
+server:
+  replicas: 1
+  bootstrapExpect: 1
+  storage: 1Gi
+consulAclConfigurator:
+  boundAudiences:
+    - netcracker
+  jwksProxy:
+    replicas: 1
+  removeTokens:
+    enabled: false
+monitoring:
+  enabled: false
+statusProvisioner:
+  enabled: false
+dns:
+  enabled: false

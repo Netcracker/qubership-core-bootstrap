@@ -7,7 +7,7 @@ This repository contains a comprehensive installation script for deploying Cloud
 ### Infrastructure Dependencies
 - **Metrics Server** - [Optional] Kubernetes metrics collection and aggregation
 - **Qubership Monitoring Operator** - [Optional] Automates the deployment and management of complete monitoring infrastructure on Kubernetes 
-- **Consul**
+- **Consul** - Key-value store for configuration, installed from the chart of a [qubership-consul](https://github.com/Netcracker/qubership-consul) release
 - **DBaaS** - Database-as-a-Service with PostgreSQL and Patroni
 - **Istio** - [Optional] Service mesh for advanced traffic management and security
 
@@ -176,6 +176,9 @@ The script uses a `.mk` configuration file to define all installation parameters
 | `INSTALL_METRICS_SERVER` | `true`/`false` | Install Kubernetes metrics server |
 | `INSTALL_MONITORING` | `true`/`false` | Install monitoring operator |
 | `INSTALL_CONSUL` | `true`/`false` | Install Consul |
+| `CONSUL_VERSION` | `0.15.5` | Release of qubership-consul whose chart is installed, pinned in `dependencies.mk`. `TEST_BRANCH` does not apply |
+| `CONSUL_ACLS` | `true`/`false` | Turn on the Consul ACL system and the Consul ACL Configurator operator. The operator processes a `ConsulACL` resource in any namespace whose `spec.operatorNamespace` names the Consul namespace or is empty. `false` by default |
+| `CONSUL_STORAGE_CLASS` | `standard` | Storage class of the Consul server volume. Set it on a cluster without a `standard` class, such as `local-path` on rancher-desktop |
 | `INSTALL_DBAAS` | `true`/`false` | Install DBaaS components |
 | `DBAAS_CONFIG_FILE` | `local.mk` | DBaaS configuration file path (relative path will be resolved upon ./dbaas folder, where sub-Makefile is placed)|
 | `DBAAS_OPERATOR_ENABLED` | `true`/`false` | Install the DBaaS Operator together with DBaaS. `false` by default in both `local.mk` and `aws.mk` |
@@ -299,7 +302,6 @@ The installation script performs the following stages:
   - `qubership-core-core-operator`
   - `qubership-core-config-server`
   - `qubership-mini-core`
-  - `consul-k8s` (if `INSTALL_CONSUL=true`)
 
 ### Stage 3: Values File Generation
 - Generates `core-values.yaml` from `core-values.envsubst` template
@@ -309,10 +311,10 @@ The installation script performs the following stages:
 - **Metrics Server** (if `INSTALL_METRICS_SERVER=true`)
 - **Monitoring** (if `INSTALL_MONITORING=true`)
 - **Consul** (if `INSTALL_CONSUL=true`)
-  - Clones Consul repository
-  - Updates security context for local deployment
-  - Installs Consul with custom configuration
-  - Waits for Consul pods to be ready
+  - Applies the `ConsulACL` and `ConsulKV` CRDs of qubership-consul release `CONSUL_VERSION` first, because Helm does
+    not update the CRDs of an installed chart
+  - Installs the chart of that release with `consul/values.yaml`
+  - Waits for the Consul server, and for the Consul ACL Configurator operator when `CONSUL_ACLS=true`
   - Validates Consul connectivity
 - **DBaaS** (if `INSTALL_DBAAS=true`)
   - Calls DBaaS installation sub-Makefile
@@ -388,7 +390,10 @@ The uninstallation script performs the following stages in reverse order:
 ### Stage 3: Uninstall Dependencies
 - Uninstalls MAAS components (if `INSTALL_MAAS=true`)
 - Uninstalls DBaaS components
-- Uninstalls Consul (if `INSTALL_CONSUL=true`)
+- Uninstalls Consul (if `INSTALL_CONSUL=true`), after deleting the `ConsulACL` and `ConsulKV` resources its operator
+  manages. They are selected by `spec.operatorNamespace`, which needs Kubernetes 1.31 or later; on an older cluster
+  the resources stay with finalizers that nothing removes. The CRDs stay, because deleting a CRD deletes every resource
+  of its type in the cluster
 - Uninstalls monitoring (if `INSTALL_MONITORING=true`)
 - Uninstalls metrics server (if `INSTALL_METRICS_SERVER=true`)
 
@@ -438,6 +443,7 @@ cloud-core-local-dev/
 ├── aws.mk                          # AWS deployment configuration
 ├── core-values.envsubst            # Core values template
 ├── core-bootstrap-helm-repo.yaml   # Helm repository config
+├── consul/                         # Consul values file
 ├── dbaas/                          # DBaaS installation subdirectory
 ├── istio/                           # Istio installation subdirectory
 ├── maas/                           # MAAS installation subdirectory

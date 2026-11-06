@@ -12,6 +12,7 @@ INSTALL_METRICS_SERVER ?= true
 INSTALL_MONITORING ?= false
 INSTALL_CONSUL ?= true
 CONSUL_ACLS ?= false
+CONSUL_STORAGE_CLASS ?= standard
 INSTALL_DBAAS ?= true
 # install dbaas-operator together with DBaaS
 DBAAS_OPERATOR_ENABLED ?= false
@@ -74,7 +75,7 @@ MONITORING_ENABLED ?= false
 CORE_MESH_EARLY ?= false
 MESH_DEPENDENCY_NAMESPACES ?=
 CONSUL_ENABLED ?= true
-CONSUL_SERVICE_NAME ?= consul-consul-server
+CONSUL_SERVICE_NAME ?= consul-server
 
 # -----------------------------------------------------------------------------
 # DBaaS
