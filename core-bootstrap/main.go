@@ -7,6 +7,7 @@ import (
 
 	"github.com/netcracker/core-bootstrap/v2/taskmanager/factory"
 	"github.com/netcracker/core-bootstrap/v2/utils"
+	"github.com/netcracker/qubership-core-lib-go/v3/configloader"
 	"github.com/netcracker/qubership-core-lib-go/v3/logging"
 )
 
@@ -16,6 +17,8 @@ var (
 )
 
 func main() {
+	configloader.Init(configloader.EnvPropertySource())
+
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	utils.RegisterShutdownHook(func(exitCode int) {
