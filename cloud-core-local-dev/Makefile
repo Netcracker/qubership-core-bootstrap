@@ -959,8 +959,8 @@ uninstall-core-legacy-api:
 uninstall-consul:
 	@if [ "$(INSTALL_CONSUL)" = "true" ]; then \
 		echo "$(YELLOW)--- Uninstalling consul...$(NC)"; \
-		kubectl delete consulacls.netcracker.com --all-namespaces --field-selector spec.acl.operatorNamespace=$(CONSUL_NAMESPACE) --ignore-not-found=true || true; \
-		kubectl delete consulkvs.netcracker.com --all-namespaces --field-selector spec.kv.operatorNamespace=$(CONSUL_NAMESPACE) --ignore-not-found=true || true; \
+		kubectl delete consulacls.netcracker.com,consulkvs.netcracker.com --all-namespaces --field-selector spec.operatorNamespace=$(CONSUL_NAMESPACE) --ignore-not-found=true || true; \
+		kubectl delete consulacls.netcracker.com,consulkvs.netcracker.com --all-namespaces --field-selector spec.operatorNamespace= --ignore-not-found=true || true; \
 		helm uninstall consul -n $(CONSUL_NAMESPACE) --ignore-not-found=true || true; \
 		kubectl delete pvc -n $(CONSUL_NAMESPACE) --all --ignore-not-found=true || true; \
 		echo ""; \
