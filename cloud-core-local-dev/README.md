@@ -176,8 +176,8 @@ The script uses a `.mk` configuration file to define all installation parameters
 | `INSTALL_METRICS_SERVER` | `true`/`false` | Install Kubernetes metrics server |
 | `INSTALL_MONITORING` | `true`/`false` | Install monitoring operator |
 | `INSTALL_CONSUL` | `true`/`false` | Install Consul |
-| `CONSUL_VERSION` | `0.15.3` | Release of qubership-consul whose chart is installed, pinned in `dependencies.mk`. `TEST_BRANCH` does not apply |
-| `CONSUL_ACLS` | `true`/`false` | Turn on the Consul ACL system and the Consul ACL Configurator operator. The operator processes a `ConsulACL` resource in any namespace once its `spec.acl.operatorNamespace` names the Consul namespace. Needs Kubernetes 1.31 or later, because the operator selects these resources by a field of the custom resource. `false` by default |
+| `CONSUL_VERSION` | `0.15.5` | Release of qubership-consul whose chart is installed, pinned in `dependencies.mk`. `TEST_BRANCH` does not apply |
+| `CONSUL_ACLS` | `true`/`false` | Turn on the Consul ACL system and the Consul ACL Configurator operator. The operator processes a `ConsulACL` resource in any namespace whose `spec.operatorNamespace` names the Consul namespace or is empty. `false` by default |
 | `CONSUL_STORAGE_CLASS` | `standard` | Storage class of the Consul server volume. Set it on a cluster without a `standard` class, such as `local-path` on rancher-desktop |
 | `INSTALL_DBAAS` | `true`/`false` | Install DBaaS components |
 | `DBAAS_CONFIG_FILE` | `local.mk` | DBaaS configuration file path (relative path will be resolved upon ./dbaas folder, where sub-Makefile is placed)|
@@ -391,7 +391,9 @@ The uninstallation script performs the following stages in reverse order:
 - Uninstalls MAAS components (if `INSTALL_MAAS=true`)
 - Uninstalls DBaaS components
 - Uninstalls Consul (if `INSTALL_CONSUL=true`), after deleting the `ConsulACL` and `ConsulKV` resources its operator
-  manages. The CRDs stay, because deleting a CRD deletes every resource of its type in the cluster
+  manages. They are selected by `spec.operatorNamespace`, which needs Kubernetes 1.31 or later; on an older cluster
+  the resources stay with finalizers that nothing removes. The CRDs stay, because deleting a CRD deletes every resource
+  of its type in the cluster
 - Uninstalls monitoring (if `INSTALL_MONITORING=true`)
 - Uninstalls metrics server (if `INSTALL_METRICS_SERVER=true`)
 

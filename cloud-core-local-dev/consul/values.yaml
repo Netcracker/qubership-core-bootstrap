@@ -3,7 +3,6 @@ server:
   bootstrapExpect: 1
   storage: 1Gi
 consulAclConfigurator:
-  namespaces: "*"
   boundAudiences:
     - netcracker
   jwksProxy:
