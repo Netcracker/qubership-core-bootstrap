@@ -19,7 +19,7 @@ type Configurer struct {
 	Namespace        string
 	consulConfigurer *consul.Configurer
 	secretName       string
-	auth             consulauth.AuthSettings
+	authSettings     consulauth.AuthSettings
 }
 
 func New(consulConfigurer *consul.Configurer) *Configurer {
@@ -30,11 +30,11 @@ func (c *Configurer) Configure(accessor func(string) string) error {
 	c.Namespace = utils.MustGetEnv(accessor, "NAMESPACE")
 	c.secretName = ConfigServerConsulTokenName
 
-	auth, err := consulauth.ReadAuthSettings()
+	authSettings, err := consulauth.ReadAuthSettings()
 	if err != nil {
 		return err
 	}
-	c.auth = auth
+	c.authSettings = authSettings
 	return nil
 }
 
@@ -44,12 +44,12 @@ func (c *Configurer) Execute(ctx context.Context) error {
 		return nil
 	}
 
-	needed, err := c.staticTokenNeeded(ctx)
+	staticTokenNeeded, err := c.staticTokenNeeded(ctx)
 	if err != nil {
 		return utils.LogError(logger, ctx, "error choosing how config-server gets its Consul token: %w", err)
 	}
 
-	if !needed {
+	if !staticTokenNeeded {
 		logger.InfoC(ctx, "config-server needs no static Consul token: deleting secret '%s'", c.secretName)
 		if err := utils.DeleteK8sSecret(ctx, c.Namespace, c.secretName); err != nil {
 			return utils.LogError(logger, ctx, "error deleting secret %s: %w", c.secretName, err)

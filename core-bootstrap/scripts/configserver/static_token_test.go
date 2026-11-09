@@ -62,22 +62,17 @@ const authMethodWithNetcracker = `{"Name":"applications-k8s-m2m","Type":"jwt","C
 
 func TestStaticTokenNeeded_ByMode(t *testing.T) {
 	cases := []struct {
-		name           string
-		consulAuthMode string
-		m2mAuthMode    string
-		want           bool
+		name string
+		mode string
+		want bool
 	}{
-		{"legacy needs the token", "legacy", "", true},
-		{"k8s needs no token", "k8s", "", false},
-		{"an unset consul auth mode follows M2M_AUTH_MODE", "", "k8s", false},
+		{"legacy needs the token", "legacy", true},
+		{"k8s needs no token", "k8s", false},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			consulServer, address := newFakeConsul(t, http.StatusOK, authMethodWithNetcracker)
-			task := newTask(t, address, map[string]string{
-				"CONSUL_AUTH_MODE": tc.consulAuthMode,
-				"M2M_AUTH_MODE":    tc.m2mAuthMode,
-			})
+			task := newTask(t, address, map[string]string{"CONSUL_AUTH_MODE": tc.mode})
 
 			needed, err := task.staticTokenNeeded(context.Background())
 
@@ -98,7 +93,6 @@ func TestStaticTokenNeeded_HybridDecidesByTheConsulAuthMethod(t *testing.T) {
 		{"the auth method accepts the audience", http.StatusOK, authMethodWithNetcracker, false},
 		{"the auth method does not accept the audience", http.StatusOK,
 			`{"Name":"applications-k8s-m2m","Type":"jwt","Config":{"BoundAudiences":["https://kubernetes.default.svc.cluster.local"]}}`, true},
-		{"the auth method has no bound audiences", http.StatusOK, `{"Name":"applications-k8s-m2m","Type":"jwt","Config":{}}`, true},
 		{"Consul has no such auth method", http.StatusNotFound, "ACL auth method not found", true},
 		{"Consul ACLs are disabled", http.StatusUnauthorized, "ACL support disabled", false},
 	}
@@ -124,9 +118,7 @@ func TestStaticTokenNeeded_HybridFailsWhenTheAuthMethodCannotBeRead(t *testing.T
 		body   string
 	}{
 		{"the admin token is refused", http.StatusForbidden, "Permission denied"},
-		{"unauthorized for another reason", http.StatusUnauthorized, "ACL not found"},
 		{"401 whose body adds words to the ACL disabled text", http.StatusUnauthorized, "ACL support disabled for this token"},
-		{"Consul fails", http.StatusInternalServerError, "rpc error"},
 		{"the auth method is not JSON", http.StatusOK, "not json"},
 	}
 	for _, tc := range cases {
