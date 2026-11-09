@@ -19,22 +19,16 @@ type Configurer struct {
 	Namespace        string
 	consulConfigurer *consul.Configurer
 	secretName       string
-	adminToken       string
 	auth             consulauth.AuthSettings
-	issueToken       func(ctx context.Context) error
-	deleteSecret     func(ctx context.Context, namespace string, secretName string) error
 }
 
 func New(consulConfigurer *consul.Configurer) *Configurer {
-	c := &Configurer{consulConfigurer: consulConfigurer, deleteSecret: utils.DeleteK8sSecret}
-	c.issueToken = c.configureConsulAccess
-	return c
+	return &Configurer{consulConfigurer: consulConfigurer}
 }
 
 func (c *Configurer) Configure(accessor func(string) string) error {
 	c.Namespace = utils.MustGetEnv(accessor, "NAMESPACE")
 	c.secretName = ConfigServerConsulTokenName
-	c.adminToken = accessor("CONSUL_ADMIN_TOKEN")
 
 	auth, err := consulauth.ReadAuthSettings()
 	if err != nil {
@@ -50,20 +44,20 @@ func (c *Configurer) Execute(ctx context.Context) error {
 		return nil
 	}
 
-	authMode, err := c.resolveConsulAuthMode(ctx)
+	needed, err := c.staticTokenNeeded(ctx)
 	if err != nil {
 		return utils.LogError(logger, ctx, "error choosing how config-server gets its Consul token: %w", err)
 	}
 
-	if authMode == consulauth.AuthModeK8s {
-		logger.InfoC(ctx, "Consul auth mode is '%s' and no static token is needed: deleting secret '%s'", c.auth.Mode, c.secretName)
-		if err := c.deleteSecret(ctx, c.Namespace, c.secretName); err != nil {
+	if !needed {
+		logger.InfoC(ctx, "config-server needs no static Consul token: deleting secret '%s'", c.secretName)
+		if err := utils.DeleteK8sSecret(ctx, c.Namespace, c.secretName); err != nil {
 			return utils.LogError(logger, ctx, "error deleting secret %s: %w", c.secretName, err)
 		}
 		return nil
 	}
 
-	if err := c.issueToken(ctx); err != nil {
+	if err := c.configureConsulAccess(ctx); err != nil {
 		return utils.LogError(logger, ctx, "error configure config-server access to consul: %w", err)
 	}
 	return nil

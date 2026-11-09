@@ -54,6 +54,10 @@ func (c *Configurer) Execute(ctx context.Context) error {
 	return nil
 }
 
+func (c *Configurer) AdminToken() string {
+	return c.adminToken
+}
+
 func GetConsulTokenFromSecret(ctx context.Context, namespace, secretName string) (string, error) {
 	secret, err := utils.GetExistingSecret(ctx, namespace, secretName)
 	if err != nil {
