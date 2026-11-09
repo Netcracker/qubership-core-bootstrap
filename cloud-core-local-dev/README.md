@@ -224,6 +224,28 @@ A core service in a mode the other side does not accept cannot call it: `k8s` ag
 `hybrid` against it works through the fallback. The report printed by `resolved-refs` shows the mode of each component and
 whether the agents are installed. A value other than the three modes stops the make before anything is installed.
 
+### Consul token of core-legacy-api
+
+`CONSUL_AUTH_MODE` sets how core-legacy-api gets the Consul token it reads and writes properties with: `legacy` (the
+static token in the secret `config-server-consul-token`), `hybrid`, or `k8s` (a login with its ServiceAccount). Empty,
+the default, leaves the choice to `M2M_AUTH_MODE`. The mode is passed to core-legacy-api and to core-bootstrap, so the
+`configserver` task of core-bootstrap issues the static token or deletes the secret to match. Any other value stops the
+make before anything is installed.
+
+The `configserver` task runs only with `CORE_CONFIG_CONSUL_ENABLED=true` (`false` by default), and then calls the Consul
+API with an admin token. Set the token in `CORE_CONFIG_CONSUL_ADMIN_TOKEN`; when it is empty and `CONSUL_ACLS=true`,
+make reads the bootstrap ACL token from the secret `consul-bootstrap-acl-token` of the Consul it installed:
+
+The other core services do not work on Consul with ACLs, so such a stand gets the dependencies and core-legacy-api
+only:
+
+```bash
+make CONSUL_ACLS=true install-dependencies
+# core-legacy-api logs in to Consul when the auth method accepts its audience, and uses the static token otherwise
+make CONSUL_ACLS=true CORE_CONFIG_CONSUL_ENABLED=true CONSUL_AUTH_MODE=hybrid \
+  INSTALL_CONFIG_SERVER=false INSTALL_CORE_LEGACY_API=true deploy-cloud-core-configuration deploy-core-legacy-api
+```
+
 ### MaaS configuration
 
 Specify list of instance names in parameters `KAFKA_INSTANCES`, `RABBIT_INSTANCES` to adjust message brokers clusters

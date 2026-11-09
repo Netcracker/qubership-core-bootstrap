@@ -76,6 +76,9 @@ CORE_MESH_EARLY ?= false
 MESH_DEPENDENCY_NAMESPACES ?=
 CONSUL_ENABLED ?= true
 CONSUL_SERVICE_NAME ?= consul-server
+# How core-legacy-api gets its Consul token, and whether core-bootstrap issues it one: legacy, hybrid
+# or k8s. Empty leaves it to M2M_AUTH_MODE.
+CONSUL_AUTH_MODE ?=
 
 # -----------------------------------------------------------------------------
 # DBaaS
@@ -203,6 +206,9 @@ MAAS_IMAGE_REPOSITORY ?= ghcr.io/netcracker/qubership-maas
 # -----------------------------------------------------------------------------
 
 CORE_CONFIG_CONSUL_ENABLED ?= false
+# Consul token of the bootstrap with CORE_CONFIG_CONSUL_ENABLED=true. Empty takes the bootstrap ACL
+# token of the Consul installed here, which needs CONSUL_ACLS=true.
+CORE_CONFIG_CONSUL_ADMIN_TOKEN ?=
 CORE_CONFIG_MAAS_ENABLED ?= false
 # follows MAAS_NAMESPACE: MaaS is reached in the namespace it is installed in
 CORE_CONFIG_MAAS_INTERNAL_ADDRESS ?= http://maas-service.$(MAAS_NAMESPACE):8080
