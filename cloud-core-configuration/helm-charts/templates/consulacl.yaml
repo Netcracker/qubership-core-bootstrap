@@ -1,0 +1,32 @@
+{{- $mode := .Values.CONSUL_AUTH_MODE | default .Values.M2M_AUTH_MODE | default "legacy" | trim }}
+{{- if and (has $mode (list "hybrid" "k8s")) (.Capabilities.APIVersions.Has "netcracker.com/v1/ConsulACL") }}
+{{- $consulHostParts := splitList "." (urlParse (required "CONSUL_URL is required to create the ConsulACL resource" .Values.CONSUL_URL)).hostname }}
+---
+# Grants every ServiceAccount of the namespace the Consul access the core services share, for a login with
+# the auth method applications-k8s-m2m.
+apiVersion: netcracker.com/v1
+kind: ConsulACL
+metadata:
+  name: cloud-core
+  namespace: '{{ .Values.NAMESPACE }}'
+  labels:
+    app.kubernetes.io/part-of: Cloud-Core
+    app.kubernetes.io/managed-by: helm
+    deployment.netcracker.com/sessionId: '{{ .Values.DEPLOYMENT_SESSION_ID }}'
+spec:
+{{- if gt (len $consulHostParts) 1 }}
+  operatorNamespace: {{ index $consulHostParts 1 | quote }}
+{{- end }}
+  acl:
+    name: cloud-core
+    json: >
+      {
+        "policies": [
+          {"Name": "config-write", "Rules": "key_prefix \"config/{{ .Values.NAMESPACE }}/\" { policy = \"write\" }"},
+          {"Name": "composite-write", "Rules": "key_prefix \"composite/\" { policy = \"write\" }"},
+          {"Name": "logging-read", "Rules": "key_prefix \"logging/{{ .Values.NAMESPACE }}/\" { policy = \"read\" }"}
+        ],
+        "roles": [{"Name": "core-service", "policy_names": ["config-write", "composite-write", "logging-read"]}],
+        "bind_rules": [{"BindName": "core-service", "Selector": "value.namespace == \"{{ .Values.NAMESPACE }}\""}]
+      }
+{{- end }}
