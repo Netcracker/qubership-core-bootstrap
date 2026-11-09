@@ -76,9 +76,6 @@ CORE_MESH_EARLY ?= false
 MESH_DEPENDENCY_NAMESPACES ?=
 CONSUL_ENABLED ?= true
 CONSUL_SERVICE_NAME ?= consul-server
-# How core-legacy-api gets its Consul token, and whether core-bootstrap issues it one: legacy, hybrid
-# or k8s. Empty leaves it to M2M_AUTH_MODE.
-CONSUL_AUTH_MODE ?=
 
 # -----------------------------------------------------------------------------
 # DBaaS

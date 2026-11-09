@@ -293,7 +293,6 @@ define resolved_refs_report
 	$(call ref_row,M2M_AUTH_MODE,$(M2M_AUTH_MODE),$(if $(filter file default,$(origin M2M_AUTH_MODE)),default (local.mk),explicit)); \
 	$(call ref_row,DBAAS_M2M_AUTH_MODE,$(DBAAS_M2M_AUTH_MODE),$(if $(filter file default,$(origin DBAAS_M2M_AUTH_MODE)),follows M2M_AUTH_MODE,explicit)); \
 	$(call ref_row,MAAS_M2M_AUTH_MODE,$(MAAS_M2M_AUTH_MODE),$(if $(filter file default,$(origin MAAS_M2M_AUTH_MODE)),follows M2M_AUTH_MODE,explicit)); \
-	$(call ref_row,CONSUL_AUTH_MODE,$(CONSUL_AUTH_MODE),$(if $(CONSUL_AUTH_MODE),explicit,follows M2M_AUTH_MODE)); \
 	$(call ref_row,INSTALL_DBAAS_AGENT,$(INSTALL_DBAAS_AGENT),$(if $(filter file default,$(origin INSTALL_DBAAS_AGENT)),default (off in the k8s mode),explicit)); \
 	$(call ref_row,INSTALL_MAAS_AGENT,$(INSTALL_MAAS_AGENT),$(if $(filter file default,$(origin INSTALL_MAAS_AGENT)),default (off in the k8s mode),explicit)); \
 	$(foreach s,$(CORE_SERVICES),$(call ref_row,$(s)_BRANCH,$($(s)_CLONE_BRANCH),$($(s)_BRANCH_SOURCE)); $(call ref_row,$(s)_TAG,$($(s)_TAG),$($(s)_TAG_SOURCE)); ) \
@@ -310,7 +309,6 @@ endef
 
 # A mode that is not one of the three would be passed on to the charts as it is.
 $(foreach v,M2M_AUTH_MODE DBAAS_M2M_AUTH_MODE MAAS_M2M_AUTH_MODE,$(if $(filter legacy hybrid k8s,$($(v))),,$(error $(v) must be legacy, hybrid or k8s, got '$($(v))')))
-$(if $(filter-out legacy hybrid k8s,$(CONSUL_AUTH_MODE)),$(error CONSUL_AUTH_MODE must be empty, legacy, hybrid or k8s, got '$(CONSUL_AUTH_MODE)'))
 
 # Both charts own the Service config-server, so the second helm install would fail after the first
 # one has already been deployed.
@@ -701,7 +699,6 @@ deploy-cloud-core-configuration:
 		-f ./core-values.yaml \
 		--set CONSUL_ENABLED=$(CORE_CONFIG_CONSUL_ENABLED) \
 		$(if $(filter true,$(CORE_CONFIG_CONSUL_ENABLED)),--set CONSUL_PUBLIC_URL=http://$(CONSUL_SERVICE_NAME).$(CONSUL_NAMESPACE).$(INGRESS_GATEWAY_CLOUD_PRIVATE_HOST):8500 --set "CONSUL_ADMIN_TOKEN=$$consul_admin_token") \
-		$(if $(CONSUL_AUTH_MODE),--set CONSUL_AUTH_MODE=$(CONSUL_AUTH_MODE)) \
 		--set MAAS_ENABLED=$(CORE_CONFIG_MAAS_ENABLED) \
 		--set MAAS_INTERNAL_ADDRESS=$(CORE_CONFIG_MAAS_INTERNAL_ADDRESS) \
 		--set NAMESPACE=$(CORE_NAMESPACE) \
@@ -880,7 +877,6 @@ deploy-core-legacy-api:
 			-f ./core-values.yaml \
 			--set IMAGE_REPOSITORY=$(CORE_LEGACY_API_IMAGE_REPOSITORY) \
 			--set TAG=$(CORE_LEGACY_API_TAG) \
-			$(if $(CONSUL_AUTH_MODE),--set CONSUL_AUTH_MODE=$(CONSUL_AUTH_MODE)) \
 			$(HELM_DEBUG_FLAGS) || exit 1; \
 		$(if $(HELM_DEBUG_FLAGS),,kubectl rollout status deployment/core-legacy-api -n $(CORE_NAMESPACE) --timeout=5m || exit 1;) \
 	else \
