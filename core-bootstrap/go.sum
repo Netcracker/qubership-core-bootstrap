@@ -182,8 +182,8 @@ github.com/modern-go/reflect2 v1.0.3-0.20250322232337-35a7c28c31ee/go.mod h1:yWu
 github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 h1:C3w9PqII01/Oq1c1nUAm88MOHcQC9l5mIlSMApZMrHA=
 github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822/go.mod h1:+n7T8mK8HuQTcFwEeznm/DIxMOiR9yIdICNftLE1DvQ=
 github.com/mwitkow/go-conntrack v0.0.0-20161129095857-cc309e4a2223/go.mod h1:qRWi+5nqEBWmkhHvq77mSJWrCKwh8bxhgT7d/eI7P4U=
-github.com/netcracker/qubership-core-lib-go-rest-utils/v2 v2.11.1-0.20261106083139-25c2648608b5 h1:hbuOgXAzUomS+Gfc0jtUM4iOwhgSEnd+1im/6HxsGyw=
-github.com/netcracker/qubership-core-lib-go-rest-utils/v2 v2.11.1-0.20261106083139-25c2648608b5/go.mod h1:RJvHoMW8mzRetleQQR0OqwcV8JP55GN0YaI64gLgSf8=
+github.com/netcracker/qubership-core-lib-go-rest-utils/v2 v2.11.1-0.20261110134416-a2e71af3f20f h1:0TzzV1eL+hU1g3qulS98qwfA5Uf0iF4O+ljw2/nSPlA=
+github.com/netcracker/qubership-core-lib-go-rest-utils/v2 v2.11.1-0.20261110134416-a2e71af3f20f/go.mod h1:RJvHoMW8mzRetleQQR0OqwcV8JP55GN0YaI64gLgSf8=
 github.com/netcracker/qubership-core-lib-go/v3 v3.15.3 h1:Vnbltz1TPtDrRq5oHib75Ry4/rwQE5DSPSa38qc1x/g=
 github.com/netcracker/qubership-core-lib-go/v3 v3.15.3/go.mod h1:MGbMUoPz1vPVru5YZ4U64Q3GdPJLgHY+81y4aU79AXc=
 github.com/pascaldekloe/goe v0.1.0 h1:cBOtyMzM9HTpWjXfbbunk26uA6nG3a8n06Wieeh0MwY=
