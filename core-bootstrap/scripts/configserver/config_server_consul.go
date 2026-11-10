@@ -35,6 +35,10 @@ func (c *Configurer) Configure(accessor func(string) string) error {
 		return err
 	}
 	c.authSettings = authSettings
+	if c.consulConfigurer.Enabled && authSettings.Mode != consulauth.AuthModeK8s &&
+		(c.consulConfigurer.Address == "" || c.consulConfigurer.AdminToken() == "") {
+		return fmt.Errorf("consul public URL and admin token are required if CONSUL_ENABLED true and the Consul auth mode is '%s'", authSettings.Mode)
+	}
 	return nil
 }
 

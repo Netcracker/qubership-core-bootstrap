@@ -14,4 +14,4 @@ List of predeploy scripts:
    secret instead, since core-legacy-api logs in to Consul itself. With `hybrid`, it deletes the secret when the Consul
    auth method `applications-k8s-m2m` accepts the audience `netcracker` or Consul has ACLs disabled, creates the
    token when the method is missing or lacks the audience, and fails on any other answer of Consul. Requires
-   `CONSUL_ENABLED=true`.
+   `CONSUL_ENABLED=true`, and in `legacy` and `hybrid` also `CONSUL_PUBLIC_URL` and `CONSUL_ADMIN_TOKEN`.
