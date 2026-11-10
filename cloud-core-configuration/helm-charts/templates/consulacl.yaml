@@ -2,8 +2,9 @@
 {{- if and (has $mode (list "hybrid" "k8s")) (.Capabilities.APIVersions.Has "netcracker.com/v1/ConsulACL") }}
 {{- $consulHostParts := splitList "." (urlParse (required "CONSUL_URL is required to create the ConsulACL resource" .Values.CONSUL_URL)).hostname }}
 ---
-# Grants every ServiceAccount of the namespace the Consul access the core services share, for a login with
-# the auth method applications-k8s-m2m.
+# Grants every ServiceAccount of the namespace read access to the configs and logging settings of the
+# namespace in Consul, for a login with the auth method applications-k8s-m2m. A service that writes to Consul
+# gets that access from a ConsulACL of its own chart.
 apiVersion: netcracker.com/v1
 kind: ConsulACL
 metadata:
@@ -22,11 +23,10 @@ spec:
     json: >
       {
         "policies": [
-          {"Name": "config-write", "Rules": "key_prefix \"config/{{ .Values.NAMESPACE }}/\" { policy = \"write\" }"},
-          {"Name": "composite-write", "Rules": "key_prefix \"composite/\" { policy = \"write\" }"},
+          {"Name": "config-read", "Rules": "key_prefix \"config/{{ .Values.NAMESPACE }}/\" { policy = \"read\" }"},
           {"Name": "logging-read", "Rules": "key_prefix \"logging/{{ .Values.NAMESPACE }}/\" { policy = \"read\" }"}
         ],
-        "roles": [{"Name": "core-service", "policy_names": ["config-write", "composite-write", "logging-read"]}],
+        "roles": [{"Name": "core-service", "policy_names": ["config-read", "logging-read"]}],
         "bind_rules": [{"BindName": "core-service", "Selector": "value.namespace == \"{{ .Values.NAMESPACE }}\""}]
       }
 {{- end }}
