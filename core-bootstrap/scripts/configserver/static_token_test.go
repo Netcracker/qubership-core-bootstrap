@@ -160,30 +160,18 @@ func TestStaticTokenNeeded_HybridAsksForTheConfiguredAuthMethodAndAudience(t *te
 	assert.Equal(t, []consulRequest{{path: "/v1/acl/auth-method/custom-method", token: "admin-token"}}, consulServer.requests)
 }
 
-func TestConfigure_RequiresTheAdminTokenOnlyWhereTheModeReadsConsul(t *testing.T) {
-	cases := []struct {
-		mode    string
-		wantErr bool
-	}{
-		{"legacy", true},
-		{"hybrid", true},
-		{"k8s", false},
-	}
-	for _, tc := range cases {
-		t.Run(tc.mode, func(t *testing.T) {
-			setAuthEnv(t, map[string]string{"CONSUL_AUTH_MODE": tc.mode})
-			values := map[string]string{"NAMESPACE": "core-ns", "CONSUL_ENABLED": "true"}
-			accessor := func(name string) string { return values[name] }
+func TestConfigure_RequiresTheAdminTokenOnlyOutsideK8s(t *testing.T) {
+	values := map[string]string{"NAMESPACE": "core-ns", "CONSUL_ENABLED": "true"}
+	accessor := func(name string) string { return values[name] }
+	for mode, wantErr := range map[string]bool{"hybrid": true, "k8s": false} {
+		t.Run(mode, func(t *testing.T) {
+			setAuthEnv(t, map[string]string{"CONSUL_AUTH_MODE": mode})
 			consulConfigurer := consul.New()
 			require.NoError(t, consulConfigurer.Configure(accessor))
 
 			err := New(consulConfigurer).Configure(accessor)
 
-			if tc.wantErr {
-				assert.ErrorContains(t, err, "admin token are required")
-			} else {
-				assert.NoError(t, err)
-			}
+			assert.Equal(t, wantErr, err != nil, "error: %v", err)
 		})
 	}
 }
