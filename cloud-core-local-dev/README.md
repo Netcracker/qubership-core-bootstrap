@@ -231,14 +231,12 @@ cloud-core-configuration grants every ServiceAccount of the core namespace read 
 `ConsulACL` resource, and the charts of core-legacy-api and core-operator add their own for what they write. The
 `legacy` mode logs in through an auth method named after the namespace, which this make does not create.
 
-The `configserver` task of core-bootstrap issues the static Consul token of core-legacy-api, or deletes the secret
-`config-server-consul-token` when the mode does not need it. It runs only with `CORE_CONFIG_CONSUL_ENABLED=true`
-(`false` by default), and then calls the Consul API with an admin token. Set the token in
-`CORE_CONFIG_CONSUL_ADMIN_TOKEN`; when it is empty and `CONSUL_ACLS=true`, make reads the bootstrap ACL token from the
-secret `consul-bootstrap-acl-token` of the Consul it installed:
+The `configserver` task of core-bootstrap runs only with `CONSUL_ACLS=true`. It issues the static Consul token of
+core-legacy-api, or deletes the secret `config-server-consul-token` when the mode does not need it, and calls the Consul
+API with the bootstrap ACL token from the secret `consul-bootstrap-acl-token` of the installed Consul:
 
 ```bash
-make CONSUL_ACLS=true CORE_CONFIG_CONSUL_ENABLED=true M2M_AUTH_MODE=k8s \
+make CONSUL_ACLS=true M2M_AUTH_MODE=k8s \
   INSTALL_CONFIG_SERVER=false INSTALL_CORE_LEGACY_API=true install
 ```
 

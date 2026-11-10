@@ -202,10 +202,6 @@ MAAS_IMAGE_REPOSITORY ?= ghcr.io/netcracker/qubership-maas
 # Core bootstrap
 # -----------------------------------------------------------------------------
 
-CORE_CONFIG_CONSUL_ENABLED ?= false
-# Consul token of the bootstrap with CORE_CONFIG_CONSUL_ENABLED=true. Empty takes the bootstrap ACL
-# token of the Consul installed here, which needs CONSUL_ACLS=true.
-CORE_CONFIG_CONSUL_ADMIN_TOKEN ?=
 CORE_CONFIG_MAAS_ENABLED ?= false
 # follows MAAS_NAMESPACE: MaaS is reached in the namespace it is installed in
 CORE_CONFIG_MAAS_INTERNAL_ADDRESS ?= http://maas-service.$(MAAS_NAMESPACE):8080
