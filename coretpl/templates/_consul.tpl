@@ -1,7 +1,6 @@
 {{/*
-The Consul auth mode of Cloud Core: CONSUL_AUTH_MODE, or M2M_AUTH_MODE when it is empty, and legacy when both
-are empty. The render fails on any value other than legacy, hybrid, or k8s. Call it with the root context:
-{{ include "coretpl.consulAuthMode" $ }}
+Consul auth mode: CONSUL_AUTH_MODE, else M2M_AUTH_MODE, else legacy.
+Fails the render on any value other than legacy, hybrid, or k8s.
 */}}
 {{- define "coretpl.consulAuthMode" -}}
 {{- $mode := .Values.CONSUL_AUTH_MODE | default .Values.M2M_AUTH_MODE | default "legacy" | trim -}}
@@ -12,12 +11,9 @@ are empty. The render fails on any value other than legacy, hybrid, or k8s. Call
 {{- end -}}
 
 {{/*
-The namespace of the Consul installation, for spec.operatorNamespace of the ConsulACL resources.
-The ACL operator runs next to Consul, so the namespace is read from CONSUL_URL,
-http://<consul>.<namespace>[.<domain>]:<port>. The render fails when the second label of the
-host is missing, empty, or all digits, as in an IP address, since none of those names a namespace.
-Call it with the root context:
-{{ include "coretpl.consulNamespace" $ }}
+Consul namespace for spec.operatorNamespace of ConsulACL, where the ACL operator runs: the second host label of
+CONSUL_URL, http://<consul>.<namespace>[.<domain>]:<port>. Fails the render when that label is missing or numeric,
+as in an IP address.
 */}}
 {{- define "coretpl.consulNamespace" -}}
 {{- $url := .Values.CONSUL_URL | default "" | toString -}}
@@ -33,10 +29,8 @@ Call it with the root context:
 {{- end -}}
 
 {{/*
-"true" where the chart renders its ConsulACL resource, empty otherwise: in the Consul auth modes hybrid
-and k8s, on a cluster that serves the ConsulACL CRD. In k8s a service has no other way to get rights in
-Consul, so the render fails there without the CRD. Call it with the root context:
-{{- if include "coretpl.consulAclEnabled" $ }}
+"true" in the Consul auth modes hybrid and k8s where the cluster serves the ConsulACL CRD, empty otherwise.
+Fails the render in k8s without the CRD, since a service there has no other way to get rights in Consul.
 */}}
 {{- define "coretpl.consulAclEnabled" -}}
 {{- $mode := include "coretpl.consulAuthMode" . -}}
