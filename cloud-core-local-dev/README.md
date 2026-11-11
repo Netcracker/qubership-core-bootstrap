@@ -176,7 +176,7 @@ The script uses a `.mk` configuration file to define all installation parameters
 | `INSTALL_METRICS_SERVER` | `true`/`false` | Install Kubernetes metrics server |
 | `INSTALL_MONITORING` | `true`/`false` | Install monitoring operator |
 | `INSTALL_CONSUL` | `true`/`false` | Install Consul |
-| `CONSUL_VERSION` | `0.15.5` | Release of qubership-consul whose chart is installed, pinned in `dependencies.mk`. `TEST_BRANCH` does not apply |
+| `CONSUL_VERSION` | `0.15.6` | Release of qubership-consul whose chart is installed, pinned in `dependencies.mk`. `TEST_BRANCH` does not apply |
 | `CONSUL_ACLS` | `true`/`false` | Turn on the Consul ACL system and the Consul ACL Configurator operator. The operator processes a `ConsulACL` resource in any namespace whose `spec.operatorNamespace` names the Consul namespace or is empty. `false` by default |
 | `CONSUL_STORAGE_CLASS` | `standard` | Storage class of the Consul server volume. Set it on a cluster without a `standard` class, such as `local-path` on rancher-desktop |
 | `INSTALL_DBAAS` | `true`/`false` | Install DBaaS components |
