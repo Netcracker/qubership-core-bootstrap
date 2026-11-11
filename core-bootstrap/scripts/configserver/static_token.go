@@ -2,23 +2,15 @@ package configserver
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
-	"slices"
 
 	"github.com/netcracker/core-bootstrap/v2/utils"
 	consulauth "github.com/netcracker/qubership-core-lib-go-rest-utils/v2/consul-propertysource"
 )
 
 const consulACLDisabledMessage = "ACL support disabled"
-
-type consulAuthMethod struct {
-	Config struct {
-		BoundAudiences []string `json:"BoundAudiences"`
-	} `json:"Config"`
-}
 
 // staticTokenNeeded reports whether config-server needs the static Consul token: always in legacy, never in k8s,
 // and in hybrid when it cannot log in to Consul with its ServiceAccount.
@@ -37,8 +29,8 @@ func (c *Configurer) staticTokenNeeded(ctx context.Context) (bool, error) {
 }
 
 // serviceAccountLoginWorks reads the auth method with the admin token and reports whether a ServiceAccount login can
-// succeed: the method accepts the audience, or Consul has ACLs disabled and needs no login. A missing method means it
-// cannot; any other answer is an error.
+// succeed: Consul has the method, or has ACLs disabled and needs no login. A missing method means it cannot; any other
+// answer is an error.
 func (c *Configurer) serviceAccountLoginWorks(ctx context.Context) (bool, error) {
 	methodURL := fmt.Sprintf("%s/v1/acl/auth-method/%s", c.consulConfigurer.Address, url.PathEscape(c.authSettings.AuthMethod))
 	resp, err := utils.RestyClient.R().
@@ -50,26 +42,17 @@ func (c *Configurer) serviceAccountLoginWorks(ctx context.Context) (bool, error)
 	}
 
 	switch {
+	case resp.StatusCode() == http.StatusOK:
+		logger.InfoC(ctx, "Consul has auth method '%s': issuing no token", c.authSettings.AuthMethod)
+		return true, nil
 	case resp.StatusCode() == http.StatusNotFound:
 		logger.InfoC(ctx, "Consul has no auth method '%s': issuing the static token", c.authSettings.AuthMethod)
 		return false, nil
 	case resp.StatusCode() == http.StatusUnauthorized && resp.String() == consulACLDisabledMessage:
 		logger.InfoC(ctx, "Consul ACLs are disabled: issuing no token")
 		return true, nil
-	case resp.StatusCode() != http.StatusOK:
+	default:
 		return false, fmt.Errorf("failed to read Consul auth method '%s': unexpected status code %d, body: %s",
 			c.authSettings.AuthMethod, resp.StatusCode(), resp.String())
 	}
-
-	var method consulAuthMethod
-	if err := json.Unmarshal(resp.Body(), &method); err != nil {
-		return false, fmt.Errorf("failed to decode Consul auth method '%s': %w", c.authSettings.AuthMethod, err)
-	}
-	if !slices.Contains(method.Config.BoundAudiences, c.authSettings.Audience) {
-		logger.InfoC(ctx, "Consul auth method '%s' does not accept audience '%s': issuing the static token",
-			c.authSettings.AuthMethod, c.authSettings.Audience)
-		return false, nil
-	}
-	logger.InfoC(ctx, "Consul auth method '%s' accepts audience '%s': issuing no token", c.authSettings.AuthMethod, c.authSettings.Audience)
-	return true, nil
 }

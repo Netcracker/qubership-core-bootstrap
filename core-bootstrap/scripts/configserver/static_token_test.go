@@ -35,7 +35,7 @@ func newFakeConsul(t *testing.T, status int, body string) (*fakeConsul, string) 
 }
 
 func setAuthEnv(t *testing.T, env map[string]string) {
-	for _, name := range []string{"CONSUL_AUTH_MODE", "M2M_AUTH_MODE", "CONSUL_AUTH_METHOD", "CONSUL_AUTH_AUDIENCE"} {
+	for _, name := range []string{"CONSUL_AUTH_MODE", "M2M_AUTH_MODE", "CONSUL_AUTH_METHOD"} {
 		t.Setenv(name, env[name])
 	}
 	configloader.Init(configloader.EnvPropertySource())
@@ -58,7 +58,7 @@ func newTask(t *testing.T, consulAddress string, env map[string]string) *Configu
 	return task
 }
 
-const authMethodWithNetcracker = `{"Name":"applications-k8s-m2m","Type":"jwt","Config":{"BoundAudiences":["https://kubernetes.default.svc.cluster.local","netcracker"]}}`
+const authMethod = `{"Name":"applications-k8s-m2m","Type":"jwt"}`
 
 func TestStaticTokenNeeded_ByMode(t *testing.T) {
 	cases := []struct {
@@ -71,7 +71,7 @@ func TestStaticTokenNeeded_ByMode(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			consulServer, address := newFakeConsul(t, http.StatusOK, authMethodWithNetcracker)
+			consulServer, address := newFakeConsul(t, http.StatusOK, authMethod)
 			task := newTask(t, address, map[string]string{"CONSUL_AUTH_MODE": tc.mode})
 
 			needed, err := task.staticTokenNeeded(context.Background())
@@ -90,9 +90,7 @@ func TestStaticTokenNeeded_HybridDecidesByTheConsulAuthMethod(t *testing.T) {
 		body   string
 		want   bool
 	}{
-		{"the auth method accepts the audience", http.StatusOK, authMethodWithNetcracker, false},
-		{"the auth method does not accept the audience", http.StatusOK,
-			`{"Name":"applications-k8s-m2m","Type":"jwt","Config":{"BoundAudiences":["https://kubernetes.default.svc.cluster.local"]}}`, true},
+		{"Consul has the auth method", http.StatusOK, authMethod, false},
 		{"Consul has no such auth method", http.StatusNotFound, "ACL auth method not found", true},
 		{"Consul ACLs are disabled", http.StatusUnauthorized, "ACL support disabled", false},
 	}
@@ -119,7 +117,7 @@ func TestStaticTokenNeeded_HybridFailsWhenTheAuthMethodCannotBeRead(t *testing.T
 	}{
 		{"the admin token is refused", http.StatusForbidden, "Permission denied"},
 		{"401 whose body adds words to the ACL disabled text", http.StatusUnauthorized, "ACL support disabled for this token"},
-		{"the auth method is not JSON", http.StatusOK, "not json"},
+		{"the ACL disabled text with another status", http.StatusForbidden, "ACL support disabled"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -144,14 +142,9 @@ func TestStaticTokenNeeded_HybridFailsWhenConsulIsUnreachable(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestStaticTokenNeeded_HybridAsksForTheConfiguredAuthMethodAndAudience(t *testing.T) {
-	consulServer, address := newFakeConsul(t, http.StatusOK,
-		`{"Name":"custom-method","Type":"jwt","Config":{"BoundAudiences":["custom-audience"]}}`)
-	task := newTask(t, address, map[string]string{
-		"CONSUL_AUTH_MODE":     "hybrid",
-		"CONSUL_AUTH_METHOD":   "custom-method",
-		"CONSUL_AUTH_AUDIENCE": "custom-audience",
-	})
+func TestStaticTokenNeeded_HybridAsksForTheConfiguredAuthMethod(t *testing.T) {
+	consulServer, address := newFakeConsul(t, http.StatusOK, `{"Name":"custom-method","Type":"jwt"}`)
+	task := newTask(t, address, map[string]string{"CONSUL_AUTH_MODE": "hybrid", "CONSUL_AUTH_METHOD": "custom-method"})
 
 	needed, err := task.staticTokenNeeded(context.Background())
 

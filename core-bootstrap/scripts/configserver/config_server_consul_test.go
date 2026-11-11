@@ -46,7 +46,7 @@ func TestExecute_K8sModeDeletesTheStaticTokenSecret(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			consulServer, address := newFakeConsul(t, http.StatusOK, authMethodWithNetcracker)
+			consulServer, address := newFakeConsul(t, http.StatusOK, authMethod)
 			k8s := newFakeKubernetes(t, tc.status)
 			task := newTask(t, address, map[string]string{"CONSUL_AUTH_MODE": "k8s"})
 
@@ -71,7 +71,7 @@ func TestExecute_HybridFailsWithoutTouchingTheSecretWhenTheAuthMethodCannotBeRea
 }
 
 func TestExecute_LegacyGoesOnToTheStaticTokenAndKeepsTheSecret(t *testing.T) {
-	consulServer, address := newFakeConsul(t, http.StatusOK, authMethodWithNetcracker)
+	consulServer, address := newFakeConsul(t, http.StatusOK, authMethod)
 	k8s := newFakeKubernetes(t, http.StatusInternalServerError)
 	task := newTask(t, address, map[string]string{"CONSUL_AUTH_MODE": "legacy"})
 
