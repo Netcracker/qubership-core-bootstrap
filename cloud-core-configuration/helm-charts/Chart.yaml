@@ -6,5 +6,5 @@ version: 0.0.1
 dependencies:
   # The library from this repository, so the chart always uses the coretpl it is released with.
   - name: coretpl
-    version: "0.2.4"
+    version: "0.2.5"
     repository: "file://../../coretpl"

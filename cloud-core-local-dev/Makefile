@@ -867,6 +867,7 @@ deploy-config-server:
 deploy-core-legacy-api:
 	@if [ "$(INSTALL_CORE_LEGACY_API)" = "true" ]; then \
 		echo "$(YELLOW)--- Setting up core-legacy-api...$(NC)"; \
+		$(call update_helm_dependencies,$(REPOS_DIR)/qubership-mini-core/core-legacy-api/helm-templates/core-legacy-api,); \
 		helm upgrade --install core-legacy-api $(REPOS_DIR)/qubership-mini-core/core-legacy-api/helm-templates/core-legacy-api -n $(CORE_NAMESPACE) \
 			-f $(REPOS_DIR)/qubership-mini-core/core-legacy-api/helm-templates/core-legacy-api/resource-profiles/dev.yaml \
 			-f ./core-values.yaml \

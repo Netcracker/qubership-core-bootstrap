@@ -42,6 +42,21 @@ kind: InternalDatabase
 {{- end }}
 ```
 
+5. Render a `ConsulACL` resource only where `coretpl.consulAclEnabled` returns `true`: in the Consul auth modes
+   `hybrid` and `k8s`, on a cluster that serves the `ConsulACL` CRD. It returns an empty string elsewhere and fails the
+   render in `k8s` without the CRD. Take `spec.operatorNamespace` from `coretpl.consulNamespace`, which returns the
+   namespace part of `CONSUL_URL` and fails the render the way `coretpl.dbaasNamespace` does. `coretpl.consulAuthMode`
+   returns the mode itself and fails the render on a value other than `legacy`, `hybrid`, or `k8s`:
+```yaml
+{{- if include "coretpl.consulAclEnabled" $ }}
+apiVersion: netcracker.com/v1
+kind: ConsulACL
+spec:
+  operatorNamespace: {{ include "coretpl.consulNamespace" $ | quote }}
+...
+{{- end }}
+```
+
 ## Configuration
 
 The library requires the following configuration parameters:
@@ -55,6 +70,9 @@ The library requires the following configuration parameters:
 | `CR_SYNCHRONIZER_IMAGE` | Image for the CR synchronizer                         |
 | `RESOURCE_POLLING_TIMEOUT` | Timeout for resource polling in seconds (default: 300) |
 | `API_DBAAS_ADDRESS` | DBaaS aggregator address, `http://<aggregator>.<namespace>:<port>`. Needed only by `coretpl.dbaasNamespace` |
+| `CONSUL_URL` | Consul address, `http://<consul>.<namespace>:<port>`. Needed only by `coretpl.consulNamespace` |
+| `CONSUL_AUTH_MODE` | Consul auth mode: `legacy`, `hybrid`, or `k8s`. Needed by `coretpl.consulAuthMode` and `coretpl.consulAclEnabled` |
+| `M2M_AUTH_MODE` | Consul auth mode when `CONSUL_AUTH_MODE` is empty; `legacy` when both are empty |
 
 ## Version Information
 

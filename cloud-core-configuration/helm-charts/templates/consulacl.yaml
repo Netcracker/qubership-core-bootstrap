@@ -1,6 +1,4 @@
-{{- $mode := .Values.CONSUL_AUTH_MODE | default .Values.M2M_AUTH_MODE | default "legacy" | trim }}
-{{- if and (has $mode (list "hybrid" "k8s")) (.Capabilities.APIVersions.Has "netcracker.com/v1/ConsulACL") }}
-{{- $consulHostParts := splitList "." (urlParse (required "CONSUL_URL is required to create the ConsulACL resource" .Values.CONSUL_URL)).hostname }}
+{{- if and (eq (toString .Values.CONSUL_ENABLED) "true") (include "coretpl.consulAclEnabled" $) }}
 ---
 # Grants every ServiceAccount of the namespace read access to the configs and logging settings of the
 # namespace in Consul, for a login with the auth method applications-k8s-m2m. A service that writes to Consul
@@ -15,9 +13,7 @@ metadata:
     app.kubernetes.io/managed-by: helm
     deployment.netcracker.com/sessionId: '{{ .Values.DEPLOYMENT_SESSION_ID }}'
 spec:
-{{- if gt (len $consulHostParts) 1 }}
-  operatorNamespace: {{ index $consulHostParts 1 | quote }}
-{{- end }}
+  operatorNamespace: {{ include "coretpl.consulNamespace" $ | quote }}
   acl:
     name: cloud-core
     json: >
