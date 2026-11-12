@@ -167,5 +167,6 @@ spec:
       restartPolicy: Never
       serviceAccountName: synchronizer-user
 {{- end }}
+{{ include "coretpl.consulacl" . }}
 {{ end }}
 {{ end }}
