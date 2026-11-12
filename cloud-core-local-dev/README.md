@@ -20,7 +20,7 @@ This repository contains a comprehensive installation script for deploying Cloud
 - **Control Plane**
 - **DBaaS Agent**
 - **Core Operator**
-- **Config Server**, or **core-legacy-api** in its place
+- **core-legacy-api**, or **Config Server** in its place
 - **MaaS** [Optional]
 
 ## Quick Start
@@ -187,8 +187,8 @@ The script uses a `.mk` configuration file to define all installation parameters
 | `MAAS_CONFIG_FILE` | `local.mk` | MAAS configuration file path (relative path will be resolved upon ./maas folder, where sub-Makefile is placed)|
 | `INSTALL_DBAAS_AGENT` | `true`/`false` | Install the DBaaS agent. Defaults to `false` when `M2M_AUTH_MODE=k8s`, `true` otherwise |
 | `INSTALL_MAAS_AGENT` | `true`/`false` | Install the MaaS agent, which also needs `INSTALL_MAAS=true`. Defaults to `false` when `M2M_AUTH_MODE=k8s`, `true` otherwise |
-| `INSTALL_CONFIG_SERVER` | `true`/`false` | Install config-server. Defaults to `true`. Turn it off when `INSTALL_CORE_LEGACY_API=true`: the two charts cannot be installed together |
-| `INSTALL_CORE_LEGACY_API` | `true`/`false` | Install core-legacy-api, which serves the config-server API under the Service name `config-server`. Defaults to `false`. Turn `INSTALL_CONFIG_SERVER` off when you turn this on: the two charts cannot be installed together |
+| `INSTALL_CONFIG_SERVER` | `true`/`false` | Install config-server in place of core-legacy-api. Defaults to `false` |
+| `INSTALL_CORE_LEGACY_API` | `true`/`false` | Install core-legacy-api, which serves the config-server API under the Service name `config-server`. Defaults to `false` when `INSTALL_CONFIG_SERVER=true`, `true` otherwise. The two cannot both be `true`: both charts own the Service `config-server` |
 | `INSTALL_ISTIO` | `true`/`false` | Install Istio service mesh |
 | `ISTIO_CONFIG_FILE` | `local.mk` | Istio configuration file path (relative path will be resolved upon ./istio folder, where sub-Makefile is placed)|
 
@@ -236,8 +236,7 @@ core-legacy-api, or deletes the secret `config-server-consul-token` when the mod
 API with the bootstrap ACL token from the secret `consul-bootstrap-acl-token` of the installed Consul:
 
 ```bash
-make CONSUL_ACLS=true M2M_AUTH_MODE=k8s \
-  INSTALL_CONFIG_SERVER=false INSTALL_CORE_LEGACY_API=true install
+make CONSUL_ACLS=true M2M_AUTH_MODE=k8s install
 ```
 
 ### MaaS configuration
