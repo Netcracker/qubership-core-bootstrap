@@ -2,7 +2,7 @@
 
 {{ define "coretpl.consulacl" }}
 {{- $disabled := eq (toString .Values.CORE_TPL_MS_CONSULACL_ENABLED) "false" -}}
-{{- if and (eq (toString .Values.CONSUL_ENABLED) "true") (include "consulacl.enabled" .) (not $disabled) }}
+{{- if and (include "consulacl.enabled" .) (not $disabled) }}
 ---
 apiVersion: netcracker.com/v1
 kind: ConsulACL
