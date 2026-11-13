@@ -18,17 +18,17 @@ spec:
             {
                "Name":"{{ .Values.NAMESPACE }}_read_global_v2",
                "Description":"{{ .Values.NAMESPACE }}_read_global prefix policy",
-               "Rules":"key_prefix \"config/{{ .Values.NAMESPACE }}/application\" { policy = \"read\" }"
+               "Rules":"key_prefix \"config/{{ .Values.NAMESPACE }}/application/\" { policy = \"read\" }"
             },
             {
                "Name":"{{ .Values.NAMESPACE }}_write_global_v2",
                "Description":"{{ .Values.NAMESPACE }}_write_global prefix policy",
-               "Rules":"key_prefix \"config/{{ .Values.NAMESPACE }}/application\" { policy = \"write\" }"
+               "Rules":"key_prefix \"config/{{ .Values.NAMESPACE }}/application/\" { policy = \"write\" }"
             },
             {
                "Name":"{{ .Values.NAMESPACE }}_global_shared_v2",
                "Description":"{{ .Values.NAMESPACE }}_global_shared prefix policy",
-               "Rules":"key_prefix \"data/{{ .Values.NAMESPACE }}\" { policy = \"write\" }"
+               "Rules":"key_prefix \"data/{{ .Values.NAMESPACE }}/\" { policy = \"write\" }"
             },
             {
                "Name":"{{ .Values.NAMESPACE }}_sessions_v2",
@@ -53,7 +53,7 @@ spec:
             {
                "Name":"{{ .Values.NAMESPACE }}_composite_write_global_v2",
                "Description":"{{ .Values.NAMESPACE }}_composite_write_global prefix policy",
-               "Rules":"key_prefix \"config/{{ .Values.NAMESPACE }}/application/composite\" { policy = \"write\" }"
+               "Rules":"key_prefix \"config/{{ .Values.NAMESPACE }}/application/composite/\" { policy = \"write\" }"
             }
          ],
          "roles":[],
