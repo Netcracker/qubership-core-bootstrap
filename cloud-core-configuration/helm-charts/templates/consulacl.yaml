@@ -61,7 +61,7 @@ spec:
             {
                "AuthMethod": "applications-k8s-m2m",
                "BindName":"{{ .Values.NAMESPACE }}_${value.serviceaccount}_v2",
-               "Selector": "value.serviceaccount!=default",
+               "Selector": "value.namespace == \"{{ .Values.NAMESPACE }}\" and value.serviceaccount != \"default\"",
                "ServiceAccountName": "${value.serviceaccount}"
             }
          ]
