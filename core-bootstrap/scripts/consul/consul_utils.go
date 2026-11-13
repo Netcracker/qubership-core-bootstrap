@@ -43,15 +43,15 @@ func (c *Configurer) Configure(accessor func(string) string) error {
 	c.Enabled = utils.GetEnvBoolean(accessor, "CONSUL_ENABLED")
 	c.Address = strings.TrimRight(accessor("CONSUL_PUBLIC_URL"), "/")
 	c.adminToken = accessor("CONSUL_ADMIN_TOKEN")
-
-	if c.Enabled && (c.Address == "" || c.adminToken == "") {
-		return fmt.Errorf("consul public URL and admin token are required if CONSUL_ENABLED true")
-	}
 	return nil
 }
 
 func (c *Configurer) Execute(ctx context.Context) error {
 	return nil
+}
+
+func (c *Configurer) AdminToken() string {
+	return c.adminToken
 }
 
 func GetConsulTokenFromSecret(ctx context.Context, namespace, secretName string) (string, error) {

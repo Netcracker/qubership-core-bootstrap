@@ -24,10 +24,10 @@ INSTALL_ISTIO ?= false
 INSTALL_DBAAS_AGENT ?= $(if $(filter k8s,$(M2M_AUTH_MODE)),false,true)
 INSTALL_MAAS_AGENT ?= $(if $(filter k8s,$(M2M_AUTH_MODE)),false,true)
 # core-legacy-api serves the config-server API under the Service name config-server, so only one
-# of the two can be installed at a time: turn INSTALL_CONFIG_SERVER off when
-# INSTALL_CORE_LEGACY_API is on.
-INSTALL_CONFIG_SERVER ?= true
-INSTALL_CORE_LEGACY_API ?= false
+# of the two can be installed at a time. INSTALL_CONFIG_SERVER=true installs config-server in place
+# of core-legacy-api.
+INSTALL_CONFIG_SERVER ?= false
+INSTALL_CORE_LEGACY_API ?= $(if $(filter true,$(INSTALL_CONFIG_SERVER)),false,true)
 
 # Config files of the components installed by their own makefiles. A relative path is resolved
 # against the component's folder.
@@ -202,7 +202,6 @@ MAAS_IMAGE_REPOSITORY ?= ghcr.io/netcracker/qubership-maas
 # Core bootstrap
 # -----------------------------------------------------------------------------
 
-CORE_CONFIG_CONSUL_ENABLED ?= false
 CORE_CONFIG_MAAS_ENABLED ?= false
 # follows MAAS_NAMESPACE: MaaS is reached in the namespace it is installed in
 CORE_CONFIG_MAAS_INTERNAL_ADDRESS ?= http://maas-service.$(MAAS_NAMESPACE):8080

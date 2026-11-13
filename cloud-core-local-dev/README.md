@@ -20,7 +20,7 @@ This repository contains a comprehensive installation script for deploying Cloud
 - **Control Plane**
 - **DBaaS Agent**
 - **Core Operator**
-- **Config Server**, or **core-legacy-api** in its place
+- **core-legacy-api**, or **Config Server** in its place
 - **MaaS** [Optional]
 
 ## Quick Start
@@ -176,7 +176,7 @@ The script uses a `.mk` configuration file to define all installation parameters
 | `INSTALL_METRICS_SERVER` | `true`/`false` | Install Kubernetes metrics server |
 | `INSTALL_MONITORING` | `true`/`false` | Install monitoring operator |
 | `INSTALL_CONSUL` | `true`/`false` | Install Consul |
-| `CONSUL_VERSION` | `0.15.5` | Release of qubership-consul whose chart is installed, pinned in `dependencies.mk`. `TEST_BRANCH` does not apply |
+| `CONSUL_VERSION` | `0.15.6` | Release of qubership-consul whose chart is installed, pinned in `dependencies.mk`. `TEST_BRANCH` does not apply |
 | `CONSUL_ACLS` | `true`/`false` | Turn on the Consul ACL system and the Consul ACL Configurator operator. The operator processes a `ConsulACL` resource in any namespace whose `spec.operatorNamespace` names the Consul namespace or is empty. `false` by default |
 | `CONSUL_STORAGE_CLASS` | `standard` | Storage class of the Consul server volume. Set it on a cluster without a `standard` class, such as `local-path` on rancher-desktop |
 | `INSTALL_DBAAS` | `true`/`false` | Install DBaaS components |
@@ -187,8 +187,8 @@ The script uses a `.mk` configuration file to define all installation parameters
 | `MAAS_CONFIG_FILE` | `local.mk` | MAAS configuration file path (relative path will be resolved upon ./maas folder, where sub-Makefile is placed)|
 | `INSTALL_DBAAS_AGENT` | `true`/`false` | Install the DBaaS agent. Defaults to `false` when `M2M_AUTH_MODE=k8s`, `true` otherwise |
 | `INSTALL_MAAS_AGENT` | `true`/`false` | Install the MaaS agent, which also needs `INSTALL_MAAS=true`. Defaults to `false` when `M2M_AUTH_MODE=k8s`, `true` otherwise |
-| `INSTALL_CONFIG_SERVER` | `true`/`false` | Install config-server. Defaults to `true`. Turn it off when `INSTALL_CORE_LEGACY_API=true`: the two charts cannot be installed together |
-| `INSTALL_CORE_LEGACY_API` | `true`/`false` | Install core-legacy-api, which serves the config-server API under the Service name `config-server`. Defaults to `false`. Turn `INSTALL_CONFIG_SERVER` off when you turn this on: the two charts cannot be installed together |
+| `INSTALL_CONFIG_SERVER` | `true`/`false` | Install config-server in place of core-legacy-api. Defaults to `false` |
+| `INSTALL_CORE_LEGACY_API` | `true`/`false` | Install core-legacy-api, which serves the config-server API under the Service name `config-server`. Defaults to `false` when `INSTALL_CONFIG_SERVER=true`, `true` otherwise. The two cannot both be `true`: both charts own the Service `config-server` |
 | `INSTALL_ISTIO` | `true`/`false` | Install Istio service mesh |
 | `ISTIO_CONFIG_FILE` | `local.mk` | Istio configuration file path (relative path will be resolved upon ./istio folder, where sub-Makefile is placed)|
 
@@ -223,6 +223,21 @@ make M2M_AUTH_MODE=k8s DBAAS_M2M_AUTH_MODE=hybrid MAAS_M2M_AUTH_MODE=legacy inst
 A core service in a mode the other side does not accept cannot call it: `k8s` against a `legacy` DBaaS fails, and
 `hybrid` against it works through the fallback. The report printed by `resolved-refs` shows the mode of each component and
 whether the agents are installed. A value other than the three modes stops the make before anything is installed.
+
+### Consul with ACLs
+
+With `CONSUL_ACLS=true` the core services log in to Consul in the mode `M2M_AUTH_MODE` sets. In `hybrid` and `k8s`,
+core services get their Consul role from coretpl; core-legacy-api and core-operator ship their own `ConsulACL`. See
+[coretpl](../coretpl/README.md). The `legacy` mode logs in through an auth method named after the
+namespace, which this make does not create.
+
+The `configserver` task of core-bootstrap runs only with `CONSUL_ACLS=true`. It issues the static Consul token of
+core-legacy-api, or deletes the secret `config-server-consul-token` when the mode does not need it, and calls the Consul
+API with the bootstrap ACL token from the secret `consul-bootstrap-acl-token` of the installed Consul:
+
+```bash
+make CONSUL_ACLS=true M2M_AUTH_MODE=k8s install
+```
 
 ### MaaS configuration
 

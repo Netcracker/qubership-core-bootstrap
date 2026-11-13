@@ -676,13 +676,24 @@ prepare-core-bootstrap-print-start:
 	@echo "$(GREEN)=== Starting bootstrap preparation...$(NC)"
 	@echo ""
 
+# With CONSUL_ACLS the configserver task of core-bootstrap issues or deletes the static Consul token of
+# core-legacy-api, so it gets the Consul URL and the bootstrap ACL token of the installed Consul.
 deploy-cloud-core-configuration:
 	@echo "$(YELLOW)--- Deploying cloud-core-configuration$(NC)"
 	@$(call update_helm_dependencies,../cloud-core-configuration/helm-charts,)
+	@consul_admin_token=; \
+	if [ "$(CONSUL_ACLS_ENABLED)" = "true" ] && [ -z "$(HELM_DEBUG_FLAGS)" ]; then \
+		consul_admin_token=$$(kubectl get secret consul-bootstrap-acl-token -n $(CONSUL_NAMESPACE) -o jsonpath='{.data.token}' | base64 -d); \
+		if [ -z "$$consul_admin_token" ]; then \
+			echo "$(RED)Error: no token in secret consul-bootstrap-acl-token in namespace $(CONSUL_NAMESPACE)$(NC)"; \
+			exit 1; \
+		fi; \
+	fi; \
 	helm upgrade --install -n $(CORE_NAMESPACE) $(CREATE_NAMESPACE_OPTION) \
 		cloud-core-app-chart ../cloud-core-configuration/helm-charts \
 		-f ./core-values.yaml \
-		--set CONSUL_ENABLED=$(CORE_CONFIG_CONSUL_ENABLED) \
+		--set CONSUL_ENABLED=$(CONSUL_ACLS_ENABLED) \
+		$(if $(filter true,$(CONSUL_ACLS_ENABLED)),--set CONSUL_PUBLIC_URL=http://$(CONSUL_SERVICE_NAME).$(CONSUL_NAMESPACE).$(INGRESS_GATEWAY_CLOUD_PRIVATE_HOST):8500 --set "CONSUL_ADMIN_TOKEN=$$consul_admin_token") \
 		--set MAAS_ENABLED=$(CORE_CONFIG_MAAS_ENABLED) \
 		--set MAAS_INTERNAL_ADDRESS=$(CORE_CONFIG_MAAS_INTERNAL_ADDRESS) \
 		--set NAMESPACE=$(CORE_NAMESPACE) \
@@ -832,8 +843,8 @@ deploy-core-operator: apply-core-operator-crds
 	@echo ""
 
 # With CONSUL_ENABLED the config-server chart mounts the secret config-server-consul-token, which
-# core-bootstrap issues only with CORE_CONFIG_CONSUL_ENABLED=true and a Consul admin token. Without
-# ACLs an empty token is enough, so the secret is created here with one, unless it exists already.
+# core-bootstrap issues only with CONSUL_ACLS=true. Without ACLs an empty token is enough, so the
+# secret is created here with one, unless it exists already.
 deploy-config-server:
 	@if [ "$(INSTALL_CONFIG_SERVER)" = "true" ]; then \
 		echo "$(YELLOW)--- Setting up Config Server...$(NC)"; \
@@ -856,6 +867,7 @@ deploy-config-server:
 deploy-core-legacy-api:
 	@if [ "$(INSTALL_CORE_LEGACY_API)" = "true" ]; then \
 		echo "$(YELLOW)--- Setting up core-legacy-api...$(NC)"; \
+		$(call update_helm_dependencies,$(REPOS_DIR)/qubership-mini-core/core-legacy-api/helm-templates/core-legacy-api,); \
 		helm upgrade --install core-legacy-api $(REPOS_DIR)/qubership-mini-core/core-legacy-api/helm-templates/core-legacy-api -n $(CORE_NAMESPACE) \
 			-f $(REPOS_DIR)/qubership-mini-core/core-legacy-api/helm-templates/core-legacy-api/resource-profiles/dev.yaml \
 			-f ./core-values.yaml \
