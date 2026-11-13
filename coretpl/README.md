@@ -45,13 +45,14 @@ kind: InternalDatabase
 5. `coretpl.synchronizer.hooks` renders the Consul access of the service where `consulacl.enabled` returns `true`:
    in the Consul auth modes `hybrid` and `k8s`, on a cluster that serves the `ConsulACL` CRD. It renders:
    - a `ConsulACL` with the role `<NAMESPACE>_<SERVICE_NAME>_v2`: write to `config/<NAMESPACE>/<SERVICE_NAME>`, read of
-     `logging/<NAMESPACE>/<SERVICE_NAME>`, and the shared `_v2` policies of cloud-core-configuration. Its binding rule
-     gives the role to the ServiceAccount named `SERVICE_NAME`; a pod under `default` gets no role and cannot log in;
-   - a `ConsulKV` for `config/`, `data/`, and `logging/<NAMESPACE>/<SERVICE_NAME>/`. Deleting it deletes these trees.
+     `logging/<NAMESPACE>/<SERVICE_NAME>`, and the shared `_v2` policies of cloud-core-configuration. The binding rule
+     of cloud-core-configuration gives the role only to the ServiceAccount named `SERVICE_NAME`; a pod under
+     `default` gets no role and cannot log in;
+   - a `ConsulKV` for `config/<NAMESPACE>/<SERVICE_NAME>/`, `data/<NAMESPACE>/<SERVICE_NAME>/`, and
+     `logging/<NAMESPACE>/<SERVICE_NAME>/`. Deleting it deletes these trees.
 
    A service that needs other rights sets `CORE_TPL_MS_CONSULACL_ENABLED: false` and renders its own resources. It
-   takes `spec.operatorNamespace` from `consulacl.operatorNamespace`, the namespace part of `CONSUL_URL`.
-   `coretpl.consulAuthMode` returns the mode and fails the render on a value other than `legacy`, `hybrid`, or `k8s`:
+   takes `spec.operatorNamespace` from `consulacl.operatorNamespace`, the namespace part of `CONSUL_URL`:
 ```yaml
 {{- if include "consulacl.enabled" . }}
 apiVersion: netcracker.com/v1
@@ -61,6 +62,8 @@ spec:
 ...
 {{- end }}
 ```
+
+   `coretpl.consulAuthMode` returns the mode and fails the render on a value other than `legacy`, `hybrid`, or `k8s`.
 
 ## Configuration
 
@@ -75,7 +78,7 @@ The library requires the following configuration parameters:
 | `CR_SYNCHRONIZER_IMAGE` | Image for the CR synchronizer                         |
 | `RESOURCE_POLLING_TIMEOUT` | Timeout for resource polling in seconds (default: 300) |
 | `API_DBAAS_ADDRESS` | DBaaS aggregator address, `http://<aggregator>.<namespace>:<port>`. Needed only by `coretpl.dbaasNamespace` |
-| `CONSUL_URL` | Consul address, `http://<consul>.<namespace>:<port>`. Needed where `consulacl.enabled` returns `true` |
+| `CONSUL_URL` | Consul address, `http://<consul>.<namespace>:<port>`. Needed where `consulacl.enabled` returns `true`; without a namespace in the host the render fails with `slice index out of range` |
 | `CONSUL_AUTH_MODE` | Consul auth mode: `legacy`, `hybrid`, or `k8s`. Needed by `coretpl.consulAuthMode` and `consulacl.enabled` |
 | `M2M_AUTH_MODE` | Consul auth mode when `CONSUL_AUTH_MODE` is empty; `legacy` when both are empty |
 | `ORIGIN_NAMESPACE`, `PEER_NAMESPACE` | Name the `<namespace>_read_bluegreen_v2` policies (read of `bluegreen/`) of the Consul role; `PEER_NAMESPACE` is optional |

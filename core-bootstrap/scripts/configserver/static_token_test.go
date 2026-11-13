@@ -153,18 +153,49 @@ func TestStaticTokenNeeded_HybridAsksForTheConfiguredAuthMethod(t *testing.T) {
 	assert.Equal(t, []consulRequest{{path: "/v1/acl/auth-method/custom-method", token: "admin-token"}}, consulServer.requests)
 }
 
-func TestConfigure_RequiresTheAdminTokenOnlyOutsideK8s(t *testing.T) {
-	values := map[string]string{"NAMESPACE": "core-ns", "CONSUL_ENABLED": "true"}
+type configureCase struct {
+	name, mode, enabled, address, adminToken string
+}
+
+func configureTask(t *testing.T, tc configureCase) error {
+	setAuthEnv(t, map[string]string{"CONSUL_AUTH_MODE": tc.mode})
+	values := map[string]string{
+		"NAMESPACE":          "core-ns",
+		"CONSUL_ENABLED":     tc.enabled,
+		"CONSUL_PUBLIC_URL":  tc.address,
+		"CONSUL_ADMIN_TOKEN": tc.adminToken,
+	}
 	accessor := func(name string) string { return values[name] }
-	for mode, wantErr := range map[string]bool{"hybrid": true, "k8s": false} {
-		t.Run(mode, func(t *testing.T) {
-			setAuthEnv(t, map[string]string{"CONSUL_AUTH_MODE": mode})
-			consulConfigurer := consul.New()
-			require.NoError(t, consulConfigurer.Configure(accessor))
+	consulConfigurer := consul.New()
+	require.NoError(t, consulConfigurer.Configure(accessor))
+	return New(consulConfigurer).Configure(accessor)
+}
 
-			err := New(consulConfigurer).Configure(accessor)
+func TestConfigure_RequiresTheAddressAndAdminTokenOutsideK8s(t *testing.T) {
+	cases := []configureCase{
+		{"legacy without the address", "legacy", "true", "", "admin-token"},
+		{"legacy without the admin token", "legacy", "true", "http://consul:8500", ""},
+		{"hybrid without the address", "hybrid", "true", "", "admin-token"},
+		{"hybrid without the admin token", "hybrid", "true", "http://consul:8500", ""},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Error(t, configureTask(t, tc))
+		})
+	}
+}
 
-			assert.Equal(t, wantErr, err != nil, "error: %v", err)
+func TestConfigure_AcceptsSettingsThatCoverTheMode(t *testing.T) {
+	cases := []configureCase{
+		{"legacy with both", "legacy", "true", "http://consul:8500", "admin-token"},
+		{"hybrid with both", "hybrid", "true", "http://consul:8500", "admin-token"},
+		{"k8s without either", "k8s", "true", "", ""},
+		{"legacy with Consul disabled", "legacy", "false", "", ""},
+		{"hybrid with Consul disabled", "hybrid", "false", "", ""},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.NoError(t, configureTask(t, tc))
 		})
 	}
 }

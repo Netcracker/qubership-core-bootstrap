@@ -682,7 +682,7 @@ deploy-cloud-core-configuration:
 	@echo "$(YELLOW)--- Deploying cloud-core-configuration$(NC)"
 	@$(call update_helm_dependencies,../cloud-core-configuration/helm-charts,)
 	@consul_admin_token=; \
-	if [ "$(CONSUL_ACLS_ENABLED)" = "true" ]; then \
+	if [ "$(CONSUL_ACLS_ENABLED)" = "true" ] && [ -z "$(HELM_DEBUG_FLAGS)" ]; then \
 		consul_admin_token=$$(kubectl get secret consul-bootstrap-acl-token -n $(CONSUL_NAMESPACE) -o jsonpath='{.data.token}' | base64 -d); \
 		if [ -z "$$consul_admin_token" ]; then \
 			echo "$(RED)Error: no token in secret consul-bootstrap-acl-token in namespace $(CONSUL_NAMESPACE)$(NC)"; \
