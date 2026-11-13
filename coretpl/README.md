@@ -49,7 +49,7 @@ kind: InternalDatabase
      of cloud-core-configuration gives the role only to the ServiceAccount named `SERVICE_NAME`; a pod under
      `default` gets no role and cannot log in;
    - a `ConsulKV` for `config/<NAMESPACE>/<SERVICE_NAME>/`, `data/<NAMESPACE>/<SERVICE_NAME>/`, and
-     `logging/<NAMESPACE>/<SERVICE_NAME>/`. Deleting it deletes these trees.
+     `logging/<NAMESPACE>/<SERVICE_NAME>/`. Deleting it keeps the keys under them.
 
    A service that needs other rights sets `CORE_TPL_MS_CONSULACL_ENABLED: false` and renders its own resources. It
    takes `spec.operatorNamespace` from `consulacl.operatorNamespace`, the namespace part of `CONSUL_URL`:
