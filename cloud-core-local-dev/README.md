@@ -227,9 +227,9 @@ whether the agents are installed. A value other than the three modes stops the m
 ### Consul with ACLs
 
 With `CONSUL_ACLS=true` the core services log in to Consul in the mode `M2M_AUTH_MODE` sets. In `hybrid` and `k8s`,
-cloud-core-configuration grants every ServiceAccount of the core namespace read access to its configs with a
-`ConsulACL` resource, and the charts of core-legacy-api and core-operator add their own for what they write. The
-`legacy` mode logs in through an auth method named after the namespace, which this make does not create.
+core services get their Consul role from coretpl; core-legacy-api and core-operator ship their own `ConsulACL`. See
+[coretpl](../coretpl/README.md). The `legacy` mode logs in through an auth method named after the
+namespace, which this make does not create.
 
 The `configserver` task of core-bootstrap runs only with `CONSUL_ACLS=true`. It issues the static Consul token of
 core-legacy-api, or deletes the secret `config-server-consul-token` when the mode does not need it, and calls the Consul

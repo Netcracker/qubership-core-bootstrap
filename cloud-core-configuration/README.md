@@ -16,8 +16,11 @@ App chart for Cloud Core is intended to run project predeploy script before serv
   installed. The RoleBinding subject namespace is taken from `API_DBAAS_ADDRESS`.
 
 The chart depends on `coretpl` from this repository (`file://../../coretpl`) for the DBaaS Operator capability guard
-and namespace, and for the same pair for `ConsulACL`. Run `helm dependency update` in `helm-charts` before installing
-it; `cloud-core-local-dev` does this itself. Where the cluster serves the DBaaS Operator API, an `API_DBAAS_ADDRESS`
-without a namespace fails the render. With `CONSUL_ENABLED=true`, an unknown Consul auth mode fails the render, so
-does the mode `k8s` on a cluster without the `ConsulACL` CRD, and so does a `CONSUL_URL` without a namespace wherever
-the chart renders a `ConsulACL`.
+and namespace, and for the Consul helpers. Run `helm dependency update` in `helm-charts` before installing it;
+`cloud-core-local-dev` does this itself. Where the cluster serves the DBaaS Operator API, an `API_DBAAS_ADDRESS`
+without a namespace fails the render.
+
+Where `consulacl.enabled` of coretpl returns `true`, the chart renders the `ConsulACL` `cloud-core`: the shared `_v2`
+policies the service roles use, and the binding rule that gives a ServiceAccount other than `default` the role
+`<NAMESPACE>_<ServiceAccount>_v2`. It also renders a `ConsulKV` for `config/<NAMESPACE>/application/` and
+`data/<NAMESPACE>/`; deleting the release deletes these trees.
