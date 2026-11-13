@@ -1,4 +1,4 @@
-{{- if and (eq (toString .Values.CONSUL_ENABLED) "true") (include "consulacl.enabled" .) }}
+{{- if include "consulacl.enabled" . }}
 {{- $compositeId := default .Values.ORIGIN_NAMESPACE .Values.BASELINE_ORIGIN }}
 apiVersion: netcracker.com/v1
 kind: ConsulACL
