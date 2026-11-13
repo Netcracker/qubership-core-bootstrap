@@ -32,7 +32,14 @@ rules:
       - services
       - configmaps
       - pods
+    verbs:
+      - delete
+  - apiGroups:
+      - ""
+    resources:
       - secrets
+    resourceNames:
+      - config-server-consul-token
     verbs:
       - delete
   - apiGroups:
