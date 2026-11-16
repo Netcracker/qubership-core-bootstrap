@@ -64,6 +64,8 @@ spec:
 ```
 
    `coretpl.consulAuthMode` returns the mode and fails the render on a value other than `legacy`, `hybrid`, or `k8s`.
+   `consulacl.enabled` takes the mode from it, so such a value fails the render whether or not the cluster serves the
+   `ConsulACL` CRD.
 
 ## Configuration
 
@@ -79,8 +81,8 @@ The library requires the following configuration parameters:
 | `RESOURCE_POLLING_TIMEOUT` | Timeout for resource polling in seconds (default: 300) |
 | `API_DBAAS_ADDRESS` | DBaaS aggregator address, `http://<aggregator>.<namespace>:<port>`. Needed only by `coretpl.dbaasNamespace` |
 | `CONSUL_URL` | Consul address, `http://<consul>.<namespace>:<port>`. Needed where `consulacl.enabled` returns `true`; without a namespace in the host the render fails with `slice index out of range` |
-| `CONSUL_AUTH_MODE` | Consul auth mode for testing only: `legacy`, `hybrid`, or `k8s`; overrides `M2M_AUTH_MODE`. Needed by `coretpl.consulAuthMode` and `consulacl.enabled` |
-| `M2M_AUTH_MODE` | Consul auth mode when `CONSUL_AUTH_MODE` is empty; `legacy` when both are empty |
+| `CONSUL_AUTH_MODE` | Consul auth mode for testing only: `legacy`, `hybrid`, or `k8s`, matched exactly; overrides `M2M_AUTH_MODE`. Needed by `coretpl.consulAuthMode` and `consulacl.enabled` |
+| `M2M_AUTH_MODE` | Consul auth mode when `CONSUL_AUTH_MODE` is empty, matched case-insensitively with surrounding whitespace ignored, as the services read it; `legacy` when both are empty |
 | `ORIGIN_NAMESPACE`, `PEER_NAMESPACE` | Name the `<namespace>_read_bluegreen_v2` policies (read of `bluegreen/`) of the Consul role; `PEER_NAMESPACE` is optional |
 | `CORE_TPL_MS_CONSULACL_ENABLED` | `false` turns off the Consul access of step 5; any other value or unset keeps it |
 
