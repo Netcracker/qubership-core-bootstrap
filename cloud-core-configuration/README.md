@@ -20,9 +20,10 @@ and namespace, and for the Consul helpers. Run `helm dependency update` in `helm
 `cloud-core-local-dev` does this itself. Where the cluster serves the DBaaS Operator API, an `API_DBAAS_ADDRESS`
 without a namespace fails the render.
 
-Where `consulacl.enabled` of coretpl returns `true`, the chart renders the `ConsulACL` `cloud-core`: the shared `_v2`
-policies the service roles use, and the binding rule that gives a ServiceAccount of `NAMESPACE` other than `default`
-the role `<NAMESPACE>_<ServiceAccount>_v2`. It also renders a `ConsulKV` for `config/<NAMESPACE>/application/` and
-`data/<NAMESPACE>/`; deleting the release keeps the keys under them. These resources need `CONSUL_URL` with the
-Consul namespace in its host, `ORIGIN_NAMESPACE`, and, on a satellite, `BASELINE_ORIGIN`; without a namespace in
-`CONSUL_URL` the render fails.
+Where `consulacl.enabled` of coretpl returns `true`, the chart renders the `ConsulACL` `cloud-core` with the binding
+rule that gives a ServiceAccount of `NAMESPACE` other than `default` the role `<NAMESPACE>_<ServiceAccount>_v2`. Each
+service declares that role and its policies in its own `ConsulACL`. The chart also renders a `ConsulKV` for
+`config/<NAMESPACE>/application/`, `data/<NAMESPACE>/`, `bluegreen/<ORIGIN_NAMESPACE>/`, and `composite/<composite>/`,
+where `<composite>` is `BASELINE_ORIGIN`, or `ORIGIN_NAMESPACE` when it is empty; deleting the release keeps the keys
+under them. These resources need `CONSUL_URL` with the Consul namespace in its host, `ORIGIN_NAMESPACE`, and, on a
+satellite, `BASELINE_ORIGIN`; without a namespace in `CONSUL_URL` the render fails.

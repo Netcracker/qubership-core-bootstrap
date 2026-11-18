@@ -14,54 +14,13 @@ spec:
     explicitName: true
     json: >
       {
-         "policies":[
-            {
-               "Name":"{{ .Values.NAMESPACE }}_read_global_v2",
-               "Description":"{{ .Values.NAMESPACE }}_read_global prefix policy",
-               "Rules":"key_prefix \"config/{{ .Values.NAMESPACE }}/application/\" { policy = \"read\" }"
-            },
-            {
-               "Name":"{{ .Values.NAMESPACE }}_write_global_v2",
-               "Description":"{{ .Values.NAMESPACE }}_write_global prefix policy",
-               "Rules":"key_prefix \"config/{{ .Values.NAMESPACE }}/application/\" { policy = \"write\" }"
-            },
-            {
-               "Name":"{{ .Values.NAMESPACE }}_global_shared_v2",
-               "Description":"{{ .Values.NAMESPACE }}_global_shared prefix policy",
-               "Rules":"key_prefix \"data/{{ .Values.NAMESPACE }}/\" { policy = \"write\" }"
-            },
-            {
-               "Name":"{{ .Values.NAMESPACE }}_sessions_v2",
-               "Description":"{{ .Values.NAMESPACE }}_sessions session policy",
-               "Rules":"session_prefix \"\" { policy = \"write\" }"
-            },
-            {
-               "Name":"{{ .Values.ORIGIN_NAMESPACE }}_read_bluegreen_v2",
-               "Description":"{{ .Values.ORIGIN_NAMESPACE }}_read_bluegreen prefix policy",
-               "Rules":"key_prefix \"bluegreen/\" { policy = \"read\" }"
-            },
-            {
-               "Name":"{{ .Values.NAMESPACE }}_read_composite_v2",
-               "Description":"{{ .Values.NAMESPACE }}_read_composite prefix policy",
-               "Rules":"key_prefix \"composite/{{ $compositeId }}/\" { policy = \"read\" }"
-            },
-            {
-               "Name":"{{ .Values.NAMESPACE }}_write_composite_v2",
-               "Description":"{{ .Values.NAMESPACE }}_write_composite prefix policy",
-               "Rules":"key_prefix \"composite/{{ $compositeId }}/\" { policy = \"write\" }"
-            },
-            {
-               "Name":"{{ .Values.NAMESPACE }}_composite_write_global_v2",
-               "Description":"{{ .Values.NAMESPACE }}_composite_write_global prefix policy",
-               "Rules":"key_prefix \"config/{{ .Values.NAMESPACE }}/application/composite/\" { policy = \"write\" }"
-            }
-         ],
+         "policies":[],
          "roles":[],
          "bind_rules":[
             {
                "AuthMethod": "applications-k8s-m2m",
                "BindName":"{{ .Values.NAMESPACE }}_${value.serviceaccount}_v2",
-               "Selector": "value.namespace == \"{{ .Values.NAMESPACE }}\" and value.serviceaccount != \"default\"",
+               "Selector": "value.serviceaccount!=default and value.namespace==\"{{ .Values.NAMESPACE }}\"",
                "ServiceAccountName": "${value.serviceaccount}"
             }
          ]
@@ -80,4 +39,6 @@ spec:
   kv:
     - key: "config/{{ .Values.NAMESPACE }}/application/"
     - key: "data/{{ .Values.NAMESPACE }}/"
+    - key: "bluegreen/{{ .Values.ORIGIN_NAMESPACE }}/"
+    - key: "composite/{{ $compositeId }}/"
 {{- end }}
