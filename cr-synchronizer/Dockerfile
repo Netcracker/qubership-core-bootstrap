@@ -7,7 +7,7 @@ COPY . .
 RUN go mod download
 RUN go build -o cr-synchronizer .
 
-FROM ghcr.io/netcracker/qubership-core-base:alpine-2.5.10@sha256:51173b982248bb866b236f504579b71c0a9c4a41975b957595f9faa9ab3fb5d6 AS run
+FROM ghcr.io/netcracker/qubership-core-base:alpine-2.5.15@sha256:a3af3751d9187ce7f8ffd67a5aa8465fee78056c79f964bfa7727ea00da681da AS run
 
 COPY --chown=10001:0 --chmod=555 --from=build app/cr-synchronizer /app/cr-checker
 
