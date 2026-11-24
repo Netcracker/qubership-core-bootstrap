@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 
 	"github.com/netcracker/core-bootstrap/v2/utils"
 	consulauth "github.com/netcracker/qubership-core-lib-go-rest-utils/v2/consul-propertysource"
@@ -48,7 +49,7 @@ func (c *Configurer) serviceAccountLoginWorks(ctx context.Context) (bool, error)
 	case resp.StatusCode() == http.StatusNotFound:
 		logger.InfoC(ctx, "Consul has no auth method '%s': issuing the static token", c.authSettings.AuthMethod)
 		return false, nil
-	case resp.StatusCode() == http.StatusUnauthorized && resp.String() == consulACLDisabledMessage:
+	case resp.StatusCode() == http.StatusUnauthorized && strings.TrimSpace(resp.String()) == consulACLDisabledMessage:
 		logger.InfoC(ctx, "Consul ACLs are disabled: issuing no token")
 		return true, nil
 	default:

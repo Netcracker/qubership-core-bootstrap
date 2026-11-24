@@ -81,7 +81,7 @@ The library requires the following configuration parameters:
 | `CR_SYNCHRONIZER_IMAGE` | Image for the CR synchronizer                         |
 | `RESOURCE_POLLING_TIMEOUT` | Timeout for resource polling in seconds (default: 300) |
 | `API_DBAAS_ADDRESS` | DBaaS aggregator address, `http://<aggregator>.<namespace>:<port>`. Needed only by `coretpl.dbaasNamespace` |
-| `CONSUL_URL` | Consul address, `http://<consul>.<namespace>:<port>`. Needed where `consulacl.enabled` returns `true`; without a namespace in the host the render fails with `slice index out of range` |
+| `CONSUL_URL` | Consul address, `http://<consul>.<namespace>:<port>`. Needed where `consulacl.enabled` returns `true`. The render fails when the second label of the host is missing, empty, or all digits |
 | `CONSUL_AUTH_MODE` | Consul auth mode for testing only: `legacy`, `hybrid`, or `k8s`, matched exactly; overrides `M2M_AUTH_MODE`. Needed by `coretpl.consulAuthMode` and `consulacl.enabled` |
 | `M2M_AUTH_MODE` | Consul auth mode when `CONSUL_AUTH_MODE` is empty, matched case-insensitively with surrounding whitespace ignored, as the services read it; `legacy` when both are empty |
 | `ORIGIN_NAMESPACE` | Names the policy `<ORIGIN_NAMESPACE>_<SERVICE_NAME>_read_bluegreen_v2` (read of `bluegreen/`) of the Consul role, and is the composite of step 5 when `BASELINE_ORIGIN` is empty |
