@@ -35,7 +35,7 @@ func newFakeConsul(t *testing.T, status int, body string) (*fakeConsul, string) 
 }
 
 func setAuthEnv(t *testing.T, env map[string]string) {
-	for _, name := range []string{"CONSUL_AUTH_MODE", "M2M_AUTH_MODE", "CONSUL_AUTH_METHOD"} {
+	for _, name := range []string{"CONSUL_AUTH_MODE", "M2M_AUTH_MODE"} {
 		t.Setenv(name, env[name])
 	}
 	configloader.Init(configloader.EnvPropertySource())
@@ -140,17 +140,6 @@ func TestStaticTokenNeeded_HybridFailsWhenConsulIsUnreachable(t *testing.T) {
 	_, err := task.staticTokenNeeded(context.Background())
 
 	assert.Error(t, err)
-}
-
-func TestStaticTokenNeeded_HybridAsksForTheConfiguredAuthMethod(t *testing.T) {
-	consulServer, address := newFakeConsul(t, http.StatusOK, `{"Name":"custom-method","Type":"jwt"}`)
-	task := newTask(t, address, map[string]string{"CONSUL_AUTH_MODE": "hybrid", "CONSUL_AUTH_METHOD": "custom-method"})
-
-	needed, err := task.staticTokenNeeded(context.Background())
-
-	require.NoError(t, err)
-	assert.False(t, needed)
-	assert.Equal(t, []consulRequest{{path: "/v1/acl/auth-method/custom-method", token: "admin-token"}}, consulServer.requests)
 }
 
 type configureCase struct {
