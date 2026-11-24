@@ -31,7 +31,7 @@ check-consul-connectivity:
 		echo "Creating temporary pod for Consul connectivity check..."; \
 		echo "$(YELLOW)--- Retrying Consul connectivity check for up to 5 minutes...$(NC)"; \
 		kubectl run consul-check-$$(date +%s) --image=curlimages/curl:latest -n $(CORE_NAMESPACE) --rm -i --restart=Never -- \
-			sh -c "CONSUL_SERVICE_NAME=$(CONSUL_SERVICE_NAME); CONSUL_NAMESPACE=$(CONSUL_NAMESPACE); INGRESS_GATEWAY_CLOUD_PRIVATE_HOST=$(INGRESS_GATEWAY_CLOUD_PRIVATE_HOST); $(CONSUL_CHECK_SCRIPT)" || (echo "$(RED)✗ Consul connectivity check failed$(NC)" && exit 1); \
+			sh -c "CONSUL_URL=$(CONSUL_URL); $(CONSUL_CHECK_SCRIPT)" || (echo "$(RED)✗ Consul connectivity check failed$(NC)" && exit 1); \
 		echo "$(GREEN)=== Consul connectivity check completed successfully$(NC)"; \
 		echo ""; \
 	else \

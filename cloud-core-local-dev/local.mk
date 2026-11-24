@@ -76,6 +76,8 @@ CORE_MESH_EARLY ?= false
 MESH_DEPENDENCY_NAMESPACES ?=
 CONSUL_ENABLED ?= true
 CONSUL_SERVICE_NAME ?= consul-server
+# Address of Consul for the core services, core-bootstrap, and the connectivity check.
+CONSUL_URL ?= http://$(CONSUL_SERVICE_NAME).$(CONSUL_NAMESPACE).$(INGRESS_GATEWAY_CLOUD_PRIVATE_HOST):8500
 
 # -----------------------------------------------------------------------------
 # DBaaS

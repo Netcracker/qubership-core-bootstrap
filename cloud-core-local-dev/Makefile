@@ -693,7 +693,7 @@ deploy-cloud-core-configuration:
 		cloud-core-app-chart ../cloud-core-configuration/helm-charts \
 		-f ./core-values.yaml \
 		--set CONSUL_ENABLED=$(CONSUL_ACLS_ENABLED) \
-		$(if $(filter true,$(CONSUL_ACLS_ENABLED)),--set CONSUL_PUBLIC_URL=http://$(CONSUL_SERVICE_NAME).$(CONSUL_NAMESPACE).$(INGRESS_GATEWAY_CLOUD_PRIVATE_HOST):8500 --set "CONSUL_ADMIN_TOKEN=$$consul_admin_token") \
+		$(if $(filter true,$(CONSUL_ACLS_ENABLED)),--set CONSUL_PUBLIC_URL=$(CONSUL_URL) --set "CONSUL_ADMIN_TOKEN=$$consul_admin_token") \
 		--set MAAS_ENABLED=$(CORE_CONFIG_MAAS_ENABLED) \
 		--set MAAS_INTERNAL_ADDRESS=$(CORE_CONFIG_MAAS_INTERNAL_ADDRESS) \
 		--set NAMESPACE=$(CORE_NAMESPACE) \
@@ -769,7 +769,6 @@ deploy-paas-mediation:
 		-f ./core-values.yaml \
 		--set IMAGE_REPOSITORY=$(PAAS_MEDIATION_IMAGE_REPOSITORY) \
 		--set TAG=$(PAAS_MEDIATION_TAG) \
-		--set CONSUL_ENABLED=false \
 		$(HELM_DEBUG_FLAGS)
 	@echo ""
 
