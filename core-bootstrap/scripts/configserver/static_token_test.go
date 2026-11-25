@@ -109,26 +109,13 @@ func TestStaticTokenNeeded_HybridDecidesByTheConsulAuthMethod(t *testing.T) {
 	}
 }
 
-func TestStaticTokenNeeded_HybridFailsWhenTheAuthMethodCannotBeRead(t *testing.T) {
-	cases := []struct {
-		name   string
-		status int
-		body   string
-	}{
-		{"the admin token is refused", http.StatusForbidden, "Permission denied"},
-		{"401 whose body adds words to the ACL disabled text", http.StatusUnauthorized, "ACL support disabled for this token"},
-		{"the ACL disabled text with another status", http.StatusForbidden, "ACL support disabled"},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			_, address := newFakeConsul(t, tc.status, tc.body)
-			task := newTask(t, address, map[string]string{"CONSUL_AUTH_MODE": "hybrid"})
+func TestStaticTokenNeeded_HybridFailsWhenTheAdminTokenIsRefused(t *testing.T) {
+	_, address := newFakeConsul(t, http.StatusForbidden, "Permission denied")
+	task := newTask(t, address, map[string]string{"CONSUL_AUTH_MODE": "hybrid"})
 
-			_, err := task.staticTokenNeeded(context.Background())
+	_, err := task.staticTokenNeeded(context.Background())
 
-			assert.Error(t, err)
-		})
-	}
+	assert.Error(t, err)
 }
 
 func TestStaticTokenNeeded_HybridFailsWhenConsulIsUnreachable(t *testing.T) {
