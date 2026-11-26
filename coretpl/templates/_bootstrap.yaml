@@ -1,4 +1,4 @@
-{{/* Core bootstrap hooks that need to be ready before a core-based microservice is deployed */}}
+{{/* Consul access of a core-based microservice: its ConsulACL and ConsulKV */}}
 
 {{ define "coretpl.bootstrap.hooks" }}
 
