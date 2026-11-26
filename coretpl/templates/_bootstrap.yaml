@@ -1,6 +1,10 @@
-{{/* ConsulACL and ConsulKV of a core-based microservice, included by coretpl.synchronizer.hooks */}}
+{{/* Core bootstrap hooks that need to be ready before a core-based microservice is deployed */}}
 
-{{ define "coretpl.consulacl" }}
+{{ define "coretpl.bootstrap.hooks" }}
+
+{{ $currentScope := .values }}
+
+{{- with $currentScope }}
 {{- $disabled := eq (toString .Values.CORE_TPL_MS_CONSULACL_ENABLED) "false" -}}
 {{- if and (include "consulacl.enabled" .) (not $disabled) }}
 {{- $compositeId := default .Values.ORIGIN_NAMESPACE .Values.BASELINE_ORIGIN }}
@@ -87,4 +91,6 @@ spec:
     - key: "data/{{ .Values.NAMESPACE }}/{{ .Values.SERVICE_NAME }}/"
     - key: "logging/{{ .Values.NAMESPACE }}/{{ .Values.SERVICE_NAME }}/"
 {{- end }}
-{{ end }}
+
+{{- end }}
+{{- end }}

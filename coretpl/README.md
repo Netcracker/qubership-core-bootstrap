@@ -21,6 +21,7 @@ dependencies:
 2. Include the templates in your chart by creating a `corebootstrap.yaml` file in the `templates` directory with the following content:
 ```yaml
 {{ include "coretpl.synchronizer.hooks" . }}
+{{ include "coretpl.bootstrap.hooks" (dict "values" .) }}
 ```
 
 3. To declare databases for the DBaaS Operator, take `spec.operatorNamespace` of the CRs from the
@@ -42,7 +43,7 @@ kind: InternalDatabase
 {{- end }}
 ```
 
-5. `coretpl.synchronizer.hooks` renders the Consul access of the service where `consulacl.enabled` returns `true`:
+5. `coretpl.bootstrap.hooks` renders the Consul access of the service where `consulacl.enabled` returns `true`:
    in the Consul auth modes `hybrid` and `k8s`, on a cluster that serves the `ConsulACL` CRD. It renders:
    - a `ConsulACL` with the role `<NAMESPACE>_<SERVICE_NAME>_v2` and its policies, all in this resource: write to
      `config/<NAMESPACE>/<SERVICE_NAME>/`, `data/<NAMESPACE>/`, and sessions; read of `config/<NAMESPACE>/application/`,
