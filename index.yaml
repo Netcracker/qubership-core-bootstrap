@@ -3,7 +3,17 @@ entries:
   coretpl:
   - apiVersion: v2
     appVersion: "0.1"
-    created: "2026-10-15T12:39:25.887710084Z"
+    created: "2026-11-27T12:13:52.582444725Z"
+    description: Cloud-Core Uniform Library
+    digest: 4d5acd3a0c8200efa4ea721410b477a62b48490559e6cd9fcaa8e796f01d2af9
+    name: coretpl
+    type: library
+    urls:
+    - https://Netcracker.github.io/qubership-core-bootstrap/coretpl-0.2.5.tgz
+    version: 0.2.5
+  - apiVersion: v2
+    appVersion: "0.1"
+    created: "2026-11-27T12:13:52.582221152Z"
     description: Cloud-Core Uniform Library
     digest: faabfbf0b8b1cda8ca5f1cf336a0909f6cb77d0628a855a89afc4bf31a4023af
     name: coretpl
@@ -13,7 +23,7 @@ entries:
     version: 0.2.4
   - apiVersion: v2
     appVersion: "0.1"
-    created: "2026-10-15T12:39:25.887602163Z"
+    created: "2026-11-27T12:13:52.582076937Z"
     description: Cloud-Core Uniform Library
     digest: c46f4c901c81e1b13508e279492dfae2f62d8ccf74ea19810343fb8b8d4ea967
     name: coretpl
@@ -23,7 +33,7 @@ entries:
     version: 0.2.3
   - apiVersion: v2
     appVersion: "0.1"
-    created: "2026-10-15T12:39:25.88750004Z"
+    created: "2026-11-27T12:13:52.581952432Z"
     description: Cloud-Core Uniform Library
     digest: 60e088467d3f539e94aef0544f5ddb6e580f4d240dd37387ebbb9e28b4002b8d
     name: coretpl
@@ -33,7 +43,7 @@ entries:
     version: 0.2.2
   - apiVersion: v2
     appVersion: "0.1"
-    created: "2026-10-15T12:39:25.887399931Z"
+    created: "2026-11-27T12:13:52.581806064Z"
     description: Cloud-Core Uniform Library
     digest: 59a781efd60ba039b989d7197289799d8ee57fa532adf07888fc251dd5690dc0
     name: coretpl
@@ -43,7 +53,7 @@ entries:
     version: 0.2.1
   - apiVersion: v2
     appVersion: "0.1"
-    created: "2026-10-15T12:39:25.887302545Z"
+    created: "2026-11-27T12:13:52.581648019Z"
     description: Cloud-Core Uniform Library
     digest: 447fd3dff5d8f0cbdc7663b14271c5c51e609f673f8f8402c8d80a92ec4e3f1f
     name: coretpl
@@ -51,4 +61,4 @@ entries:
     urls:
     - https://Netcracker.github.io/qubership-core-bootstrap/coretpl-0.2.0.tgz
     version: 0.2.0
-generated: "2026-10-15T12:39:25.887093393Z"
+generated: "2026-11-27T12:13:52.581359549Z"
