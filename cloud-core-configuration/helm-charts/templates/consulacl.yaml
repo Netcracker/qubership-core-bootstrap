@@ -1,0 +1,44 @@
+{{- if include "coretpl.consulacl.enabled" . }}
+{{- $compositeId := default .Values.ORIGIN_NAMESPACE .Values.BASELINE_ORIGIN }}
+apiVersion: netcracker.com/v1
+kind: ConsulACL
+metadata:
+  name: cloud-core
+  namespace: {{ .Values.NAMESPACE }}
+  labels:
+    deployer.cleanup/allow: "true"
+spec:
+  operatorNamespace: {{ include "coretpl.consulacl.operatorNamespace" . | quote }}
+  acl:
+    name: cloud-core
+    explicitName: true
+    json: >
+      {
+         "policies":[],
+         "roles":[],
+         "bind_rules":[
+            {
+               "AuthMethod": "applications-k8s-m2m",
+               "BindName":"{{ .Values.NAMESPACE }}_${value.serviceaccount}_v2",
+               "Selector": "value.serviceaccount!=default and value.namespace==\"{{ .Values.NAMESPACE }}\"",
+               "ServiceAccountName": "${value.serviceaccount}"
+            }
+         ]
+      }
+
+---
+apiVersion: netcracker.com/v1
+kind: ConsulKV
+metadata:
+  name: cloud-core
+  namespace: {{ .Values.NAMESPACE }}
+  labels:
+    deployer.cleanup/allow: "true"
+spec:
+  operatorNamespace: {{ include "coretpl.consulacl.operatorNamespace" . | quote }}
+  kv:
+    - key: "config/{{ .Values.NAMESPACE }}/application/"
+    - key: "data/{{ .Values.NAMESPACE }}/"
+    - key: "bluegreen/{{ .Values.ORIGIN_NAMESPACE }}/"
+    - key: "composite/{{ $compositeId }}/"
+{{- end }}
