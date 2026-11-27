@@ -29,6 +29,14 @@
       "description": "Image of cr-synchronizer",
       "default": "",
       "internal": true
+    },
+    "CR_SYNCHRONIZER_IMAGE_PULL_POLICY": {
+      "$id": "#/properties/CR_SYNCHRONIZER_IMAGE_PULL_POLICY",
+      "type": "string",
+      "title": "The CR_SYNCHRONIZER_IMAGE_PULL_POLICY schema",
+      "description": "Pull policy of the cr-synchronizer image: Always, IfNotPresent, or Never. Empty means IfNotPresent",
+      "default": "",
+      "internal": true
     }
   },
   "additionalProperties": true
