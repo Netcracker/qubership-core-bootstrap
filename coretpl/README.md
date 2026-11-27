@@ -80,7 +80,7 @@ The library requires the following configuration parameters:
 | `SERVICE_NAME` | Name of the service being deployed                    |
 | `NAMESPACE` | Target deployment namespace                           |
 | `CR_SYNCHRONIZER_IMAGE` | Image for the CR synchronizer. For a tag that moves, such as `latest`, see `CR_SYNCHRONIZER_IMAGE_PULL_POLICY` |
-| `CR_SYNCHRONIZER_IMAGE_PULL_POLICY` | Pull policy of the CR synchronizer image: `Always`, `IfNotPresent`, or `Never` (default: `IfNotPresent`). With `IfNotPresent`, a node that already holds the image tag keeps running that copy, so set `Always` when `CR_SYNCHRONIZER_IMAGE` names a tag that moves, such as `latest`. Since 0.2.5 |
+| `CR_SYNCHRONIZER_IMAGE_PULL_POLICY` | Pull policy of the CR synchronizer image: `Always`, `IfNotPresent`, or `Never` (default: `IfNotPresent`). With `IfNotPresent`, a node that already holds the image tag keeps running that copy, so set `Always` when `CR_SYNCHRONIZER_IMAGE` names a tag that moves, such as `latest`. Since 0.2.6 |
 | `RESOURCE_POLLING_TIMEOUT` | Timeout for resource polling in seconds (default: 300) |
 | `API_DBAAS_ADDRESS` | DBaaS aggregator address, `http://<aggregator>.<namespace>:<port>`. Needed only by `coretpl.dbaasNamespace` |
 | `CONSUL_URL` | Consul address, `http://<consul>.<namespace>:<port>`. Needed where `coretpl.consulacl.enabled` returns `true`. The render fails when the second label of the host is missing, empty, or all digits |
