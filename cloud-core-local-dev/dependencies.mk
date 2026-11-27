@@ -28,7 +28,7 @@
 # qubership-dbaas: the bootstrap scripts and charts, and the image tag of dbaas-aggregator, which
 # follows the ref. qubership-dbaas is released with semver tags, so the pin is a release tag.
 # renovate: datasource=github-tags depName=Netcracker/qubership-dbaas
-DBAAS_REPO_BRANCH ?= v6.17.0
+DBAAS_REPO_BRANCH ?= v6.17.1
 
 # -----------------------------------------------------------------------------
 # MaaS
@@ -37,7 +37,7 @@ DBAAS_REPO_BRANCH ?= v6.17.0
 # qubership-maas: the charts, and the MaaS image tag, which the maas makefile derives from the ref:
 # latest for main, the tag itself for a tag such as v5.6.2, <branch>-snapshot for another branch.
 # renovate: datasource=github-tags depName=Netcracker/qubership-maas
-MAAS_BRANCH ?= v5.7.1
+MAAS_BRANCH ?= v5.7.2
 
 # -----------------------------------------------------------------------------
 # Istio
@@ -45,7 +45,7 @@ MAAS_BRANCH ?= v5.7.1
 
 # qubership-istio: the Istio distribution and configuration. Its release tags have no v prefix.
 # renovate: datasource=github-tags depName=Netcracker/qubership-istio
-ISTIO_REPO_BRANCH ?= 1.5.0
+ISTIO_REPO_BRANCH ?= 1.6.0
 
 # -----------------------------------------------------------------------------
 # Core mesh config
@@ -61,4 +61,4 @@ CORE_MESH_CONFIG_REPO_BRANCH ?= v1.0.7
 
 # qubership-consul: the Consul chart, installed from the archive of this release; TEST_BRANCH does not apply.
 # renovate: datasource=github-tags depName=Netcracker/qubership-consul
-CONSUL_VERSION ?= 0.15.6
+CONSUL_VERSION ?= 0.15.7
