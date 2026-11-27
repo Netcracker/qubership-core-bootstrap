@@ -6,7 +6,7 @@
 
 {{- with $currentScope }}
 {{- $disabled := eq (toString .Values.CORE_TPL_MS_CONSULACL_ENABLED) "false" -}}
-{{- if and (include "consulacl.enabled" .) (not $disabled) }}
+{{- if and (include "coretpl.consulacl.enabled" .) (not $disabled) }}
 {{- $compositeId := default .Values.ORIGIN_NAMESPACE .Values.BASELINE_ORIGIN }}
 ---
 apiVersion: netcracker.com/v1
@@ -17,7 +17,7 @@ metadata:
   labels:
     deployer.cleanup/allow: "true"
 spec:
-  operatorNamespace: {{ include "consulacl.operatorNamespace" . | quote }}
+  operatorNamespace: {{ include "coretpl.consulacl.operatorNamespace" . | quote }}
   acl:
     name: {{ .Values.NAMESPACE }}_{{ .Values.SERVICE_NAME }}
     explicitName: true
@@ -85,7 +85,7 @@ metadata:
   labels:
     deployer.cleanup/allow: "true"
 spec:
-  operatorNamespace: {{ include "consulacl.operatorNamespace" . | quote }}
+  operatorNamespace: {{ include "coretpl.consulacl.operatorNamespace" . | quote }}
   kv:
     - key: "config/{{ .Values.NAMESPACE }}/{{ .Values.SERVICE_NAME }}/"
     - key: "data/{{ .Values.NAMESPACE }}/{{ .Values.SERVICE_NAME }}/"

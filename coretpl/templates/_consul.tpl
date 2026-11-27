@@ -21,7 +21,7 @@ The ACL operator runs next to Consul, so the namespace is read from CONSUL_URL,
 http://<consul>.<namespace>[.<domain>]:<port>. The render fails when the second label of the
 host is missing, empty, or all digits, as in an IP address, since none of those names a namespace.
 */}}
-{{- define "consulacl.operatorNamespace" -}}
+{{- define "coretpl.consulacl.operatorNamespace" -}}
 {{- $host := first (splitList ":" (last (splitList "://" (.Values.CONSUL_URL | default "" | toString)))) -}}
 {{- $parts := splitList "." $host -}}
 {{- $namespace := "" -}}
@@ -34,7 +34,7 @@ host is missing, empty, or all digits, as in an IP address, since none of those 
 {{- $namespace -}}
 {{- end -}}
 
-{{- define "consulacl.enabled" -}}
+{{- define "coretpl.consulacl.enabled" -}}
 {{- $mode := include "coretpl.consulAuthMode" . -}}
 {{- if and (.Capabilities.APIVersions.Has "netcracker.com/v1/ConsulACL") (has $mode (list "hybrid" "k8s")) -}}
 true

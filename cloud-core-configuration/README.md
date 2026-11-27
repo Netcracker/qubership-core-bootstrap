@@ -20,7 +20,7 @@ and namespace, and for the Consul helpers. Run `helm dependency update` in `helm
 `cloud-core-local-dev` does this itself. Where the cluster serves the DBaaS Operator API, an `API_DBAAS_ADDRESS`
 without a namespace fails the render.
 
-Where `consulacl.enabled` of coretpl returns `true`, the chart renders the `ConsulACL` `cloud-core` with the binding
+Where `coretpl.consulacl.enabled` returns `true`, the chart renders the `ConsulACL` `cloud-core` with the binding
 rule that gives a ServiceAccount of `NAMESPACE` other than `default` the role `<NAMESPACE>_<ServiceAccount>_v2`. Each
 service declares that role and its policies in its own `ConsulACL`. The chart also renders a `ConsulKV` for
 `config/<NAMESPACE>/application/`, `data/<NAMESPACE>/`, `bluegreen/<ORIGIN_NAMESPACE>/`, and `composite/<composite>/`,
