@@ -50,7 +50,7 @@ help:
 	@echo ""
 	@echo "Runs mesh smoke test for the given namespace."
 	@echo "The test verifies that traffic goes through Istio mesh: ztunnel, public-gateway, waypoint."
-	@echo "Confirms that fallback route from Istio public gateway to core-mesh public gateway is working fine."
+	@echo "Confirms that /mesh-test/health reaches mesh-test through the Istio public gateway and the waypoint."
  
 # Validate input parameters
 validate-input:
@@ -220,7 +220,7 @@ full-test: test-start-message validate-input check-gateway-services run-mesh-tes
 	@echo "$(GREEN)   - Ztunnel is registering traffic for mesh test$(NC)"
 	@echo "$(GREEN)   - Public-gateway-service is pointing to public-gateway-istio$(NC)"
 	@echo "$(GREEN)   - Public-gateway-istio has received traffic for mesh test service$(NC)"
-	@echo "$(GREEN)   - Fallback route on public-gateway-istio is working fine$(NC)"
+	@echo "$(GREEN)   - Public gateway routes /mesh-test/health to mesh-test$(NC)"
 	@echo "$(GREEN)   - Waypoint has received traffic for mesh test service$(NC)"
 	@echo ""
 	@echo "$(GREEN)=== Full Istio Mesh test completed for namespace \"$(NAMESPACE)\"(NC)"
