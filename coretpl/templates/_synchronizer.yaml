@@ -29,7 +29,7 @@ spec:
         image: "{{ .Values.CR_SYNCHRONIZER_IMAGE }}"
         command: ['/app/cr-checker']
         args: ['-post']
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: {{ .Values.CR_SYNCHRONIZER_IMAGE_PULL_POLICY | default "IfNotPresent" }}
         resources:
           requests:
             cpu: '50m'
@@ -117,7 +117,7 @@ spec:
       containers:
       - name: {{ template "synchronizer.preinstall.job" . }}
         image: {{ .Values.CR_SYNCHRONIZER_IMAGE }}
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: {{ .Values.CR_SYNCHRONIZER_IMAGE_PULL_POLICY | default "IfNotPresent" }}
         env:
           - name: GOMEMLIMIT
             valueFrom:
