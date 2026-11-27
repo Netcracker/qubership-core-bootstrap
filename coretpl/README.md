@@ -21,6 +21,7 @@ dependencies:
 2. Include the templates in your chart by creating a `corebootstrap.yaml` file in the `templates` directory with the following content:
 ```yaml
 {{ include "coretpl.synchronizer.hooks" . }}
+{{ include "coretpl.bootstrap.hooks" (dict "values" .) }}
 ```
 
 3. To declare databases for the DBaaS Operator, take `spec.operatorNamespace` of the CRs from the
@@ -42,6 +43,32 @@ kind: InternalDatabase
 {{- end }}
 ```
 
+5. `coretpl.bootstrap.hooks` renders the Consul access of the service where `coretpl.consulacl.enabled` returns `true`:
+   in the Consul auth modes `hybrid` and `k8s`, on a cluster that serves the `ConsulACL` CRD. It renders:
+   - a `ConsulACL` with the role `<NAMESPACE>_<SERVICE_NAME>_v2` and its policies, all in this resource: write to
+     `config/<NAMESPACE>/<SERVICE_NAME>/`, `data/<NAMESPACE>/`, and sessions; read of `config/<NAMESPACE>/application/`,
+     `logging/<NAMESPACE>/<SERVICE_NAME>/`, `bluegreen/`, and `composite/<composite>/`, where `<composite>` is
+     `BASELINE_ORIGIN`, or `ORIGIN_NAMESPACE` when it is empty. The binding rule of cloud-core-configuration gives the
+     role only to the ServiceAccount named `SERVICE_NAME`; a pod under `default` gets no role and cannot log in;
+   - a `ConsulKV` for `config/<NAMESPACE>/<SERVICE_NAME>/`, `data/<NAMESPACE>/<SERVICE_NAME>/`, and
+     `logging/<NAMESPACE>/<SERVICE_NAME>/`. Deleting it keeps the keys under them.
+
+   A service that needs other rights sets `CORE_TPL_MS_CONSULACL_ENABLED: false` and renders its own resources. It
+   takes `spec.operatorNamespace` from `coretpl.consulacl.operatorNamespace`, the namespace part of `CONSUL_URL`:
+```yaml
+{{- if include "coretpl.consulacl.enabled" . }}
+apiVersion: netcracker.com/v1
+kind: ConsulACL
+spec:
+  operatorNamespace: {{ include "coretpl.consulacl.operatorNamespace" . | quote }}
+...
+{{- end }}
+```
+
+   `coretpl.consulAuthMode` returns the mode and fails the render on a value other than `legacy`, `hybrid`, or `k8s`.
+   `coretpl.consulacl.enabled` takes the mode from it, so such a value fails the render whether or not the cluster
+   serves the `ConsulACL` CRD.
+
 ## Configuration
 
 The library requires the following configuration parameters:
@@ -55,6 +82,12 @@ The library requires the following configuration parameters:
 | `CR_SYNCHRONIZER_IMAGE` | Image for the CR synchronizer                         |
 | `RESOURCE_POLLING_TIMEOUT` | Timeout for resource polling in seconds (default: 300) |
 | `API_DBAAS_ADDRESS` | DBaaS aggregator address, `http://<aggregator>.<namespace>:<port>`. Needed only by `coretpl.dbaasNamespace` |
+| `CONSUL_URL` | Consul address, `http://<consul>.<namespace>:<port>`. Needed where `coretpl.consulacl.enabled` returns `true`. The render fails when the second label of the host is missing, empty, or all digits |
+| `CONSUL_AUTH_MODE` | Consul auth mode for testing only: `legacy`, `hybrid`, or `k8s`, matched exactly; overrides `M2M_AUTH_MODE`. Needed by `coretpl.consulAuthMode` and `coretpl.consulacl.enabled` |
+| `M2M_AUTH_MODE` | Consul auth mode when `CONSUL_AUTH_MODE` is empty, matched case-insensitively with surrounding whitespace ignored, as the services read it; `legacy` when both are empty |
+| `ORIGIN_NAMESPACE` | Names the policy `<ORIGIN_NAMESPACE>_<SERVICE_NAME>_read_bluegreen_v2` (read of `bluegreen/`) of the Consul role, and is the composite of step 5 when `BASELINE_ORIGIN` is empty |
+| `BASELINE_ORIGIN` | On a satellite, the composite whose `composite/<BASELINE_ORIGIN>/` the Consul role of step 5 reads |
+| `CORE_TPL_MS_CONSULACL_ENABLED` | `false` turns off the Consul access of step 5; any other value or unset keeps it |
 
 ## Version Information
 

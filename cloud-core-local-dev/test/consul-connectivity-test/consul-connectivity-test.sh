@@ -15,10 +15,10 @@ while true; do
 
     echo 'Attempt '\$((ELAPSED_TIME / \$RETRY_INTERVAL + 1)) '- Checking Consul connectivity... ('\$((TIMEOUT - ELAPSED_TIME))'s remaining)';
 
-    if curl -s -f http://\$CONSUL_SERVICE_NAME.\$CONSUL_NAMESPACE.\$INGRESS_GATEWAY_CLOUD_PRIVATE_HOST:8500/v1/status/leader >/dev/null 2>&1; then
+    if curl -s -f \$CONSUL_URL/v1/status/leader >/dev/null 2>&1; then
         echo '✓ Consul API is responding';
         
-        if curl -s -f http://\$CONSUL_SERVICE_NAME.\$CONSUL_NAMESPACE.\$INGRESS_GATEWAY_CLOUD_PRIVATE_HOST:8500/v1/status/peers >/dev/null 2>&1; then
+        if curl -s -f \$CONSUL_URL/v1/status/peers >/dev/null 2>&1; then
             echo '✓ Consul cluster is healthy';
             echo '✓ Consul connectivity check successful!';
             exit 0;

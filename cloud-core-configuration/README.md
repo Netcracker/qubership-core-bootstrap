@@ -16,5 +16,14 @@ App chart for Cloud Core is intended to run project predeploy script before serv
   installed. The RoleBinding subject namespace is taken from `API_DBAAS_ADDRESS`.
 
 The chart depends on `coretpl` from this repository (`file://../../coretpl`) for the DBaaS Operator capability guard
-and namespace. Run `helm dependency update` in `helm-charts` before installing it; `cloud-core-local-dev` does this
-itself. Where the cluster serves the DBaaS Operator API, an `API_DBAAS_ADDRESS` without a namespace fails the render.
+and namespace, and for the Consul helpers. Run `helm dependency update` in `helm-charts` before installing it;
+`cloud-core-local-dev` does this itself. Where the cluster serves the DBaaS Operator API, an `API_DBAAS_ADDRESS`
+without a namespace fails the render.
+
+Where `coretpl.consulacl.enabled` returns `true`, the chart renders the `ConsulACL` `cloud-core` with the binding
+rule that gives a ServiceAccount of `NAMESPACE` other than `default` the role `<NAMESPACE>_<ServiceAccount>_v2`. Each
+service declares that role and its policies in its own `ConsulACL`. The chart also renders a `ConsulKV` for
+`config/<NAMESPACE>/application/`, `data/<NAMESPACE>/`, `bluegreen/<ORIGIN_NAMESPACE>/`, and `composite/<composite>/`,
+where `<composite>` is `BASELINE_ORIGIN`, or `ORIGIN_NAMESPACE` when it is empty; deleting the release keeps the keys
+under them. These resources need `CONSUL_URL` with the Consul namespace in its host, `ORIGIN_NAMESPACE`, and, on a
+satellite, `BASELINE_ORIGIN`; without a namespace in `CONSUL_URL` the render fails.

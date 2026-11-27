@@ -22,6 +22,7 @@ const (
 	ConfigMapV1
 	HorizontalPodAutoscalerAutoscalingV2
 	PodMonitorMonitoringCoreosComV1
+	SecretV1
 )
 
 func (resourceType K8sVersionedResourceType) Kind() string {
@@ -36,6 +37,8 @@ func (resourceType K8sVersionedResourceType) Kind() string {
 		return "HorizontalPodAutoscaler"
 	case PodMonitorMonitoringCoreosComV1:
 		return "PodMonitor"
+	case SecretV1:
+		return "Secret"
 	default:
 		return fmt.Sprintf("<unknown Kind of K8sVersionedResourceType: %v>", int(resourceType))
 	}
@@ -45,7 +48,7 @@ func (resourceType K8sVersionedResourceType) AppVersion() string {
 	switch resourceType {
 	case DeploymentAppsV1:
 		return "apps/v1"
-	case ServiceV1, ConfigMapV1:
+	case ServiceV1, ConfigMapV1, SecretV1:
 		return "v1"
 	case HorizontalPodAutoscalerAutoscalingV2:
 		return "autoscaling/v2"
@@ -163,6 +166,12 @@ func DeleteK8sConfigMap(ctx context.Context, namespace string, configMapName str
 func DeleteK8sHorizontalPodAutoscalerV2(ctx context.Context, namespace string, horizontalPodAutoscalerName string) error {
 	return deleteK8sResource(ctx, HorizontalPodAutoscalerAutoscalingV2, namespace, horizontalPodAutoscalerName, func(ctx context.Context, k8sResourceName string) error {
 		return K8sClient.AutoscalingV2().HorizontalPodAutoscalers(namespace).Delete(ctx, horizontalPodAutoscalerName, metav1.DeleteOptions{})
+	})
+}
+
+func DeleteK8sSecret(ctx context.Context, namespace string, secretName string) error {
+	return deleteK8sResource(ctx, SecretV1, namespace, secretName, func(ctx context.Context, k8sResourceName string) error {
+		return K8sClient.CoreV1().Secrets(namespace).Delete(ctx, secretName, metav1.DeleteOptions{})
 	})
 }
 
