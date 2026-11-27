@@ -28,6 +28,10 @@ data:
           default_type application/json;
           return 200 '{"status": "healthy", "service": "mesh-test", "timestamp": "$time_iso8601"}';
         }
+        location = /mesh-test/health {
+          default_type application/json;
+          return 200 '{"status": "healthy", "service": "mesh-test", "timestamp": "$time_iso8601"}';
+        }
       }
     }
 ---
@@ -97,4 +101,41 @@ spec:
               - match:
                   prefix: /mesh-test
                 prefixRewrite: "/"
+---
+# Istio public gateway denies traffic until an ALLOW matches, and no longer falls through to the
+# control-plane gateway. This route is what the smoke test calls: /mesh-test/health, path unchanged
+# so the waypoint log still contains it.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: mesh-test-public-routes
+spec:
+  parentRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: public-gateway
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /mesh-test
+      backendRefs:
+        - name: mesh-test-service
+          port: 8080
+---
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: mesh-test-public-allow
+spec:
+  targetRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: public-gateway
+  action: ALLOW
+  rules:
+    - to:
+        - operation:
+            paths:
+              - /mesh-test/*
 
