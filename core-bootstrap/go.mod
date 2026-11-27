@@ -4,7 +4,7 @@ go 1.26.9
 
 require (
 	github.com/go-resty/resty/v2 v2.17.2
-	github.com/netcracker/qubership-core-lib-go-rest-utils/v2 v2.12.1-0.20261127092444-acecc53c0613
+	github.com/netcracker/qubership-core-lib-go-rest-utils/v2 v2.12.1-0.20261127110133-31cf2681e66c
 	github.com/stretchr/testify v1.12.1
 	k8s.io/api v0.37.3
 	k8s.io/apimachinery v0.37.3
